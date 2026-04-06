@@ -12,6 +12,7 @@
   </section>
   <!-- prettier-ignore-start -->
   {% if profile.custom_css %}<style>{{ profile.custom_css|safe }}</style>{% endif %}
+  {% if profile.custom_html %}{{ profile.custom_html|safe }}{% endif %}
   <!-- prettier-ignore-end -->
   <section class="panel">
     <h2>pages</h2>

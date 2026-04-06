@@ -402,6 +402,18 @@ def settings_css(request: Request, custom_css: str = Form("")):
     return RedirectResponse(url="/settings", status_code=303)
 
 
+@app.post("/settings/html")
+def settings_html(request: Request, custom_html: str = Form("")):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with engine.begin() as conn:
+        conn.execute(
+            update(users).where(users.c.id == me["id"]).values(custom_html=custom_html)
+        )
+    return RedirectResponse(url="/settings", status_code=303)
+
+
 @app.post("/settings/card")
 def settings_card(
     request: Request,

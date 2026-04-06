@@ -22,6 +22,7 @@ def get_public_page(conn: Connection, username: str, slug: str):
             users.c.username,
             users.c.display_name,
             users.c.custom_css,
+            users.c.custom_html,
         )
         .select_from(pages.join(users, pages.c.user_id == users.c.id))
         .where(

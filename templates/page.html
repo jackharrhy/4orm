@@ -3,6 +3,7 @@
 {% block content %}
   <!-- prettier-ignore-start -->
   {% if page.custom_css %}<style>{{ page.custom_css|safe }}</style>{% endif %}
+  {% if page.custom_html %}{{ page.custom_html|safe }}{% endif %}
   <!-- prettier-ignore-end -->
   <article class="panel content-html">
     <h1>{{ page.title }}</h1>

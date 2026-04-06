@@ -22,10 +22,16 @@
   <details class="panel">
     <summary><h2>css</h2></summary>
     <form method="post" action="/settings/css" class="stack">
-      <textarea name="custom_css" rows="10" data-codemirror="css">
-{{ me.custom_css }}</textarea
-      >
+      <textarea name="custom_css" rows="10" data-codemirror="css">{{ me.custom_css }}</textarea>
       <button>save css</button>
+    </form>
+  </details>
+  <details class="panel">
+    <summary><h2>custom html</h2></summary>
+    <p class="muted">injected into your profile and pages. supports scripts.</p>
+    <form method="post" action="/settings/html" class="stack">
+      <textarea name="custom_html" rows="10" data-codemirror="html">{{ me.custom_html }}</textarea>
+      <button>save html</button>
     </form>
   </details>
   <details class="panel">
