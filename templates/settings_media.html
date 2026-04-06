@@ -26,7 +26,7 @@
           <p><a href="/uploads/{{ item.storage_path }}">download file</a></p>
         {% endif %}
 
-        <p class="muted">{{ item.mime_type }} · {{ item.size_bytes }} bytes</p>
+        <p class="muted">{{ item.mime_type }} · {{ item.size_bytes|human_bytes }}</p>
         <p><code>/uploads/{{ item.storage_path }}</code></p>
 
         <form method="post" action="/settings/media/{{ item.id }}/rename" class="stack">

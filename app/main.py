@@ -43,6 +43,22 @@ def clean_filename(name: str) -> str:
     return f"{safe_stem}{suffix}"
 
 
+def human_bytes(size: int | None) -> str:
+    if size is None:
+        return "0 B"
+    units = ["B", "KB", "MB", "GB", "TB"]
+    value = float(size)
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(value)} {unit}"
+            return f"{value:.1f} {unit}"
+        value /= 1024
+
+
+templates.env.filters["human_bytes"] = human_bytes
+
+
 @app.on_event("startup")
 def on_startup():
     create_all(engine)
