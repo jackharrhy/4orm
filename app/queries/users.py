@@ -64,7 +64,7 @@ def create_user_with_invite(
     )
 
     conn.execute(
-        insert(profile_cards).values(user_id=user_id, headline=f"{username}'s card")
+        insert(profile_cards).values(user_id=user_id, headline=f"{username}'s page")
     )
     return get_user_by_id(conn, user_id), None
 
