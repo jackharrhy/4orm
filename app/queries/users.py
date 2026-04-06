@@ -79,6 +79,58 @@ def create_invite(conn: Connection, creator_user_id: int, max_uses: int = 1) -> 
     return code
 
 
+def get_invites_for_user(conn: Connection, user_id: int):
+    rows = (
+        conn.execute(
+            select(invites)
+            .where(invites.c.created_by_user_id == user_id)
+            .order_by(invites.c.created_at.desc())
+        )
+        .mappings()
+        .all()
+    )
+    result = []
+    for inv in rows:
+        redeemed_by = (
+            conn.execute(
+                select(users.c.username, users.c.display_name).where(
+                    users.c.invite_id == inv["id"]
+                )
+            )
+            .mappings()
+            .all()
+        )
+        exhausted = inv["uses_count"] >= inv["max_uses"]
+        if inv["disabled"]:
+            status = "disabled"
+        elif exhausted:
+            status = "exhausted"
+        else:
+            status = "active"
+        result.append(
+            {
+                **inv,
+                "redeemed_by": list(redeemed_by),
+                "status": status,
+            }
+        )
+    return result
+
+
+def disable_invite(conn: Connection, invite_id: int, user_id: int) -> bool:
+    result = conn.execute(
+        update(invites)
+        .where(
+            and_(
+                invites.c.id == invite_id,
+                invites.c.created_by_user_id == user_id,
+            )
+        )
+        .values(disabled=True)
+    )
+    return result.rowcount > 0
+
+
 def list_inventory_cards(conn: Connection):
     q = (
         select(
