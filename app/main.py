@@ -19,6 +19,7 @@ from app.queries.media import (
 )
 from app.queries.pages import (
     create_page,
+    delete_user_page,
     get_public_page,
     get_user_page,
     list_pages_for_user,
@@ -101,6 +102,10 @@ templates.env.filters["human_bytes"] = human_bytes
 
 def get_engine(request: Request):
     return request.app.state.engine
+
+
+def is_htmx(request: Request) -> bool:
+    return request.headers.get("HX-Request") == "true"
 
 
 def current_user(request: Request):
@@ -263,6 +268,7 @@ def settings_get(request: Request):
         "settings.html",
         {
             "me": me,
+            "username": me["username"],
             "my_pages": my_pages,
             "card_settings": card_settings,
             "media_items": media_items,
@@ -362,7 +368,26 @@ async def settings_media_upload(
             mime_type=file.content_type or "application/octet-stream",
             size_bytes=len(content),
         )
+        if is_htmx(request):
+            item = (
+                conn.execute(select(media).where(media.c.storage_path == rel_path))
+                .mappings()
+                .first()
+            )
+            return templates.TemplateResponse(
+                request, "fragments/media_card.html", {"item": item}
+            )
 
+    return RedirectResponse(url="/settings/media", status_code=303)
+
+
+def _media_card_response(request: Request, me, media_id):
+    with get_engine(request).begin() as conn:
+        item = get_media_for_user(conn, me["id"], media_id)
+    if item and is_htmx(request):
+        return templates.TemplateResponse(
+            request, "fragments/media_card.html", {"item": item}
+        )
     return RedirectResponse(url="/settings/media", status_code=303)
 
 
@@ -376,7 +401,7 @@ def settings_media_alt(request: Request, media_id: int, alt_text: str = Form("")
         if not item:
             raise HTTPException(404)
         update_media_alt_text(conn, me["id"], media_id, alt_text)
-    return RedirectResponse(url="/settings/media", status_code=303)
+    return _media_card_response(request, me, media_id)
 
 
 @app.post("/settings/media/{media_id}/delete")
@@ -392,6 +417,8 @@ def settings_media_delete(request: Request, media_id: int):
     disk_path = UPLOADS_DIR / item["storage_path"]
     if disk_path.exists():
         disk_path.unlink()
+    if is_htmx(request):
+        return HTMLResponse("")
     return RedirectResponse(url="/settings/media", status_code=303)
 
 
@@ -434,7 +461,13 @@ def settings_media_rename(request: Request, media_id: int, filename: str = Form(
         rel_path = f"{username}/{new_path.name}"
         update_media_storage_path(conn, me["id"], media_id, rel_path)
 
-    return RedirectResponse(url="/settings/media", status_code=303)
+    return _media_card_response(request, me, media_id)
+
+
+def _saved_or_redirect(request: Request, url: str = "/settings"):
+    if is_htmx(request):
+        return templates.TemplateResponse(request, "fragments/saved.html")
+    return RedirectResponse(url=url, status_code=303)
 
 
 @app.post("/settings/profile")
@@ -457,7 +490,7 @@ def settings_profile(
                 content_format=content_format,
             )
         )
-    return RedirectResponse(url="/settings", status_code=303)
+    return _saved_or_redirect(request)
 
 
 @app.post("/settings/css")
@@ -469,7 +502,7 @@ def settings_css(request: Request, custom_css: str = Form("")):
         conn.execute(
             update(users).where(users.c.id == me["id"]).values(custom_css=custom_css)
         )
-    return RedirectResponse(url="/settings", status_code=303)
+    return _saved_or_redirect(request)
 
 
 @app.post("/settings/html")
@@ -481,7 +514,7 @@ def settings_html(request: Request, custom_html: str = Form("")):
         conn.execute(
             update(users).where(users.c.id == me["id"]).values(custom_html=custom_html)
         )
-    return RedirectResponse(url="/settings", status_code=303)
+    return _saved_or_redirect(request)
 
 
 @app.post("/settings/card")
@@ -511,7 +544,15 @@ def settings_card(
                 card_css=card_css,
             )
         )
-    return RedirectResponse(url="/settings", status_code=303)
+    return _saved_or_redirect(request)
+
+
+def _invites_fragment(request: Request, me):
+    with get_engine(request).begin() as conn:
+        my_invites = get_invites_for_user(conn, me["id"])
+    return templates.TemplateResponse(
+        request, "fragments/invites.html", {"my_invites": my_invites}
+    )
 
 
 @app.post("/settings/invites")
@@ -522,6 +563,9 @@ def settings_invites(request: Request, max_uses: int = Form(1)):
 
     with get_engine(request).begin() as conn:
         code = create_invite(conn, me["id"], max_uses=max(1, min(50, max_uses)))
+
+    if is_htmx(request):
+        return _invites_fragment(request, me)
     return RedirectResponse(url=f"/settings?new_invite={code}", status_code=303)
 
 
@@ -532,6 +576,9 @@ def settings_invite_delete(request: Request, invite_id: int):
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
         disable_invite(conn, invite_id, me["id"])
+
+    if is_htmx(request):
+        return _invites_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -566,6 +613,23 @@ def settings_pages(
     return RedirectResponse(
         url=f"/u/{me['username']}/page/{slug.strip()}", status_code=303
     )
+
+
+@app.post("/settings/pages/{slug}/delete")
+def settings_page_delete(request: Request, slug: str):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        delete_user_page(conn, me["id"], slug)
+        if is_htmx(request):
+            my_pages = list_pages_for_user(conn, me["id"])
+            return templates.TemplateResponse(
+                request,
+                "fragments/pages_list.html",
+                {"my_pages": my_pages, "username": me["username"]},
+            )
+    return RedirectResponse(url="/settings", status_code=303)
 
 
 @app.get("/settings/pages/{slug}/edit", response_class=HTMLResponse)
@@ -745,3 +809,48 @@ def admin_cleanup_records(request: Request):
                 conn.execute(media.delete().where(media.c.id == media_id))
                 removed += 1
     return RedirectResponse(url=f"/admin?cleaned_records={removed}", status_code=303)
+
+
+@app.post("/admin/users/{user_id}/toggle-admin")
+def admin_toggle_admin(request: Request, user_id: int):
+    me = require_admin(request)
+    with get_engine(request).begin() as conn:
+        user = get_user_by_id(conn, user_id)
+        if not user:
+            raise HTTPException(404)
+        new_val = not user["is_admin"]
+        conn.execute(
+            update(users).where(users.c.id == user_id).values(is_admin=new_val)
+        )
+        # Refetch for the response
+        u = (
+            conn.execute(
+                select(
+                    users.c.id,
+                    users.c.username,
+                    users.c.display_name,
+                    users.c.is_admin,
+                    users.c.created_at,
+                ).where(users.c.id == user_id)
+            )
+            .mappings()
+            .first()
+        )
+        stats = (
+            conn.execute(
+                select(
+                    func.count(media.c.id).label("file_count"),
+                    func.coalesce(func.sum(media.c.size_bytes), 0).label("total_bytes"),
+                ).where(media.c.user_id == user_id)
+            )
+            .mappings()
+            .first()
+        )
+
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            request,
+            "fragments/admin_user_row.html",
+            {"u": u, "stats": stats},
+        )
+    return RedirectResponse(url="/admin", status_code=303)

@@ -127,6 +127,53 @@ def test_disable_invite(authed_client, test_engine, seed_user):
     assert "disabled" in r.text
 
 
+def test_save_profile_htmx(authed_client):
+    r = authed_client.post(
+        "/settings/profile",
+        data={
+            "display_name": "HTMX Name",
+            "content": "htmx content",
+            "content_format": "html",
+        },
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    assert "saved" in r.text.lower()
+
+
+def test_save_css_htmx(authed_client):
+    r = authed_client.post(
+        "/settings/css",
+        data={"custom_css": "body{}"},
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    assert "saved" in r.text.lower()
+
+
+def test_page_delete(authed_client, seed_user):
+    authed_client.post(
+        "/settings/pages",
+        data={
+            "slug": "to-delete",
+            "title": "Delete Me",
+            "content": "bye",
+            "content_format": "html",
+        },
+    )
+
+    r = authed_client.post(
+        "/settings/pages/to-delete/delete",
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    assert "to-delete" not in r.text
+
+    # Verify page is gone
+    r2 = authed_client.get(f"/u/{seed_user['username']}/page/to-delete")
+    assert r2.status_code == 404
+
+
 def test_media_page_renders(authed_client):
     r = authed_client.get("/settings/media")
     assert r.status_code == 200

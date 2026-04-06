@@ -1,0 +1,25 @@
+<tr id="user-row-{{ u.id }}">
+  <td><a href="/u/{{ u.username }}">{{ u.username }}</a></td>
+  <td>{{ u.display_name }}</td>
+  <td style="text-align: right">{{ stats.get('file_count', 0) }}</td>
+  <td style="text-align: right">
+    {{ stats.get('total_bytes', 0)|human_bytes }}
+  </td>
+  <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}</td>
+  <td>{{ 'admin' if u.is_admin else '' }}</td>
+  <td>
+    {% if not u.is_admin %}
+      <form
+        method="post"
+        action="/admin/users/{{ u.id }}/toggle-admin"
+        class="inline"
+        hx-post="/admin/users/{{ u.id }}/toggle-admin"
+        hx-target="#user-row-{{ u.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Make {{ u.username }} an admin?"
+      >
+        <button type="submit">make admin</button>
+      </form>
+    {% endif %}
+  </td>
+</tr>

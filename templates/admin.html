@@ -25,12 +25,13 @@
           <th style="text-align: right">storage</th>
           <th style="text-align: left">joined</th>
           <th style="text-align: left">role</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {% for u in all_users %}
           {% set stats = storage_by_user.get(u.id, {}) %}
-          <tr>
+          <tr id="user-row-{{ u.id }}">
             <td>
               <a href="/u/{{ u.username }}">{{ u.username }}</a>
             </td>
@@ -43,6 +44,21 @@
               {{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}
             </td>
             <td>{{ 'admin' if u.is_admin else '' }}</td>
+            <td>
+              {% if not u.is_admin %}
+                <form
+                  method="post"
+                  action="/admin/users/{{ u.id }}/toggle-admin"
+                  class="inline"
+                  hx-post="/admin/users/{{ u.id }}/toggle-admin"
+                  hx-target="#user-row-{{ u.id }}"
+                  hx-swap="outerHTML"
+                  hx-confirm="Make {{ u.username }} an admin?"
+                >
+                  <button type="submit">make admin</button>
+                </form>
+              {% endif %}
+            </td>
           </tr>
         {% endfor %}
       </tbody>
@@ -61,29 +77,5 @@
       </button>
       <span id="orphan-spinner" class="htmx-indicator muted"> scanning...</span>
     </div>
-  </section>
-  <section class="panel">
-    <h2>orphaned records</h2>
-    <p class="muted">database records whose files are missing from disk</p>
-    {% if orphaned_records %}
-      <ul>
-        {% for path in orphaned_records %}
-          <li><code>{{ path }}</code></li>
-        {% endfor %}
-      </ul>
-      <form
-        method="post"
-        action="/admin/cleanup/records"
-        class="inline"
-        style="margin-top: 10px"
-        onsubmit="return confirm('Delete {{ orphaned_records|length }} orphaned record(s) from database?');"
-      >
-        <button type="submit">
-          delete {{ orphaned_records|length }} orphaned record(s)
-        </button>
-      </form>
-    {% else %}
-      <p>none found.</p>
-    {% endif %}
   </section>
 {% endblock %}

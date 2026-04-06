@@ -1,9 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}media settings{% endblock %}
-{%
-  block
-  content
-%}
+{% block content %}
   <h1>media library</h1>
   <p>
     <a href="/settings">← back to settings</a>
@@ -33,6 +30,10 @@
       action="/settings/media/upload"
       enctype="multipart/form-data"
       class="stack"
+      hx-post="/settings/media/upload"
+      hx-target="#media-grid"
+      hx-swap="beforeend"
+      hx-encoding="multipart/form-data"
     >
       <label>
         file
@@ -47,69 +48,9 @@
   </section>
   <section class="panel">
     <h2>your uploads</h2>
-    <div class="cards">
+    <div id="media-grid" class="cards">
       {% for item in items %}
-        <article class="card" style="background: #fff; border-style: solid">
-          {% if item.mime_type.startswith('image/') %}
-            <img
-              src="/uploads/{{ item.storage_path }}"
-              alt="{{ item.alt_text }}"
-              style="max-width: 100%;
-                        border: 1px solid #000"
-            />
-          {% elif item.mime_type.startswith('video/') %}
-            <video
-              controls
-              src="/uploads/{{ item.storage_path }}"
-              style="max-width: 100%;
-                          border: 1px solid #000"
-            ></video>
-          {% else %}
-            <p>
-              <a href="/uploads/{{ item.storage_path }}">download file</a>
-            </p>
-          {% endif %}
-          <p class="muted">
-            {{ item.mime_type }} · {{ item.size_bytes|human_bytes }}
-          </p>
-          <p>
-            <code>/uploads/{{ item.storage_path }}</code>
-          </p>
-          <form
-            method="post"
-            action="/settings/media/{{ item.id }}/rename"
-            class="stack"
-          >
-            <label>
-              filename
-              <input
-                name="filename"
-                value="{{ item.storage_path.split('/')[-1] }}"
-                required
-              />
-            </label>
-            <button type="submit">rename file</button>
-          </form>
-          <form
-            method="post"
-            action="/settings/media/{{ item.id }}/alt"
-            class="stack"
-          >
-            <label>
-              alt text
-              <input name="alt_text" value="{{ item.alt_text }}" />
-            </label>
-            <button type="submit">save alt</button>
-          </form>
-          <form
-            method="post"
-            action="/settings/media/{{ item.id }}/delete"
-            class="inline"
-            onsubmit="return confirm('Delete this media?');"
-          >
-            <button type="submit">delete</button>
-          </form>
-        </article>
+        {% include 'fragments/media_card.html' %}
       {% else %}
         <p>no media yet.</p>
       {% endfor %}

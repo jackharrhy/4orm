@@ -1,0 +1,28 @@
+<ul>
+  {% for p in my_pages %}
+    <li id="page-{{ p.slug }}">
+      <a href="/u/{{ username }}/page/{{ p.slug }}">{{ p.title }}</a>
+      <span class="muted">({{ 'public' if p.is_public else 'private' }})</span>
+      — <a href="/settings/pages/{{ p.slug }}/edit">edit</a> —
+      <form
+        method="post"
+        action="/settings/pages/{{ p.slug }}/delete"
+        class="inline"
+        style="display: inline"
+        hx-post="/settings/pages/{{ p.slug }}/delete"
+        hx-target="#pages-section"
+        hx-swap="innerHTML"
+        hx-confirm="Delete page '{{ p.title }}'?"
+      >
+        <button
+          type="submit"
+          style="padding: 0; border: none; background: none; color: #0000ee; text-decoration: underline; font: inherit; cursor: pointer"
+        >
+          delete
+        </button>
+      </form>
+    </li>
+  {% else %}
+    <li>no pages yet.</li>
+  {% endfor %}
+</ul>

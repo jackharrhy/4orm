@@ -1,0 +1,51 @@
+<form
+  method="post"
+  action="/settings/invites"
+  class="inline"
+  hx-post="/settings/invites"
+  hx-target="#invites-section"
+  hx-swap="innerHTML"
+>
+  <label>
+    max uses
+    <input type="number" name="max_uses" value="1" min="1" max="50" />
+  </label>
+  <button>create invite</button>
+</form>
+{% if my_invites %}
+  <h3>your invites</h3>
+  <div class="stack">
+    {% for inv in my_invites %}
+      <div class="panel" style="margin: 0">
+        <p>
+          <code>{{ inv.code }}</code>
+          <span class="muted">
+            — {{ inv.uses_count }}/{{ inv.max_uses }} used — {{ inv.status }}
+          </span>
+        </p>
+        {% if inv.redeemed_by %}
+          <p>
+            used by:
+            {% for u in inv.redeemed_by %}
+              <a href="/u/{{ u.username }}">{{ u.display_name }}</a>
+              {% if not loop.last %},{% endif %}
+            {% endfor %}
+          </p>
+        {% endif %}
+        {% if inv.status != 'disabled' %}
+          <form
+            method="post"
+            action="/settings/invites/{{ inv.id }}/delete"
+            class="inline"
+            hx-post="/settings/invites/{{ inv.id }}/delete"
+            hx-target="#invites-section"
+            hx-swap="innerHTML"
+            hx-confirm="Disable this invite code?"
+          >
+            <button type="submit">disable</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

@@ -1,4 +1,4 @@
-from sqlalchemy import insert, select, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.engine import Connection
 
 from app.schema import pages, users
@@ -68,6 +68,10 @@ def list_pages_for_user(conn: Connection, user_id: int):
 def get_user_page(conn: Connection, user_id: int, slug: str):
     q = select(pages).where(pages.c.user_id == user_id, pages.c.slug == slug)
     return conn.execute(q).mappings().first()
+
+
+def delete_user_page(conn: Connection, user_id: int, slug: str):
+    conn.execute(delete(pages).where(pages.c.user_id == user_id, pages.c.slug == slug))
 
 
 def update_user_page(
