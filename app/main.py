@@ -29,10 +29,10 @@ from app.queries.users import (
     create_invite,
     create_user_with_invite,
     disable_invite,
+    get_invite_tree,
     get_invites_for_user,
     get_user_by_id,
     get_user_by_username,
-    lineage_for_user,
     list_inventory_cards,
 )
 from app.schema import create_all, inventory_cards, users
@@ -196,16 +196,14 @@ def page_view(request: Request, username: str, slug: str):
     )
 
 
-@app.get("/lineage/{username}", response_class=HTMLResponse)
-def lineage(request: Request, username: str):
+@app.get("/lineage", response_class=HTMLResponse)
+def lineage(request: Request):
     with engine.begin() as conn:
-        chain = lineage_for_user(conn, username)
-    if not chain:
-        raise HTTPException(404)
+        tree = get_invite_tree(conn)
     return templates.TemplateResponse(
         request,
         "lineage.html",
-        {"chain": chain, "me": current_user(request)},
+        {"tree": tree, "me": current_user(request)},
     )
 
 

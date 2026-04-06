@@ -167,3 +167,41 @@ def lineage_for_user(conn: Connection, username: str):
 
     chain.reverse()
     return chain
+
+
+def get_invite_tree(conn: Connection):
+    """Build the full invite tree as nested dicts.
+
+    Returns a list of root nodes, each with a "children" list.
+    """
+    all_users = (
+        conn.execute(
+            select(
+                users.c.id,
+                users.c.username,
+                users.c.display_name,
+                users.c.invited_by_user_id,
+            ).order_by(users.c.created_at)
+        )
+        .mappings()
+        .all()
+    )
+
+    nodes = {}
+    for u in all_users:
+        nodes[u["id"]] = {
+            "username": u["username"],
+            "display_name": u["display_name"],
+            "children": [],
+        }
+
+    roots = []
+    for u in all_users:
+        node = nodes[u["id"]]
+        parent_id = u["invited_by_user_id"]
+        if parent_id and parent_id in nodes:
+            nodes[parent_id]["children"].append(node)
+        else:
+            roots.append(node)
+
+    return roots

@@ -1,15 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}lineage{% endblock %}
-{%
-  block
-  content
-%}
-  <h1>invite lineage</h1>
-  <ol class="lineage">
-    {% for user in chain %}
-      <li>
-        <a href="/u/{{ user.username }}">{{ user.username }}</a>
-      </li>
-    {% endfor %}
-  </ol>
+{% block content %}
+  <h1>invite tree</h1>
+  {% macro render_tree(nodes) %}
+    <ul class="tree">
+      {% for node in nodes %}
+        <li id="user-{{ node.username }}">
+          <a href="/u/{{ node.username }}">{{ node.display_name }}</a>
+          <span class="muted">@{{ node.username }}</span>
+          {% if node.children %}
+            {{ render_tree(node.children) }}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endmacro %}
+  {{ render_tree(tree) }}
 {% endblock %}

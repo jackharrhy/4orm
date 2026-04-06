@@ -5,10 +5,9 @@
 {% block content %}
   <section class="panel">
     <h1>{{ profile.display_name }}</h1>
-    <p class="muted">@{{ profile.username }}</p>
     <p>{{ profile.bio }}</p>
     <p>
-      <a href="/lineage/{{ profile.username }}">view lineage</a>
+      <a href="/lineage#user-{{ profile.username }}">view lineage</a>
     </p>
   </section>
   <!-- prettier-ignore-start -->

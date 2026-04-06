@@ -168,3 +168,14 @@ code {
   padding: 1px 4px;
   border: 1px solid #999;
 }
+
+.tree {
+  list-style: none;
+  padding-left: 20px;
+}
+.tree li {
+  padding: 2px 0;
+}
+.tree li:target {
+  background: #ffff80;
+}
