@@ -169,6 +169,25 @@ code {
   border: 1px solid #999;
 }
 
+details.panel > summary {
+  cursor: pointer;
+  list-style: none;
+}
+details.panel > summary::-webkit-details-marker {
+  display: none;
+}
+details.panel > summary > h2 {
+  display: inline;
+}
+details.panel > summary > h2::before {
+  content: "\25b6  ";
+  font-size: 0.7em;
+}
+details.panel[open] > summary > h2::before {
+  content: "\25bc  ";
+  font-size: 0.7em;
+}
+
 .tree {
   list-style: none;
   padding-left: 20px;
