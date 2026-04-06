@@ -30,7 +30,12 @@
       </label>
       <label>
         content
-        <textarea id="edit_content_html" name="content_html" rows="16">
+        <textarea
+          id="edit_content_html"
+          name="content_html"
+          rows="16"
+          data-codemirror="html"
+        >
 {{ page.content_html }}</textarea
         >
       </label>
@@ -107,6 +112,13 @@
   </section>
   <script>
     function insertSnippet(textareaId, snippet) {
+      const cm = window._cmEditors && window._cmEditors[textareaId];
+      if (cm) {
+        const pos = cm.state.selection.main.head;
+        cm.dispatch({ changes: { from: pos, insert: snippet } });
+        cm.focus();
+        return;
+      }
       const el = document.getElementById(textareaId);
       if (!el) return;
       const start = el.selectionStart ?? el.value.length;
@@ -123,4 +135,5 @@
       insertSnippet(textareaId, button.dataset.snippet || "");
     }
   </script>
+  <script type="module" src="/static/codemirror-setup.js"></script>
 {% endblock %}

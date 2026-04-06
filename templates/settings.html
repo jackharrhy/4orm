@@ -21,7 +21,9 @@
   <details class="panel">
     <summary><h2>css</h2></summary>
     <form method="post" action="/settings/css" class="stack">
-      <textarea name="custom_css" rows="10">{{ me.custom_css }}</textarea>
+      <textarea name="custom_css" rows="10" data-codemirror="css">
+{{ me.custom_css }}</textarea
+      >
       <button>save css</button>
     </form>
   </details>
@@ -61,7 +63,7 @@
       </label>
       <label>
         card css
-        <textarea name="card_css" rows="5">
+        <textarea name="card_css" rows="5" data-codemirror="css">
 {{ card_settings.card_css if card_settings else '' }}</textarea
         >
       </label>
@@ -147,6 +149,7 @@
           name="content_html"
           rows="12"
           placeholder="<marquee>hello world</marquee>"
+          data-codemirror="html"
         ></textarea>
       </label>
       <button>publish</button>
@@ -217,6 +220,13 @@
   </p>
   <script>
     function insertSnippet(textareaId, snippet) {
+      const cm = window._cmEditors && window._cmEditors[textareaId];
+      if (cm) {
+        const pos = cm.state.selection.main.head;
+        cm.dispatch({ changes: { from: pos, insert: snippet } });
+        cm.focus();
+        return;
+      }
       const el = document.getElementById(textareaId);
       if (!el) return;
       const start = el.selectionStart ?? el.value.length;
@@ -233,4 +243,5 @@
       insertSnippet(textareaId, button.dataset.snippet || "");
     }
   </script>
+  <script type="module" src="/static/codemirror-setup.js"></script>
 {% endblock %}
