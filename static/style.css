@@ -231,3 +231,21 @@ details.panel[open] > summary > h2::before {
 .tree li:target {
   background: #ffff80;
 }
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #999;
+  vertical-align: top;
+}
