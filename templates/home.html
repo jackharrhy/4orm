@@ -35,10 +35,8 @@
 </style>
 </head>
 <body>
-<h2><a href=&quot;/u/{{ card.username }}&quot; target=&quot;_parent&quot;>{{ card.display_name }}</a></h2>
-<p>{{ card.headline }}</p>
-<p class=&quot;muted&quot;>{{ card.subhead }}</p>
-<p>{{ card.bio }}</p>
+<h2><a href=&quot;/u/{{ card.username }}&quot; target=&quot;_parent&quot;>{{ card.headline }}</a></h2>
+{{ card.content|e }}
 </body>
 </html>"
       ></iframe>

@@ -139,7 +139,7 @@ profile_cards = Table(
         "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     ),
     Column("headline", String(120), nullable=False, server_default=""),
-    Column("subhead", String(200), nullable=False, server_default=""),
+    Column("content", Text, nullable=False, server_default=""),
     Column("accent_color", String(20), nullable=False, server_default="#00ffff"),
     Column("border_style", String(20), nullable=False, server_default="outset"),
     Column("card_css", Text, nullable=False, server_default=""),

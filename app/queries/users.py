@@ -135,10 +135,8 @@ def list_profile_cards(conn: Connection):
     q = (
         select(
             users.c.username,
-            users.c.display_name,
-            users.c.bio,
             profile_cards.c.headline,
-            profile_cards.c.subhead,
+            profile_cards.c.content,
             profile_cards.c.accent_color,
             profile_cards.c.border_style,
             profile_cards.c.card_css,

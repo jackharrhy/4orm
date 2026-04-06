@@ -406,7 +406,7 @@ def settings_css(request: Request, custom_css: str = Form("")):
 def settings_card(
     request: Request,
     headline: str = Form(""),
-    subhead: str = Form(""),
+    content: str = Form(""),
     accent_color: str = Form("#00ffff"),
     border_style: str = Form("outset"),
     card_css: str = Form(""),
@@ -421,7 +421,7 @@ def settings_card(
             .where(profile_cards.c.user_id == me["id"])
             .values(
                 headline=headline,
-                subhead=subhead,
+                content=content,
                 accent_color=accent_color,
                 border_style=border_style,
                 card_css=card_css,

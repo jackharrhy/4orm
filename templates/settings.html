@@ -38,11 +38,10 @@
         />
       </label>
       <label>
-        subhead
-        <input
-          name="subhead"
-          value="{{ card_settings.subhead if card_settings else '' }}"
-        />
+        content
+        <textarea name="content" rows="6" data-codemirror="html">
+{{ card_settings.content if card_settings else '' }}</textarea
+        >
       </label>
       <label>
         accent color
