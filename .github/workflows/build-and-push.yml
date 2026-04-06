@@ -1,4 +1,4 @@
-name: Build and Push Docker Image to ghcr.io
+name: Test, Build and Push
 
 env:
   REGISTRY: ghcr.io
@@ -10,19 +10,7 @@ on:
       - main
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Run tests
-        run: uv run --group dev pytest tests/ -v
-
-  build-and-push-image:
-    needs: test
+  test-and-build:
     runs-on: ubuntu-latest
 
     permissions:
@@ -31,6 +19,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run tests
+        run: uv run --group dev pytest tests/ -v
 
       - name: Log in to the Container registry
         uses: docker/login-action@v4
