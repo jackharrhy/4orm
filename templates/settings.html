@@ -52,95 +52,11 @@
       </label>
       <label>
         border style
+        {% set bs = card_settings.border_style if card_settings else 'outset' %}
         <select name="border_style">
-          <option
-            {%
-            if
-            card_settings
-            and
-            card_settings.border_style=""
-            ="solid"
-            %}selected{%
-            endif
-            %}
-            >solid</option>
-          <option
-            {%
-            if
-            card_settings
-            and
-            card_settings.border_style=""
-            ="double"
-            %}selected{%
-            endif
-            %}
-            >double</option>
-          <option
-            {%
-            if
-            card_settings
-            and
-            card_settings.border_style=""
-            ="dashed"
-            %}selected{%
-            endif
-            %}
-            >dashed</option>
-          <option
-            {%
-            if
-            card_settings
-            and
-            card_settings.border_style=""
-            ="dotted"
-            %}selected{%
-            endif
-            %}
-            >dotted</option>
-          <option
-            {%
-            if
-            card_settings
-            and
-            card_settings.border_style=""
-            ="outset"
-            %}selected{%
-            endif
-            %}
-            >outset</option>
-          <option
-            {%
-            if
-            card_settings
-            and
-            card_settings.border_style=""
-            ="inset"
-            %}selected{%
-            endif
-            %}
-            >inset</option>
-          <option
-            {%
-            if
-            card_settings
-            and
-            card_settings.border_style=""
-            ="ridge"
-            %}selected{%
-            endif
-            %}
-            >ridge</option>
-          <option
-            {%
-            if
-            card_settings
-            and
-            card_settings.border_style=""
-            ="groove"
-            %}selected{%
-            endif
-            %}
-            >groove</option>
+          {% for style in ['solid', 'double', 'dashed', 'dotted', 'outset', 'inset', 'ridge', 'groove'] %}
+            <option {% if bs == style %}selected{% endif %}>{{ style }}</option>
+          {% endfor %}
         </select>
       </label>
       <label>
