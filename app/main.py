@@ -12,6 +12,7 @@ from app.db import engine
 from app.queries.pages import create_page, get_public_page, list_public_pages_for_user
 from app.queries.pages import get_user_page, list_pages_for_user, update_user_page
 from app.queries.media import create_media, delete_media_for_user, get_media_for_user, list_media_for_user, update_media_alt_text
+from app.queries.media import update_media_storage_path
 from app.queries.users import (
     create_invite,
     create_user_with_invite,
@@ -168,7 +169,7 @@ def settings_media_get(request: Request):
 
 
 @app.post("/settings/media/upload")
-async def settings_media_upload(request: Request, files: list[UploadFile] = File(...)):
+async def settings_media_upload(request: Request, file: UploadFile = File(...), filename: str = Form("")):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
@@ -177,36 +178,41 @@ async def settings_media_upload(request: Request, files: list[UploadFile] = File
     user_upload_dir = UPLOADS_DIR / username
     user_upload_dir.mkdir(parents=True, exist_ok=True)
 
+    chosen_name = filename.strip() or (file.filename or "file")
+    final_name = clean_filename(chosen_name)
+    original_ext = Path(file.filename or "").suffix.lower()
+    if original_ext and Path(final_name).suffix.lower() != original_ext:
+        final_name = f"{Path(final_name).stem}{original_ext}"
+
+    rel_path = f"{username}/{final_name}"
+    disk_path = UPLOADS_DIR / rel_path
+
+    # Avoid collisions by suffixing -2, -3, ...
+    if disk_path.exists():
+        base = Path(final_name).stem
+        ext = Path(final_name).suffix
+        i = 2
+        while True:
+            candidate = f"{base}-{i}{ext}"
+            candidate_path = user_upload_dir / candidate
+            if not candidate_path.exists():
+                final_name = candidate
+                rel_path = f"{username}/{final_name}"
+                disk_path = candidate_path
+                break
+            i += 1
+
+    content = await file.read()
+    disk_path.write_bytes(content)
+
     with engine.begin() as conn:
-        for f in files:
-            filename = clean_filename(f.filename or "file")
-            rel_path = f"{username}/{filename}"
-            disk_path = UPLOADS_DIR / rel_path
-
-            # Avoid collisions by suffixing -2, -3, ...
-            if disk_path.exists():
-                base = Path(filename).stem
-                ext = Path(filename).suffix
-                i = 2
-                while True:
-                    candidate = f"{base}-{i}{ext}"
-                    candidate_path = user_upload_dir / candidate
-                    if not candidate_path.exists():
-                        filename = candidate
-                        rel_path = f"{username}/{filename}"
-                        disk_path = candidate_path
-                        break
-                    i += 1
-
-            content = await f.read()
-            disk_path.write_bytes(content)
-            create_media(
-                conn,
-                user_id=me["id"],
-                storage_path=rel_path,
-                mime_type=f.content_type or "application/octet-stream",
-                size_bytes=len(content),
-            )
+        create_media(
+            conn,
+            user_id=me["id"],
+            storage_path=rel_path,
+            mime_type=file.content_type or "application/octet-stream",
+            size_bytes=len(content),
+        )
 
     return RedirectResponse(url="/settings/media", status_code=303)
 
@@ -237,6 +243,48 @@ def settings_media_delete(request: Request, media_id: int):
     disk_path = UPLOADS_DIR / item["storage_path"]
     if disk_path.exists():
         disk_path.unlink()
+    return RedirectResponse(url="/settings/media", status_code=303)
+
+
+@app.post("/settings/media/{media_id}/rename")
+def settings_media_rename(request: Request, media_id: int, filename: str = Form(...)):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+
+    username = me["username"]
+    user_upload_dir = UPLOADS_DIR / username
+    user_upload_dir.mkdir(parents=True, exist_ok=True)
+
+    with engine.begin() as conn:
+        item = get_media_for_user(conn, me["id"], media_id)
+        if not item:
+            raise HTTPException(404)
+
+        new_name = clean_filename(filename)
+        old_path = UPLOADS_DIR / item["storage_path"]
+        old_ext = old_path.suffix.lower()
+        if old_ext and Path(new_name).suffix.lower() != old_ext:
+            new_name = f"{Path(new_name).stem}{old_ext}"
+
+        new_path = user_upload_dir / new_name
+        if new_path.exists() and new_path != old_path:
+            base = Path(new_name).stem
+            ext = Path(new_name).suffix
+            i = 2
+            while True:
+                candidate = user_upload_dir / f"{base}-{i}{ext}"
+                if not candidate.exists():
+                    new_path = candidate
+                    break
+                i += 1
+
+        if old_path.exists() and old_path != new_path:
+            old_path.rename(new_path)
+
+        rel_path = f"{username}/{new_path.name}"
+        update_media_storage_path(conn, me["id"], media_id, rel_path)
+
     return RedirectResponse(url="/settings/media", status_code=303)
 
 

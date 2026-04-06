@@ -48,5 +48,13 @@ def update_media_alt_text(conn: Connection, user_id: int, media_id: int, alt_tex
     )
 
 
+def update_media_storage_path(conn: Connection, user_id: int, media_id: int, storage_path: str):
+    conn.execute(
+        update(media)
+        .where(media.c.id == media_id, media.c.user_id == user_id)
+        .values(storage_path=storage_path)
+    )
+
+
 def delete_media_for_user(conn: Connection, user_id: int, media_id: int):
     conn.execute(delete(media).where(media.c.id == media_id, media.c.user_id == user_id))
