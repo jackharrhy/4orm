@@ -1,0 +1,6 @@
+{% macro inject_custom_assets(obj) %}
+  <!-- prettier-ignore-start -->
+  {% if obj.custom_css %}<style>{{ obj.custom_css|safe }}</style>{% endif %}
+  {% if obj.custom_html %}{{ obj.custom_html|safe }}{% endif %}
+  <!-- prettier-ignore-end -->
+{% endmacro %}

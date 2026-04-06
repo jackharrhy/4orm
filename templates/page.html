@@ -1,10 +1,8 @@
 {% extends 'base.html' %}
+{% from 'macros/custom_assets.html' import inject_custom_assets %}
 {% block title %}{{ page.title }}{% endblock %}
 {% block content %}
-  <!-- prettier-ignore-start -->
-  {% if page.custom_css %}<style>{{ page.custom_css|safe }}</style>{% endif %}
-  {% if page.custom_html %}{{ page.custom_html|safe }}{% endif %}
-  <!-- prettier-ignore-end -->
+  {{ inject_custom_assets(page) }}
   <article class="panel content-html">
     <h1>{{ page.title }}</h1>
     <p class="muted">

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'macros/custom_assets.html' import inject_custom_assets %}
 {% block title %}
   {{ profile.display_name }}
 {% endblock %}
@@ -10,10 +11,7 @@
       <a href="/lineage#user-{{ profile.username }}">view lineage</a>
     </p>
   </section>
-  <!-- prettier-ignore-start -->
-  {% if profile.custom_css %}<style>{{ profile.custom_css|safe }}</style>{% endif %}
-  {% if profile.custom_html %}{{ profile.custom_html|safe }}{% endif %}
-  <!-- prettier-ignore-end -->
+  {{ inject_custom_assets(profile) }}
   <section class="panel">
     <h2>pages</h2>
     <ul>
