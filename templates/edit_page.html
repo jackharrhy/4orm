@@ -49,19 +49,6 @@
       {{ media_snippet_picker(media_items, 'edit_content_html') }}
     </section>
   {% endif %}
-              <option value="{{ link_snippet|e }}">link</option>
-            </select>
-            <button
-              type="button"
-              onclick="insertSnippetFromSelect(this, 'edit_content_html')"
-            >
-              insert
-            </button>
-          </div>
-        {% endfor %}
-      </div>
-    </section>
-  {% endif %}
   <script>
     function insertSnippet(textareaId, snippet) {
       const cm = window._cmEditors && window._cmEditors[textareaId];
