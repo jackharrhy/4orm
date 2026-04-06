@@ -48,6 +48,7 @@ def create_user_with_invite(
             password_hash=hash_password(password),
             display_name=username,
             invited_by_user_id=invite["created_by_user_id"],
+            invite_id=invite["id"],
         )
     )
     user_id = result.inserted_primary_key[0]
