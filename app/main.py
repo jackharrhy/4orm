@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, update
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.db import engine
+from app.db import engine as default_engine
 from app.queries.media import (
     create_media,
     delete_media_for_user,
@@ -43,6 +43,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 app = FastAPI(title="4orm")
+app.state.engine = default_engine
 app.add_middleware(SessionMiddleware, secret_key="replace-this-dev-key")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads")
@@ -73,23 +74,26 @@ def human_bytes(size: int | None) -> str:
 templates.env.filters["human_bytes"] = human_bytes
 
 
+def get_engine(request: Request):
+    return request.app.state.engine
+
+
 @app.on_event("startup")
 def on_startup():
     from alembic.config import Config
 
     from alembic import command
 
+    engine = app.state.engine
     alembic_cfg = Config("alembic.ini")
 
     with engine.connect() as conn:
         has_tables = conn.dialect.has_table(conn, "users")
 
     if not has_tables:
-        # Fresh DB: create everything from schema, then stamp alembic at head
         create_all(engine)
         command.stamp(alembic_cfg, "head")
     else:
-        # Existing DB: run any pending migrations
         command.upgrade(alembic_cfg, "head")
 
 
@@ -97,13 +101,13 @@ def current_user(request: Request):
     user_id = request.session.get("user_id")
     if not user_id:
         return None
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         return get_user_by_id(conn, user_id)
 
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         raw_cards = list_profile_cards(conn)
     cards = [
         {
@@ -131,7 +135,7 @@ def register_post(
     password: str = Form(...),
     invite_code: str = Form(...),
 ):
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         user, error = create_user_with_invite(
             conn,
             username=username.strip(),
@@ -156,7 +160,7 @@ def login_get(request: Request):
 
 @app.post("/login", response_class=HTMLResponse)
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username.strip())
     if not user or not verify_password(password, user["password_hash"]):
         return templates.TemplateResponse(
@@ -177,7 +181,7 @@ def logout(request: Request):
 
 @app.get("/u/{username}", response_class=HTMLResponse)
 def profile(request: Request, username: str):
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username)
         if not user:
             raise HTTPException(404)
@@ -195,7 +199,7 @@ def profile(request: Request, username: str):
 
 @app.get("/u/{username}/page/{slug}", response_class=HTMLResponse)
 def page_view(request: Request, username: str, slug: str):
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         page = get_public_page(conn, username, slug)
     if not page:
         raise HTTPException(404)
@@ -213,7 +217,7 @@ def page_view(request: Request, username: str, slug: str):
 
 @app.get("/lineage", response_class=HTMLResponse)
 def lineage(request: Request):
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         tree = get_invite_tree(conn)
     return templates.TemplateResponse(
         request,
@@ -227,7 +231,7 @@ def settings_get(request: Request):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         my_pages = list_pages_for_user(conn, me["id"])
         card_settings = (
             conn.execute(
@@ -257,7 +261,7 @@ def settings_media_get(request: Request):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         items = list_media_for_user(conn, me["id"])
     return templates.TemplateResponse(
         request, "settings_media.html", {"me": me, "items": items}
@@ -306,7 +310,7 @@ async def settings_media_upload(
 
     disk_path.write_bytes(content)
 
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         create_media(
             conn,
             user_id=me["id"],
@@ -323,7 +327,7 @@ def settings_media_alt(request: Request, media_id: int, alt_text: str = Form("")
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         item = get_media_for_user(conn, me["id"], media_id)
         if not item:
             raise HTTPException(404)
@@ -336,7 +340,7 @@ def settings_media_delete(request: Request, media_id: int):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         item = get_media_for_user(conn, me["id"], media_id)
         if not item:
             raise HTTPException(404)
@@ -357,7 +361,7 @@ def settings_media_rename(request: Request, media_id: int, filename: str = Form(
     user_upload_dir = UPLOADS_DIR / username
     user_upload_dir.mkdir(parents=True, exist_ok=True)
 
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         item = get_media_for_user(conn, me["id"], media_id)
         if not item:
             raise HTTPException(404)
@@ -396,7 +400,7 @@ def settings_profile(
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
             .where(users.c.id == me["id"])
@@ -410,7 +414,7 @@ def settings_css(request: Request, custom_css: str = Form("")):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         conn.execute(
             update(users).where(users.c.id == me["id"]).values(custom_css=custom_css)
         )
@@ -422,7 +426,7 @@ def settings_html(request: Request, custom_html: str = Form("")):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         conn.execute(
             update(users).where(users.c.id == me["id"]).values(custom_html=custom_html)
         )
@@ -443,7 +447,7 @@ def settings_card(
     if not me:
         return RedirectResponse(url="/login", status_code=303)
 
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         conn.execute(
             update(profile_cards)
             .where(profile_cards.c.user_id == me["id"])
@@ -465,7 +469,7 @@ def settings_invites(request: Request, max_uses: int = Form(1)):
     if not me:
         return RedirectResponse(url="/login", status_code=303)
 
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         code = create_invite(conn, me["id"], max_uses=max(1, min(50, max_uses)))
     return RedirectResponse(url=f"/settings?new_invite={code}", status_code=303)
 
@@ -475,7 +479,7 @@ def settings_invite_delete(request: Request, invite_id: int):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         disable_invite(conn, invite_id, me["id"])
     return RedirectResponse(url="/settings", status_code=303)
 
@@ -492,7 +496,7 @@ def settings_pages(
     if not me:
         return RedirectResponse(url="/login", status_code=303)
 
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         create_page(
             conn,
             user_id=me["id"],
@@ -514,7 +518,7 @@ def settings_pages_edit_get(request: Request, slug: str):
     if not me:
         return RedirectResponse(url="/login", status_code=303)
 
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         page = get_user_page(conn, me["id"], slug)
         media_items = list_media_for_user(conn, me["id"])
 
@@ -548,7 +552,7 @@ def settings_pages_edit_post(
         return RedirectResponse(url="/login", status_code=303)
 
     cleaned_slug = new_slug.strip()
-    with engine.begin() as conn:
+    with get_engine(request).begin() as conn:
         page = get_user_page(conn, me["id"], slug)
         if not page:
             raise HTTPException(404)

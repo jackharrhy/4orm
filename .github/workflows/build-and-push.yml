@@ -10,7 +10,19 @@ on:
       - main
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run tests
+        run: uv run --group dev pytest tests/ -v
+
   build-and-push-image:
+    needs: test
     runs-on: ubuntu-latest
 
     permissions:
