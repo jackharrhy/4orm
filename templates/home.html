@@ -1,24 +1,46 @@
 {% extends 'base.html' %}
 {% block title %}4orm · home{% endblock %}
-{%
-  block
-  content
-%}
+{% block content %}
   <div class="cards">
     {% for card in cards %}
-      <article
-        class="card"
-        style="--accent: {{ card.accent_color }};
-                      border-style: {{ card.border_style }};
-                      {{ card.card_css|safe }}"
-      >
-        <h2>
-          <a href="/u/{{ card.username }}">{{ card.display_name }}</a>
-        </h2>
-        <p>{{ card.headline }}</p>
-        <p class="muted">{{ card.subhead }}</p>
-        <p>{{ card.bio }}</p>
-      </article>
+      <!-- prettier-ignore-start -->
+      <iframe
+        class="card-frame"
+        sandbox="allow-top-navigation-by-user-activation"
+        srcdoc="<!doctype html>
+<html>
+<head>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+body {
+  font-family: Verdana, Tahoma, Arial, sans-serif;
+  background: {{ card.accent_color }};
+  color: #111;
+  line-height: 1.45;
+  border: 3px {{ card.border_style }} #333;
+  padding: 10px;
+  height: 100vh;
+  overflow: hidden;
+}
+h2 { margin: 0 0 6px; font-size: 1rem; line-height: 1.2; }
+p { margin: 0 0 6px; font-size: 0.85rem; }
+a { color: #0000ee; }
+a:visited { color: #551a8b; }
+a:hover { color: #ff0000; }
+.muted { color: #333; font-size: 0.8rem; }
+{{ card.card_css|e }}
+</style>
+</head>
+<body>
+<h2><a href=&quot;/u/{{ card.username }}&quot; target=&quot;_parent&quot;>{{ card.display_name }}</a></h2>
+<p>{{ card.headline }}</p>
+<p class=&quot;muted&quot;>{{ card.subhead }}</p>
+<p>{{ card.bio }}</p>
+</body>
+</html>"
+      ></iframe>
+      <!-- prettier-ignore-end -->
     {% else %}
       <p>no users yet.</p>
     {% endfor %}
