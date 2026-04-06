@@ -170,6 +170,10 @@ button {
   font: inherit;
   background: #fff;
 }
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+}
 button {
   width: auto;
   border: 2px outset #999;
