@@ -55,5 +55,18 @@
     <label>content <textarea name="content_html" rows="12" placeholder="<marquee>hello world</marquee>"></textarea></label>
     <button>publish</button>
   </form>
+
+  <h3>your pages</h3>
+  <ul>
+    {% for p in my_pages %}
+      <li>
+        <a href="/u/{{ me.username }}/page/{{ p.slug }}">{{ p.title }}</a>
+        <span class="muted">({{ 'public' if p.is_public else 'private' }})</span>
+        — <a href="/settings/pages/{{ p.slug }}/edit">edit</a>
+      </li>
+    {% else %}
+      <li>no pages yet.</li>
+    {% endfor %}
+  </ul>
 </section>
 {% endblock %}

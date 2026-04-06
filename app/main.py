@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import engine
 from app.queries.pages import create_page, get_public_page, list_public_pages_for_user
+from app.queries.pages import get_user_page, list_pages_for_user, update_user_page
 from app.queries.users import (
     create_invite,
     create_user_with_invite,
@@ -128,7 +129,9 @@ def settings_get(request: Request):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("settings.html", {"request": request, "me": me, "error": None})
+    with engine.begin() as conn:
+        my_pages = list_pages_for_user(conn, me["id"])
+    return templates.TemplateResponse("settings.html", {"request": request, "me": me, "my_pages": my_pages, "error": None})
 
 
 @app.post("/settings/profile")
@@ -200,3 +203,49 @@ def settings_pages(request: Request, slug: str = Form(...), title: str = Form(..
         create_page(conn, user_id=me["id"], slug=slug.strip(), title=title.strip(), content_html=content_html, is_public=True)
 
     return RedirectResponse(url=f"/u/{me['username']}/page/{slug.strip()}", status_code=303)
+
+
+@app.get("/settings/pages/{slug}/edit", response_class=HTMLResponse)
+def settings_pages_edit_get(request: Request, slug: str):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+
+    with engine.begin() as conn:
+        page = get_user_page(conn, me["id"], slug)
+
+    if not page:
+        raise HTTPException(404)
+
+    return templates.TemplateResponse("edit_page.html", {"request": request, "me": me, "page": page, "error": None})
+
+
+@app.post("/settings/pages/{slug}/edit")
+def settings_pages_edit_post(
+    request: Request,
+    slug: str,
+    new_slug: str = Form(...),
+    title: str = Form(...),
+    content_html: str = Form(""),
+    is_public: Optional[str] = Form(None),
+):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+
+    cleaned_slug = new_slug.strip()
+    with engine.begin() as conn:
+        page = get_user_page(conn, me["id"], slug)
+        if not page:
+            raise HTTPException(404)
+        update_user_page(
+            conn,
+            me["id"],
+            slug,
+            slug=cleaned_slug,
+            title=title.strip(),
+            content_html=content_html,
+            is_public=is_public == "on",
+        )
+
+    return RedirectResponse(url=f"/u/{me['username']}/page/{cleaned_slug}", status_code=303)

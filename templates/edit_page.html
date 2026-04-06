@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}edit page{% endblock %}
+{% block content %}
+<h1>edit page</h1>
+
+<section class="panel">
+  <form method="post" class="stack">
+    <label>slug <input name="new_slug" value="{{ page.slug }}" required /></label>
+    <label>title <input name="title" value="{{ page.title }}" required /></label>
+    <label>
+      <input type="checkbox" name="is_public" {% if page.is_public %}checked{% endif %} />
+      public page
+    </label>
+    <label>content <textarea name="content_html" rows="16">{{ page.content_html }}</textarea></label>
+    <button type="submit">save changes</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,4 +1,4 @@
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Connection
 
 from app.schema import pages, users
@@ -27,6 +27,33 @@ def create_page(conn: Connection, user_id: int, slug: str, title: str, content_h
     conn.execute(
         insert(pages).values(
             user_id=user_id,
+            slug=slug,
+            title=title,
+            content_html=content_html,
+            is_public=is_public,
+        )
+    )
+
+
+def list_pages_for_user(conn: Connection, user_id: int):
+    q = (
+        select(pages.c.slug, pages.c.title, pages.c.is_public, pages.c.updated_at)
+        .where(pages.c.user_id == user_id)
+        .order_by(pages.c.updated_at.desc())
+    )
+    return conn.execute(q).mappings().all()
+
+
+def get_user_page(conn: Connection, user_id: int, slug: str):
+    q = select(pages).where(pages.c.user_id == user_id, pages.c.slug == slug)
+    return conn.execute(q).mappings().first()
+
+
+def update_user_page(conn: Connection, user_id: int, original_slug: str, *, slug: str, title: str, content_html: str, is_public: bool):
+    conn.execute(
+        update(pages)
+        .where(pages.c.user_id == user_id, pages.c.slug == original_slug)
+        .values(
             slug=slug,
             title=title,
             content_html=content_html,
