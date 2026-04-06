@@ -160,39 +160,44 @@
           <p>
             <code>/uploads/{{ item.storage_path }}</code>
           </p>
+          {% set mime = item.mime_type or '' %}
           <div class="inline" style="flex-wrap: wrap">
-            <button
-              type="button"
-              data-snippet="{{ img_snippet|e }}"
-              onclick=" insertSnippetFromButton(this, 'create_content_html') "
-            >
-              img
-            </button>
-            <button
-              type="button"
-              data-snippet="{{ linked_img_snippet|e }}"
-              onclick=" insertSnippetFromButton(this, 'create_content_html') "
-            >
-              linked img
-            </button>
-            <button
-              type="button"
-              data-snippet="{{ video_snippet|e }}"
-              onclick=" insertSnippetFromButton(this, 'create_content_html') "
-            >
-              video
-            </button>
-            <button
-              type="button"
-              data-snippet="{{ audio_snippet|e }}"
-              onclick=" insertSnippetFromButton(this, 'create_content_html') "
-            >
-              audio
-            </button>
+            {% if mime.startswith('image/') %}
+              <button
+                type="button"
+                data-snippet="{{ img_snippet|e }}"
+                onclick="insertSnippetFromButton(this, 'create_content_html')"
+              >
+                img
+              </button>
+              <button
+                type="button"
+                data-snippet="{{ linked_img_snippet|e }}"
+                onclick="insertSnippetFromButton(this, 'create_content_html')"
+              >
+                linked img
+              </button>
+            {% elif mime.startswith('video/') %}
+              <button
+                type="button"
+                data-snippet="{{ video_snippet|e }}"
+                onclick="insertSnippetFromButton(this, 'create_content_html')"
+              >
+                video
+              </button>
+            {% elif mime.startswith('audio/') %}
+              <button
+                type="button"
+                data-snippet="{{ audio_snippet|e }}"
+                onclick="insertSnippetFromButton(this, 'create_content_html')"
+              >
+                audio
+              </button>
+            {% endif %}
             <button
               type="button"
               data-snippet="{{ link_snippet|e }}"
-              onclick=" insertSnippetFromButton(this, 'create_content_html') "
+              onclick="insertSnippetFromButton(this, 'create_content_html')"
             >
               link
             </button>
