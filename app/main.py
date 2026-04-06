@@ -28,6 +28,8 @@ from app.queries.pages import (
 from app.queries.users import (
     create_invite,
     create_user_with_invite,
+    disable_invite,
+    get_invites_for_user,
     get_user_by_id,
     get_user_by_username,
     lineage_for_user,
@@ -204,6 +206,7 @@ def settings_get(request: Request):
             .first()
         )
         media_items = list_media_for_user(conn, me["id"])
+        my_invites = get_invites_for_user(conn, me["id"])
     return templates.TemplateResponse(
         "settings.html",
         {
@@ -212,6 +215,7 @@ def settings_get(request: Request):
             "my_pages": my_pages,
             "card_settings": card_settings,
             "media_items": media_items,
+            "my_invites": my_invites,
             "error": None,
         },
     )
@@ -419,6 +423,16 @@ def settings_invites(request: Request, max_uses: int = Form(1)):
     with engine.begin() as conn:
         code = create_invite(conn, me["id"], max_uses=max(1, min(50, max_uses)))
     return RedirectResponse(url=f"/settings?new_invite={code}", status_code=303)
+
+
+@app.post("/settings/invites/{invite_id}/delete")
+def settings_invite_delete(request: Request, invite_id: int):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with engine.begin() as conn:
+        disable_invite(conn, invite_id, me["id"])
+    return RedirectResponse(url="/settings", status_code=303)
 
 
 @app.post("/settings/pages")
