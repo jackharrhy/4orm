@@ -16,11 +16,13 @@ def main() -> int:
     if subprocess.run(["ruff", "check", "--fix", "app/"]).returncode != 0:
         failed = True
 
-    print("\n==> djlint --lint (HTML/Jinja2)")
-    # Note: djlint --reformat is intentionally NOT used here.
-    # It mangles Jinja2 expressions inside HTML attributes (e.g. == becomes ="" =").
-    # We only lint to report issues, not auto-fix.
-    if subprocess.run(["djlint", "templates/", "--lint"]).returncode != 0:
+    print("\n==> prettier (HTML/Jinja2)")
+    if (
+        subprocess.run(
+            ["npx", "prettier", "--write", "templates/"],
+        ).returncode
+        != 0
+    ):
         failed = True
 
     return 1 if failed else 0

@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 {% block title %}settings{% endblock %}
-{% block
-  content %}
+{%
+  block
+  content
+%}
   <h1>settings</h1>
   {% if request.query_params.get('new_invite') %}
     <p class="ok">
@@ -18,9 +20,7 @@
         display name
         <input name="display_name" value="{{ me.display_name }}" />
       </label>
-      <label>
-        bio <textarea name="bio">{{ me.bio }}</textarea>
-      </label>
+      <label> bio <textarea name="bio">{{ me.bio }}</textarea></label>
       <button>save profile</button>
     </form>
   </section>
@@ -36,19 +36,25 @@
     <form method="post" action="/settings/card" class="stack">
       <label>
         headline
-        <input name="headline"
-               value="{{ card_settings.headline if card_settings else '' }}" />
+        <input
+          name="headline"
+          value="{{ card_settings.headline if card_settings else '' }}"
+        />
       </label>
       <label>
         subhead
-        <input name="subhead"
-               value="{{ card_settings.subhead if card_settings else '' }}" />
+        <input
+          name="subhead"
+          value="{{ card_settings.subhead if card_settings else '' }}"
+        />
       </label>
       <label>
         accent color
-        <input type="color"
-               name="accent_color"
-               value="{{ card_settings.accent_color if card_settings else '#00ffff' }}" />
+        <input
+          type="color"
+          name="accent_color"
+          value="{{ card_settings.accent_color if card_settings else '#00ffff' }}"
+        />
       </label>
       <label>
         border style
@@ -62,7 +68,8 @@
       <label>
         card css
         <textarea name="card_css" rows="5">
-{{ card_settings.card_css if card_settings else '' }}</textarea>
+{{ card_settings.card_css if card_settings else '' }}</textarea
+        >
       </label>
       <button>save card</button>
     </form>
@@ -84,8 +91,8 @@
             <p>
               <code>{{ inv.code }}</code>
               <span class="muted">
-                — {{ inv.uses_count }}/{{ inv.max_uses }} used
-                — {{ inv.status }}
+                — {{ inv.uses_count }}/{{ inv.max_uses }} used —
+                {{ inv.status }}
               </span>
             </p>
             {% if inv.redeemed_by %}
@@ -98,10 +105,12 @@
               </p>
             {% endif %}
             {% if inv.status != 'disabled' %}
-              <form method="post"
-                    action="/settings/invites/{{ inv.id }}/delete"
-                    class="inline"
-                    onsubmit="return confirm('Disable this invite code?');">
+              <form
+                method="post"
+                action="/settings/invites/{{ inv.id }}/delete"
+                class="inline"
+                onsubmit="return confirm('Disable this invite code?');"
+              >
                 <button type="submit">disable</button>
               </form>
             {% endif %}
@@ -123,10 +132,12 @@
       </label>
       <label>
         content
-        <textarea id="create_content_html"
-                  name="content_html"
-                  rows="12"
-                  placeholder="<marquee>hello world</marquee>"></textarea>
+        <textarea
+          id="create_content_html"
+          name="content_html"
+          rows="12"
+          placeholder="<marquee>hello world</marquee>"
+        ></textarea>
       </label>
       <button>publish</button>
     </form>
@@ -135,28 +146,56 @@
     <div class="stack">
       {% for item in media_items %}
         <div class="panel" style="margin: 0">
-          {% set img_snippet = '<img src="/uploads/' ~ item.storage_path ~ '"
-               alt="' ~ (item.alt_text or '') ~ '" />' %} {% set linked_img_snippet = '<a href="/uploads/' ~ item.storage_path ~ '"><img src="/uploads/' ~ item.storage_path ~ '"
-      alt="' ~ (item.alt_text or '') ~ '" /></a>' %} {% set video_snippet = '<video controls src="/uploads/' ~ item.storage_path ~ '"></video>' %} {% set audio_snippet = '<audio controls src="/uploads/' ~ item.storage_path ~ '"></audio>' %} {% set link_snippet = '<a href="/uploads/' ~ item.storage_path ~ '">download</a>' %}
+          {%
+            set img_snippet = '<img src="/uploads/' ~ item.storage_path ~ '"
+            alt="' ~ (item.alt_text or '') ~ '" />'
+          %}
+          {%
+            set linked_img_snippet = '<a href="/uploads/' ~ item.storage_path ~ '"><img src="/uploads/' ~ item.storage_path ~ '"
+            alt="' ~ (item.alt_text or '') ~ '" /></a>'
+          %}
+          {% set video_snippet = '<video controls src="/uploads/' ~ item.storage_path ~ '"></video>' %}
+          {% set audio_snippet = '<audio controls src="/uploads/' ~ item.storage_path ~ '"></audio>' %}
+          {% set link_snippet = '<a href="/uploads/' ~ item.storage_path ~ '">download</a>' %}
           <p>
             <code>/uploads/{{ item.storage_path }}</code>
           </p>
           <div class="inline" style="flex-wrap: wrap">
-            <button type="button"
-                    data-snippet="{{ img_snippet|e }}"
-                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">img</button>
-            <button type="button"
-                    data-snippet="{{ linked_img_snippet|e }}"
-                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">linked img</button>
-            <button type="button"
-                    data-snippet="{{ video_snippet|e }}"
-                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">video</button>
-            <button type="button"
-                    data-snippet="{{ audio_snippet|e }}"
-                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">audio</button>
-            <button type="button"
-                    data-snippet="{{ link_snippet|e }}"
-                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">link</button>
+            <button
+              type="button"
+              data-snippet="{{ img_snippet|e }}"
+              onclick=" insertSnippetFromButton(this, 'create_content_html') "
+            >
+              img
+            </button>
+            <button
+              type="button"
+              data-snippet="{{ linked_img_snippet|e }}"
+              onclick=" insertSnippetFromButton(this, 'create_content_html') "
+            >
+              linked img
+            </button>
+            <button
+              type="button"
+              data-snippet="{{ video_snippet|e }}"
+              onclick=" insertSnippetFromButton(this, 'create_content_html') "
+            >
+              video
+            </button>
+            <button
+              type="button"
+              data-snippet="{{ audio_snippet|e }}"
+              onclick=" insertSnippetFromButton(this, 'create_content_html') "
+            >
+              audio
+            </button>
+            <button
+              type="button"
+              data-snippet="{{ link_snippet|e }}"
+              onclick=" insertSnippetFromButton(this, 'create_content_html') "
+            >
+              link
+            </button>
           </div>
         </div>
       {% else %}
@@ -168,7 +207,9 @@
       {% for p in my_pages %}
         <li>
           <a href="/u/{{ me.username }}/page/{{ p.slug }}">{{ p.title }}</a>
-          <span class="muted">({{ 'public' if p.is_public else 'private' }})</span>
+          <span class="muted"
+            >({{ 'public' if p.is_public else 'private' }})</span
+          >
           — <a href="/settings/pages/{{ p.slug }}/edit">edit</a>
         </li>
       {% else %}
@@ -177,21 +218,21 @@
     </ul>
   </section>
   <script>
-      function insertSnippet(textareaId, snippet) {
-          const el = document.getElementById(textareaId);
-          if (!el) return;
-          const start = el.selectionStart ?? el.value.length;
-          const end = el.selectionEnd ?? el.value.length;
-          const before = el.value.slice(0, start);
-          const after = el.value.slice(end);
-          el.value = before + snippet + after;
-          const pos = start + snippet.length;
-          el.focus();
-          el.setSelectionRange(pos, pos);
-      }
+    function insertSnippet(textareaId, snippet) {
+      const el = document.getElementById(textareaId);
+      if (!el) return;
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      const before = el.value.slice(0, start);
+      const after = el.value.slice(end);
+      el.value = before + snippet + after;
+      const pos = start + snippet.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    }
 
-      function insertSnippetFromButton(button, textareaId) {
-          insertSnippet(textareaId, button.dataset.snippet || "");
-      }
+    function insertSnippetFromButton(button, textareaId) {
+      insertSnippet(textareaId, button.dataset.snippet || "");
+    }
   </script>
 {% endblock %}

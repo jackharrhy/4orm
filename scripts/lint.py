@@ -12,8 +12,13 @@ def main() -> int:
     if subprocess.run(["ruff", "check", "app/"]).returncode != 0:
         failed = True
 
-    print("\n==> djlint --lint (HTML/Jinja2)")
-    if subprocess.run(["djlint", "templates/", "--lint"]).returncode != 0:
+    print("\n==> prettier --check (HTML/Jinja2)")
+    if (
+        subprocess.run(
+            ["npx", "prettier", "--check", "templates/"],
+        ).returncode
+        != 0
+    ):
         failed = True
 
     return 1 if failed else 0
