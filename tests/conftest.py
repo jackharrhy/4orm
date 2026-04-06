@@ -53,7 +53,7 @@ def seed_user(test_engine):
                 username="testuser",
                 password_hash=hash_password("testpass"),
                 display_name="Test User",
-                bio="hello",
+                content="hello",
             )
         )
         user_id = result.inserted_primary_key[0]

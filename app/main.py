@@ -186,11 +186,13 @@ def profile(request: Request, username: str):
         if not user:
             raise HTTPException(404)
         pages = list_public_pages_for_user(conn, username)
+    rendered_content = render_content(user["content"], user["content_format"])
     return templates.TemplateResponse(
         request,
         "profile.html",
         {
             "profile": user,
+            "rendered_content": rendered_content,
             "pages": pages,
             "me": current_user(request),
         },
@@ -395,7 +397,10 @@ def settings_media_rename(request: Request, media_id: int, filename: str = Form(
 
 @app.post("/settings/profile")
 def settings_profile(
-    request: Request, display_name: str = Form(""), bio: str = Form("")
+    request: Request,
+    display_name: str = Form(""),
+    content: str = Form(""),
+    content_format: str = Form("html"),
 ):
     me = current_user(request)
     if not me:
@@ -404,7 +409,11 @@ def settings_profile(
         conn.execute(
             update(users)
             .where(users.c.id == me["id"])
-            .values(display_name=display_name, bio=bio)
+            .values(
+                display_name=display_name,
+                content=content,
+                content_format=content_format,
+            )
         )
     return RedirectResponse(url="/settings", status_code=303)
 

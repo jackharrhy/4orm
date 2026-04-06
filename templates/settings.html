@@ -16,7 +16,8 @@
         display name
         <input name="display_name" value="{{ me.display_name }}" />
       </label>
-      <label> bio <textarea name="bio">{{ me.bio }}</textarea></label>
+      <label>content</label>
+      {{ content_editor('content', 'profile_content', value=me.content, format=me.content_format, rows=8) }}
       <button>save profile</button>
     </form>
   </details>

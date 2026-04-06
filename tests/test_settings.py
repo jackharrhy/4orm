@@ -16,7 +16,11 @@ def test_settings_renders(authed_client):
 def test_save_profile(authed_client):
     r = authed_client.post(
         "/settings/profile",
-        data={"display_name": "New Name", "bio": "new bio"},
+        data={
+            "display_name": "New Name",
+            "content": "new content",
+            "content_format": "html",
+        },
         follow_redirects=False,
     )
     assert r.status_code == 303
@@ -25,7 +29,7 @@ def test_save_profile(authed_client):
     r2 = authed_client.get("/u/testuser")
     assert r2.status_code == 200
     assert "New Name" in r2.text
-    assert "new bio" in r2.text
+    assert "new content" in r2.text
 
 
 def test_save_css(authed_client):

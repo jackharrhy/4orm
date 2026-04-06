@@ -5,7 +5,7 @@
 {% block content %}
   <section class="panel">
     <h1>{{ profile.display_name }}</h1>
-    <p>{{ profile.bio }}</p>
+    {{ rendered_content|safe }}
     <p>
       <a href="/lineage#user-{{ profile.username }}">view lineage</a>
     </p>
