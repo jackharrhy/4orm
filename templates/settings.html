@@ -27,15 +27,22 @@
 <section class="panel">
   <h2>inventory card</h2>
   <form method="post" action="/settings/card" class="stack">
-    <label>headline <input name="headline" /></label>
-    <label>subhead <input name="subhead" /></label>
-    <label>accent color <input name="accent_color" value="#00ffff" /></label>
+    <label>headline <input name="headline" value="{{ card_settings.headline if card_settings else '' }}" /></label>
+    <label>subhead <input name="subhead" value="{{ card_settings.subhead if card_settings else '' }}" /></label>
+    <label>accent color <input type="color" name="accent_color" value="{{ card_settings.accent_color if card_settings else '#00ffff' }}" /></label>
     <label>border style
       <select name="border_style">
-        <option>solid</option><option>double</option><option>dashed</option><option>dotted</option><option>outset</option><option>inset</option><option>ridge</option><option>groove</option>
+        <option {% if card_settings and card_settings.border_style == 'solid' %}selected{% endif %}>solid</option>
+        <option {% if card_settings and card_settings.border_style == 'double' %}selected{% endif %}>double</option>
+        <option {% if card_settings and card_settings.border_style == 'dashed' %}selected{% endif %}>dashed</option>
+        <option {% if card_settings and card_settings.border_style == 'dotted' %}selected{% endif %}>dotted</option>
+        <option {% if card_settings and card_settings.border_style == 'outset' %}selected{% endif %}>outset</option>
+        <option {% if card_settings and card_settings.border_style == 'inset' %}selected{% endif %}>inset</option>
+        <option {% if card_settings and card_settings.border_style == 'ridge' %}selected{% endif %}>ridge</option>
+        <option {% if card_settings and card_settings.border_style == 'groove' %}selected{% endif %}>groove</option>
       </select>
     </label>
-    <label>card css <textarea name="card_css" rows="5"></textarea></label>
+    <label>card css <textarea name="card_css" rows="5">{{ card_settings.card_css if card_settings else '' }}</textarea></label>
     <button>save card</button>
   </form>
 </section>

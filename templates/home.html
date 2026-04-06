@@ -1,12 +1,10 @@
 {% extends 'base.html' %}
 {% block title %}4orm · home{% endblock %}
 {% block content %}
-<h1>public cards</h1>
 <div class="cards">
   {% for card in cards %}
     <article class="card" style="--accent: {{ card.accent_color }}; border-style: {{ card.border_style }}; {{ card.card_css|safe }}">
       <h2><a href="/u/{{ card.username }}">{{ card.display_name }}</a></h2>
-      <p class="muted">@{{ card.username }}</p>
       <p>{{ card.headline }}</p>
       <p class="muted">{{ card.subhead }}</p>
       <p>{{ card.bio }}</p>

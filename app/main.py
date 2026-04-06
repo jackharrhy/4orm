@@ -134,7 +134,11 @@ def settings_get(request: Request):
         return RedirectResponse(url="/login", status_code=303)
     with engine.begin() as conn:
         my_pages = list_pages_for_user(conn, me["id"])
-    return templates.TemplateResponse("settings.html", {"request": request, "me": me, "my_pages": my_pages, "error": None})
+        card_settings = conn.execute(select(inventory_cards).where(inventory_cards.c.user_id == me["id"])).mappings().first()
+    return templates.TemplateResponse(
+        "settings.html",
+        {"request": request, "me": me, "my_pages": my_pages, "card_settings": card_settings, "error": None},
+    )
 
 
 @app.get("/settings/media", response_class=HTMLResponse)
