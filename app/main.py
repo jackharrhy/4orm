@@ -42,6 +42,7 @@ from app.security import verify_password
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
 from contextlib import asynccontextmanager
 
 
@@ -278,8 +279,24 @@ def settings_media_get(request: Request):
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
         items = list_media_for_user(conn, me["id"])
+        storage_used = conn.execute(
+            select(func.coalesce(func.sum(media.c.size_bytes), 0)).where(
+                media.c.user_id == me["id"]
+            )
+        ).scalar()
+    storage_pct = (
+        (storage_used / MAX_STORAGE_PER_USER * 100) if MAX_STORAGE_PER_USER else 0
+    )
     return templates.TemplateResponse(
-        request, "settings_media.html", {"me": me, "items": items}
+        request,
+        "settings_media.html",
+        {
+            "me": me,
+            "items": items,
+            "storage_used": storage_used,
+            "storage_limit": MAX_STORAGE_PER_USER,
+            "storage_pct": storage_pct,
+        },
     )
 
 
@@ -322,6 +339,18 @@ async def settings_media_upload(
     content = await file.read()
     if len(content) > MAX_UPLOAD_BYTES:
         return RedirectResponse(url="/settings/media?error=too_big", status_code=303)
+
+    # Check per-user storage limit
+    with get_engine(request).begin() as conn:
+        current_usage = conn.execute(
+            select(func.coalesce(func.sum(media.c.size_bytes), 0)).where(
+                media.c.user_id == me["id"]
+            )
+        ).scalar()
+    if current_usage + len(content) > MAX_STORAGE_PER_USER:
+        return RedirectResponse(
+            url="/settings/media?error=storage_full", status_code=303
+        )
 
     disk_path.write_bytes(content)
 

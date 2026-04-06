@@ -14,6 +14,18 @@
       out to harrhy and we can discuss raising the limit.
     </p>
   {% endif %}
+  {% if request.query_params.get('error') == 'storage_full' %}
+    <p class="error">
+      You've reached your storage limit ({{ storage_limit|human_bytes }}).
+      Delete some files to free up space.
+    </p>
+  {% endif %}
+  {% if storage_pct >= 70 %}
+    <p class="{% if storage_pct >= 90 %}error{% else %}muted{% endif %}">
+      storage: {{ storage_used|human_bytes }} / {{ storage_limit|human_bytes }}
+      ({{ storage_pct|int }}%)
+    </p>
+  {% endif %}
   <section class="panel">
     <h2>upload files</h2>
     <form
