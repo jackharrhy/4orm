@@ -106,17 +106,37 @@ def test_create_invite(authed_client):
 
 
 def test_disable_invite(authed_client, test_engine, seed_user):
+    from app.queries.users import create_invite, create_user_with_invite
+
+    from sqlalchemy import select
+
+    from app.schema import invites
+
+    # Create invite and use it so it can't be deleted
+    with test_engine.begin() as conn:
+        code = create_invite(conn, seed_user["id"], max_uses=2)
+        create_user_with_invite(
+            conn, username="invited_user", password="pass", invite_code=code
+        )
+        inv = conn.execute(select(invites.c.id).where(invites.c.code == code)).first()
+
+    r = authed_client.post(
+        f"/settings/invites/{inv[0]}/disable",
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "disabled" in r.text
+
+
+def test_delete_unused_invite(authed_client, test_engine, seed_user):
     from app.queries.users import create_invite
 
-    with test_engine.begin() as conn:
-        code = create_invite(conn, seed_user["id"], max_uses=1)
-
-    # Get the invite ID
     from sqlalchemy import select
 
     from app.schema import invites
 
     with test_engine.begin() as conn:
+        code = create_invite(conn, seed_user["id"], max_uses=1)
         inv = conn.execute(select(invites.c.id).where(invites.c.code == code)).first()
 
     r = authed_client.post(
@@ -124,7 +144,13 @@ def test_disable_invite(authed_client, test_engine, seed_user):
         follow_redirects=True,
     )
     assert r.status_code == 200
-    assert "disabled" in r.text
+
+    # Invite should be gone
+    with test_engine.begin() as conn:
+        remaining = conn.execute(
+            select(invites.c.id).where(invites.c.code == code)
+        ).first()
+    assert remaining is None
 
 
 def test_save_profile_htmx(authed_client):

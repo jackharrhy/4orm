@@ -29,9 +29,10 @@ from app.queries.pages import (
 from app.queries.users import (
     create_invite,
     create_user_with_invite,
+    delete_invite,
     disable_invite,
-    get_invite_tree,
     get_invites_for_user,
+    get_invite_tree,
     get_user_by_id,
     get_user_by_username,
     list_profile_cards,
@@ -569,13 +570,26 @@ def settings_invites(request: Request, max_uses: int = Form(1)):
     return RedirectResponse(url=f"/settings?new_invite={code}", status_code=303)
 
 
+@app.post("/settings/invites/{invite_id}/disable")
+def settings_invite_disable(request: Request, invite_id: int):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        disable_invite(conn, invite_id, me["id"])
+
+    if is_htmx(request):
+        return _invites_fragment(request, me)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
 @app.post("/settings/invites/{invite_id}/delete")
 def settings_invite_delete(request: Request, invite_id: int):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
-        disable_invite(conn, invite_id, me["id"])
+        delete_invite(conn, invite_id, me["id"])
 
     if is_htmx(request):
         return _invites_fragment(request, me)

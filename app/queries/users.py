@@ -1,6 +1,6 @@
 import secrets
 
-from sqlalchemy import and_, func, insert, select, update
+from sqlalchemy import and_, delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 
 from app.schema import invites, profile_cards, users
@@ -127,6 +127,20 @@ def disable_invite(conn: Connection, invite_id: int, user_id: int) -> bool:
             )
         )
         .values(disabled=True)
+    )
+    return result.rowcount > 0
+
+
+def delete_invite(conn: Connection, invite_id: int, user_id: int) -> bool:
+    """Delete an invite only if it has never been used."""
+    result = conn.execute(
+        delete(invites).where(
+            and_(
+                invites.c.id == invite_id,
+                invites.c.created_by_user_id == user_id,
+                invites.c.uses_count == 0,
+            )
+        )
     )
     return result.rowcount > 0
 

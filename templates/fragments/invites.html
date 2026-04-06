@@ -32,12 +32,24 @@
             {% endfor %}
           </p>
         {% endif %}
-        {% if inv.status != 'disabled' %}
+        {% if inv.status == 'active' and inv.uses_count == 0 %}
           <form
             method="post"
             action="/settings/invites/{{ inv.id }}/delete"
             class="inline"
             hx-post="/settings/invites/{{ inv.id }}/delete"
+            hx-target="#invites-section"
+            hx-swap="innerHTML"
+            hx-confirm="Delete this unused invite?"
+          >
+            <button type="submit">delete</button>
+          </form>
+        {% elif inv.status == 'active' or inv.status == 'exhausted' %}
+          <form
+            method="post"
+            action="/settings/invites/{{ inv.id }}/disable"
+            class="inline"
+            hx-post="/settings/invites/{{ inv.id }}/disable"
             hx-target="#invites-section"
             hx-swap="innerHTML"
             hx-confirm="Disable this invite code?"
