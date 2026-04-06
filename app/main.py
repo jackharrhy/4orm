@@ -35,6 +35,7 @@ from app.queries.users import (
     get_user_by_username,
     list_profile_cards,
 )
+from app.rendering import render_content
 from app.schema import create_all, profile_cards, users
 from app.security import verify_password
 
@@ -103,7 +104,14 @@ def current_user(request: Request):
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     with engine.begin() as conn:
-        cards = list_profile_cards(conn)
+        raw_cards = list_profile_cards(conn)
+    cards = [
+        {
+            **card,
+            "rendered_content": render_content(card["content"], card["content_format"]),
+        }
+        for card in raw_cards
+    ]
     return templates.TemplateResponse(
         request, "home.html", {"cards": cards, "me": current_user(request)}
     )
@@ -191,8 +199,15 @@ def page_view(request: Request, username: str, slug: str):
         page = get_public_page(conn, username, slug)
     if not page:
         raise HTTPException(404)
+    rendered_content = render_content(page["content"], page["content_format"])
     return templates.TemplateResponse(
-        request, "page.html", {"page": page, "me": current_user(request)}
+        request,
+        "page.html",
+        {
+            "page": page,
+            "rendered_content": rendered_content,
+            "me": current_user(request),
+        },
     )
 
 
@@ -419,6 +434,7 @@ def settings_card(
     request: Request,
     headline: str = Form(""),
     content: str = Form(""),
+    content_format: str = Form("html"),
     accent_color: str = Form("#00ffff"),
     border_style: str = Form("outset"),
     card_css: str = Form(""),
@@ -434,6 +450,7 @@ def settings_card(
             .values(
                 headline=headline,
                 content=content,
+                content_format=content_format,
                 accent_color=accent_color,
                 border_style=border_style,
                 card_css=card_css,
@@ -468,7 +485,8 @@ def settings_pages(
     request: Request,
     slug: str = Form(...),
     title: str = Form(...),
-    content_html: str = Form(""),
+    content: str = Form(""),
+    content_format: str = Form("html"),
 ):
     me = current_user(request)
     if not me:
@@ -480,7 +498,8 @@ def settings_pages(
             user_id=me["id"],
             slug=slug.strip(),
             title=title.strip(),
-            content_html=content_html,
+            content=content,
+            content_format=content_format,
             is_public=True,
         )
 
@@ -520,7 +539,8 @@ def settings_pages_edit_post(
     slug: str,
     new_slug: str = Form(...),
     title: str = Form(...),
-    content_html: str = Form(""),
+    content: str = Form(""),
+    content_format: str = Form("html"),
     is_public: str | None = Form(None),
 ):
     me = current_user(request)
@@ -538,7 +558,8 @@ def settings_pages_edit_post(
             slug,
             slug=cleaned_slug,
             title=title.strip(),
-            content_html=content_html,
+            content=content,
+            content_format=content_format,
             is_public=is_public == "on",
         )
 

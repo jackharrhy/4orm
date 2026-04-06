@@ -1,7 +1,8 @@
 import { EditorView, basicSetup } from "codemirror";
 import { css } from "@codemirror/lang-css";
 import { html } from "@codemirror/lang-html";
-import { EditorState } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
+import { EditorState, Compartment } from "@codemirror/state";
 
 const theme = EditorView.theme({
   "&": {
@@ -26,8 +27,14 @@ const theme = EditorView.theme({
   ".cm-scroller": { padding: "4px 0" },
 });
 
+function langExtension(lang) {
+  if (lang === "css") return css();
+  if (lang === "markdown") return markdown();
+  return html();
+}
+
 function createEditor(textarea, lang) {
-  const langExt = lang === "css" ? css() : html();
+  const langCompartment = new Compartment();
   const parent = document.createElement("div");
   textarea.parentNode.insertBefore(parent, textarea);
   textarea.style.display = "none";
@@ -37,7 +44,7 @@ function createEditor(textarea, lang) {
       doc: textarea.value,
       extensions: [
         basicSetup,
-        langExt,
+        langCompartment.of(langExtension(lang)),
         theme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -49,6 +56,7 @@ function createEditor(textarea, lang) {
     parent,
   });
 
+  view._langCompartment = langCompartment;
   return view;
 }
 
@@ -63,6 +71,16 @@ document.querySelectorAll("textarea[data-codemirror]").forEach((textarea) => {
     window._cmEditors[textarea.id] = view;
   }
 });
+
+// Switch editor language (called from format toggle radio buttons)
+window.switchEditorLang = function (textareaId, lang) {
+  const view = window._cmEditors[textareaId];
+  if (view && view._langCompartment) {
+    view.dispatch({
+      effects: view._langCompartment.reconfigure(langExtension(lang)),
+    });
+  }
+};
 
 // Export for manual use
 window.createCodeMirror = createEditor;

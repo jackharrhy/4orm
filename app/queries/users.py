@@ -137,6 +137,7 @@ def list_profile_cards(conn: Connection):
             users.c.username,
             profile_cards.c.headline,
             profile_cards.c.content,
+            profile_cards.c.content_format,
             profile_cards.c.accent_color,
             profile_cards.c.border_style,
             profile_cards.c.card_css,

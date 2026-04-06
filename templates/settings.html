@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% from 'macros/media_snippets.html' import media_snippet_picker %}
+{% from 'macros/content_editor.html' import content_editor %}
 {% block title %}settings{% endblock %}
 {% block content %}
   <h1>settings</h1>
@@ -48,12 +49,8 @@
           value="{{ card_settings.headline if card_settings else '' }}"
         />
       </label>
-      <label>
-        content
-        <textarea name="content" rows="6" data-codemirror="html">
-{{ card_settings.content if card_settings else '' }}</textarea
-        >
-      </label>
+      <label>content</label>
+      {{ content_editor('content', 'card_content', value=card_settings.content if card_settings else '', format=card_settings.content_format if card_settings else 'html', rows=6) }}
       <label>
         accent color
         <input
@@ -152,19 +149,11 @@
         title
         <input name="title" placeholder="about me" />
       </label>
-      <label>
-        content
-        <textarea
-          id="create_content_html"
-          name="content_html"
-          rows="12"
-          placeholder="<marquee>hello world</marquee>"
-          data-codemirror="html"
-        ></textarea>
-      </label>
+      <label>content</label>
+      {{ content_editor('content', 'create_content', rows=12, placeholder='<marquee>hello world</marquee>') }}
       <button>publish</button>
     </form>
-    {{ media_snippet_picker(media_items, 'create_content_html') }}
+    {{ media_snippet_picker(media_items, 'create_content') }}
   </details>
   <p>
     <a href="/settings/media">manage media library →</a>

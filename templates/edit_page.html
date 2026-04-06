@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% from 'macros/media_snippets.html' import media_snippet_picker %}
+{% from 'macros/content_editor.html' import content_editor %}
 {% block title %}edit page{% endblock %}
 {%
   block
@@ -29,24 +30,15 @@
         />
         public page
       </label>
-      <label>
-        content
-        <textarea
-          id="edit_content_html"
-          name="content_html"
-          rows="16"
-          data-codemirror="html"
-        >
-{{ page.content_html }}</textarea
-        >
-      </label>
+      <label>content</label>
+      {{ content_editor('content', 'edit_content', value=page.content, format=page.content_format, rows=16) }}
       <button type="submit">save changes</button>
     </form>
   </section>
   {% if media_items %}
     <section class="panel">
       <h2>media snippets</h2>
-      {{ media_snippet_picker(media_items, 'edit_content_html') }}
+      {{ media_snippet_picker(media_items, 'edit_content') }}
     </section>
   {% endif %}
   <script>

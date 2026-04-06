@@ -11,6 +11,6 @@
       by <a href="/u/{{ page.username }}">{{ page.display_name }}</a>
     </p>
     <hr />
-    {{ page.content_html|safe }}
+    {{ rendered_content|safe }}
   </article>
 {% endblock %}

@@ -18,7 +18,8 @@ def get_public_page(conn: Connection, username: str, slug: str):
     q = (
         select(
             pages.c.title,
-            pages.c.content_html,
+            pages.c.content,
+            pages.c.content_format,
             users.c.username,
             users.c.display_name,
             users.c.custom_css,
@@ -39,7 +40,8 @@ def create_page(
     user_id: int,
     slug: str,
     title: str,
-    content_html: str,
+    content: str,
+    content_format: str = "html",
     is_public: bool = True,
 ):
     conn.execute(
@@ -47,7 +49,8 @@ def create_page(
             user_id=user_id,
             slug=slug,
             title=title,
-            content_html=content_html,
+            content=content,
+            content_format=content_format,
             is_public=is_public,
         )
     )
@@ -74,7 +77,8 @@ def update_user_page(
     *,
     slug: str,
     title: str,
-    content_html: str,
+    content: str,
+    content_format: str = "html",
     is_public: bool,
 ):
     conn.execute(
@@ -83,7 +87,8 @@ def update_user_page(
         .values(
             slug=slug,
             title=title,
-            content_html=content_html,
+            content=content,
+            content_format=content_format,
             is_public=is_public,
         )
     )

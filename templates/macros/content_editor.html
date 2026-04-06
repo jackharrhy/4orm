@@ -1,0 +1,35 @@
+{% macro content_editor(name, textarea_id, value="", format="html", rows=12, placeholder="") %}
+  <div class="content-editor">
+    <div class="inline" style="margin-bottom: 6px">
+      <label>
+        <input
+          type="radio"
+          name="content_format"
+          value="html"
+          {% if format != 'markdown' %}checked{% endif %}
+          onchange="switchEditorLang('{{ textarea_id }}', 'html')"
+        />
+        html
+      </label>
+      <label>
+        <input
+          type="radio"
+          name="content_format"
+          value="markdown"
+          {% if format == 'markdown' %}checked{% endif %}
+          onchange="switchEditorLang('{{ textarea_id }}', 'markdown')"
+        />
+        markdown
+      </label>
+    </div>
+    <textarea
+      id="{{ textarea_id }}"
+      name="{{ name }}"
+      rows="{{ rows }}"
+      placeholder="{{ placeholder }}"
+      data-codemirror="{{ 'markdown' if format == 'markdown' else 'html' }}"
+    >
+{{ value }}</textarea
+    >
+  </div>
+{% endmacro %}
