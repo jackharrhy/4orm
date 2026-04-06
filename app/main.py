@@ -105,14 +105,14 @@ def home(request: Request):
     with engine.begin() as conn:
         cards = list_inventory_cards(conn)
     return templates.TemplateResponse(
-        "home.html", {"request": request, "cards": cards, "me": current_user(request)}
+        request, "home.html", {"cards": cards, "me": current_user(request)}
     )
 
 
 @app.get("/register", response_class=HTMLResponse)
 def register_get(request: Request, invite: str | None = None):
     return templates.TemplateResponse(
-        "register.html", {"request": request, "invite": invite, "error": None}
+        request, "register.html", {"invite": invite, "error": None}
     )
 
 
@@ -132,8 +132,9 @@ def register_post(
         )
     if error:
         return templates.TemplateResponse(
+            request,
             "register.html",
-            {"request": request, "invite": invite_code, "error": error},
+            {"invite": invite_code, "error": error},
             status_code=400,
         )
     request.session["user_id"] = user["id"]
@@ -142,7 +143,7 @@ def register_post(
 
 @app.get("/login", response_class=HTMLResponse)
 def login_get(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "login.html", {"error": None})
 
 
 @app.post("/login", response_class=HTMLResponse)
@@ -151,8 +152,9 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         user = get_user_by_username(conn, username.strip())
     if not user or not verify_password(password, user["password_hash"]):
         return templates.TemplateResponse(
+            request,
             "login.html",
-            {"request": request, "error": "Invalid credentials"},
+            {"error": "Invalid credentials"},
             status_code=400,
         )
     request.session["user_id"] = user["id"]
@@ -173,9 +175,9 @@ def profile(request: Request, username: str):
             raise HTTPException(404)
         pages = list_public_pages_for_user(conn, username)
     return templates.TemplateResponse(
+        request,
         "profile.html",
         {
-            "request": request,
             "profile": user,
             "pages": pages,
             "me": current_user(request),
@@ -190,7 +192,7 @@ def page_view(request: Request, username: str, slug: str):
     if not page:
         raise HTTPException(404)
     return templates.TemplateResponse(
-        "page.html", {"request": request, "page": page, "me": current_user(request)}
+        request, "page.html", {"page": page, "me": current_user(request)}
     )
 
 
@@ -201,8 +203,9 @@ def lineage(request: Request, username: str):
     if not chain:
         raise HTTPException(404)
     return templates.TemplateResponse(
+        request,
         "lineage.html",
-        {"request": request, "chain": chain, "me": current_user(request)},
+        {"chain": chain, "me": current_user(request)},
     )
 
 
@@ -223,9 +226,9 @@ def settings_get(request: Request):
         media_items = list_media_for_user(conn, me["id"])
         my_invites = get_invites_for_user(conn, me["id"])
     return templates.TemplateResponse(
+        request,
         "settings.html",
         {
-            "request": request,
             "me": me,
             "my_pages": my_pages,
             "card_settings": card_settings,
@@ -244,7 +247,7 @@ def settings_media_get(request: Request):
     with engine.begin() as conn:
         items = list_media_for_user(conn, me["id"])
     return templates.TemplateResponse(
-        "settings_media.html", {"request": request, "me": me, "items": items}
+        request, "settings_media.html", {"me": me, "items": items}
     )
 
 
@@ -490,9 +493,9 @@ def settings_pages_edit_get(request: Request, slug: str):
         raise HTTPException(404)
 
     return templates.TemplateResponse(
+        request,
         "edit_page.html",
         {
-            "request": request,
             "me": me,
             "page": page,
             "media_items": media_items,
