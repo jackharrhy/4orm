@@ -665,12 +665,26 @@ def admin_dashboard(request: Request):
         )
         storage_by_user = {s["id"]: s for s in storage_stats}
 
-        # Scan for orphans
+    return templates.TemplateResponse(
+        request,
+        "admin.html",
+        {
+            "me": me,
+            "all_users": all_users,
+            "storage_by_user": storage_by_user,
+        },
+    )
+
+
+@app.get("/admin/orphans", response_class=HTMLResponse)
+def admin_scan_orphans(request: Request):
+    """Scan for orphaned files/records and return an HTML fragment."""
+    require_admin(request)
+    with get_engine(request).begin() as conn:
         db_paths = set(
             row[0] for row in conn.execute(select(media.c.storage_path)).fetchall()
         )
 
-    # Files on disk but not in DB
     orphaned_files = []
     if UPLOADS_DIR.exists():
         for user_dir in UPLOADS_DIR.iterdir():
@@ -682,7 +696,6 @@ def admin_dashboard(request: Request):
                     if rel not in db_paths:
                         orphaned_files.append({"path": rel, "size": f.stat().st_size})
 
-    # Records in DB but file missing from disk
     orphaned_records = []
     for p in db_paths:
         if not (UPLOADS_DIR / p).exists():
@@ -690,11 +703,8 @@ def admin_dashboard(request: Request):
 
     return templates.TemplateResponse(
         request,
-        "admin.html",
+        "admin_orphans.html",
         {
-            "me": me,
-            "all_users": all_users,
-            "storage_by_user": storage_by_user,
             "orphaned_files": sorted(orphaned_files, key=lambda x: x["path"]),
             "orphaned_records": sorted(orphaned_records),
         },

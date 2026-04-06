@@ -1,0 +1,55 @@
+<h3>orphaned files</h3>
+<p class="muted">files on disk with no database record</p>
+{% if orphaned_files %}
+  <table style="width: 100%; border-collapse: collapse">
+    <thead>
+      <tr>
+        <th style="text-align: left">path</th>
+        <th style="text-align: right">size</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in orphaned_files %}
+        <tr>
+          <td><code>{{ f.path }}</code></td>
+          <td style="text-align: right">{{ f.size|human_bytes }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <form
+    method="post"
+    action="/admin/cleanup/files"
+    class="inline"
+    style="margin-top: 10px"
+    onsubmit="return confirm('Delete {{ orphaned_files|length }} orphaned file(s) from disk?');"
+  >
+    <button type="submit">
+      delete {{ orphaned_files|length }} orphaned file(s)
+    </button>
+  </form>
+{% else %}
+  <p>none found.</p>
+{% endif %}
+<h3>orphaned records</h3>
+<p class="muted">database records whose files are missing from disk</p>
+{% if orphaned_records %}
+  <ul>
+    {% for path in orphaned_records %}
+      <li><code>{{ path }}</code></li>
+    {% endfor %}
+  </ul>
+  <form
+    method="post"
+    action="/admin/cleanup/records"
+    class="inline"
+    style="margin-top: 10px"
+    onsubmit="return confirm('Delete {{ orphaned_records|length }} orphaned record(s) from database?');"
+  >
+    <button type="submit">
+      delete {{ orphaned_records|length }} orphaned record(s)
+    </button>
+  </form>
+{% else %}
+  <p>none found.</p>
+{% endif %}

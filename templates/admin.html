@@ -49,39 +49,18 @@
     </table>
   </section>
   <section class="panel">
-    <h2>orphaned files</h2>
-    <p class="muted">files on disk with no database record</p>
-    {% if orphaned_files %}
-      <table style="width: 100%; border-collapse: collapse">
-        <thead>
-          <tr>
-            <th style="text-align: left">path</th>
-            <th style="text-align: right">size</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for f in orphaned_files %}
-            <tr>
-              <td><code>{{ f.path }}</code></td>
-              <td style="text-align: right">{{ f.size|human_bytes }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <form
-        method="post"
-        action="/admin/cleanup/files"
-        class="inline"
-        style="margin-top: 10px"
-        onsubmit="return confirm('Delete {{ orphaned_files|length }} orphaned file(s) from disk?');"
+    <h2>storage health</h2>
+    <div id="orphan-results">
+      <button
+        hx-get="/admin/orphans"
+        hx-target="#orphan-results"
+        hx-swap="innerHTML"
+        hx-indicator="#orphan-spinner"
       >
-        <button type="submit">
-          delete {{ orphaned_files|length }} orphaned file(s)
-        </button>
-      </form>
-    {% else %}
-      <p>none found.</p>
-    {% endif %}
+        scan for orphans
+      </button>
+      <span id="orphan-spinner" class="htmx-indicator muted"> scanning...</span>
+    </div>
   </section>
   <section class="panel">
     <h2>orphaned records</h2>
