@@ -1,7 +1,8 @@
 from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.db import engine
 from app.queries.pages import create_page, get_public_page, list_public_pages_for_user
 from app.queries.pages import get_user_page, list_pages_for_user, update_user_page
+from app.queries.media import create_media, delete_media_for_user, get_media_for_user, list_media_for_user, update_media_alt_text
 from app.queries.users import (
     create_invite,
     create_user_with_invite,
@@ -24,6 +26,7 @@ from sqlalchemy import select, update
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOADS_DIR = BASE_DIR / "uploads"
 app = FastAPI(title="4orm")
 app.add_middleware(SessionMiddleware, secret_key="replace-this-dev-key")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -132,6 +135,73 @@ def settings_get(request: Request):
     with engine.begin() as conn:
         my_pages = list_pages_for_user(conn, me["id"])
     return templates.TemplateResponse("settings.html", {"request": request, "me": me, "my_pages": my_pages, "error": None})
+
+
+@app.get("/settings/media", response_class=HTMLResponse)
+def settings_media_get(request: Request):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with engine.begin() as conn:
+        items = list_media_for_user(conn, me["id"])
+    return templates.TemplateResponse("settings_media.html", {"request": request, "me": me, "items": items})
+
+
+@app.post("/settings/media/upload")
+async def settings_media_upload(request: Request, files: list[UploadFile] = File(...)):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+
+    user_upload_dir = UPLOADS_DIR / str(me["id"])
+    user_upload_dir.mkdir(parents=True, exist_ok=True)
+
+    with engine.begin() as conn:
+        for f in files:
+            suffix = Path(f.filename or "").suffix[:16]
+            filename = f"{uuid4().hex}{suffix}"
+            rel_path = f"{me['id']}/{filename}"
+            disk_path = UPLOADS_DIR / rel_path
+            content = await f.read()
+            disk_path.write_bytes(content)
+            create_media(
+                conn,
+                user_id=me["id"],
+                storage_path=rel_path,
+                mime_type=f.content_type or "application/octet-stream",
+                size_bytes=len(content),
+            )
+
+    return RedirectResponse(url="/settings/media", status_code=303)
+
+
+@app.post("/settings/media/{media_id}/alt")
+def settings_media_alt(request: Request, media_id: int, alt_text: str = Form("")):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with engine.begin() as conn:
+        item = get_media_for_user(conn, me["id"], media_id)
+        if not item:
+            raise HTTPException(404)
+        update_media_alt_text(conn, me["id"], media_id, alt_text)
+    return RedirectResponse(url="/settings/media", status_code=303)
+
+
+@app.post("/settings/media/{media_id}/delete")
+def settings_media_delete(request: Request, media_id: int):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with engine.begin() as conn:
+        item = get_media_for_user(conn, me["id"], media_id)
+        if not item:
+            raise HTTPException(404)
+        delete_media_for_user(conn, me["id"], media_id)
+    disk_path = UPLOADS_DIR / item["storage_path"]
+    if disk_path.exists():
+        disk_path.unlink()
+    return RedirectResponse(url="/settings/media", status_code=303)
 
 
 @app.post("/settings/profile")
