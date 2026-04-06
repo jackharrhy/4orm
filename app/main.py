@@ -33,9 +33,9 @@ from app.queries.users import (
     get_invites_for_user,
     get_user_by_id,
     get_user_by_username,
-    list_inventory_cards,
+    list_profile_cards,
 )
-from app.schema import create_all, inventory_cards, users
+from app.schema import create_all, profile_cards, users
 from app.security import verify_password
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -103,7 +103,7 @@ def current_user(request: Request):
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     with engine.begin() as conn:
-        cards = list_inventory_cards(conn)
+        cards = list_profile_cards(conn)
     return templates.TemplateResponse(
         request, "home.html", {"cards": cards, "me": current_user(request)}
     )
@@ -216,7 +216,7 @@ def settings_get(request: Request):
         my_pages = list_pages_for_user(conn, me["id"])
         card_settings = (
             conn.execute(
-                select(inventory_cards).where(inventory_cards.c.user_id == me["id"])
+                select(profile_cards).where(profile_cards.c.user_id == me["id"])
             )
             .mappings()
             .first()
@@ -417,8 +417,8 @@ def settings_card(
 
     with engine.begin() as conn:
         conn.execute(
-            update(inventory_cards)
-            .where(inventory_cards.c.user_id == me["id"])
+            update(profile_cards)
+            .where(profile_cards.c.user_id == me["id"])
             .values(
                 headline=headline,
                 subhead=subhead,

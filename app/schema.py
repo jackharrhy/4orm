@@ -132,8 +132,8 @@ gallery_items = Table(
     Column("position", Integer, nullable=False, server_default="0"),
 )
 
-inventory_cards = Table(
-    "inventory_cards",
+profile_cards = Table(
+    "profile_cards",
     metadata,
     Column(
         "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True

@@ -10,7 +10,7 @@ from sqlalchemy import insert
 
 from app.db import engine
 from app.queries.users import create_invite
-from app.schema import create_all, inventory_cards, users
+from app.schema import create_all, profile_cards, users
 from app.security import hash_password
 
 
@@ -39,7 +39,7 @@ def main():
             )
             user_id = result.inserted_primary_key[0]
             conn.execute(
-                insert(inventory_cards).values(
+                insert(profile_cards).values(
                     user_id=user_id, headline=f"{args.username}'s card"
                 )
             )

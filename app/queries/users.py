@@ -3,7 +3,7 @@ import secrets
 from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.engine import Connection
 
-from app.schema import inventory_cards, invites, users
+from app.schema import invites, profile_cards, users
 from app.security import hash_password
 
 
@@ -64,7 +64,7 @@ def create_user_with_invite(
     )
 
     conn.execute(
-        insert(inventory_cards).values(user_id=user_id, headline=f"{username}'s card")
+        insert(profile_cards).values(user_id=user_id, headline=f"{username}'s card")
     )
     return get_user_by_id(conn, user_id), None
 
@@ -131,21 +131,19 @@ def disable_invite(conn: Connection, invite_id: int, user_id: int) -> bool:
     return result.rowcount > 0
 
 
-def list_inventory_cards(conn: Connection):
+def list_profile_cards(conn: Connection):
     q = (
         select(
             users.c.username,
             users.c.display_name,
             users.c.bio,
-            inventory_cards.c.headline,
-            inventory_cards.c.subhead,
-            inventory_cards.c.accent_color,
-            inventory_cards.c.border_style,
-            inventory_cards.c.card_css,
+            profile_cards.c.headline,
+            profile_cards.c.subhead,
+            profile_cards.c.accent_color,
+            profile_cards.c.border_style,
+            profile_cards.c.card_css,
         )
-        .select_from(
-            users.join(inventory_cards, users.c.id == inventory_cards.c.user_id)
-        )
+        .select_from(users.join(profile_cards, users.c.id == profile_cards.c.user_id))
         .order_by(users.c.created_at.desc())
     )
     return conn.execute(q).mappings().all()
