@@ -35,6 +35,7 @@ def main():
                     username=args.username,
                     password_hash=hash_password(args.password),
                     display_name=args.username,
+                    is_admin=True,
                 )
             )
             user_id = result.inserted_primary_key[0]

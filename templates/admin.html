@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}admin{% endblock %}
+{% block content %}
+  <h1>admin</h1>
+  <section class="panel">
+    <h2>users ({{ all_users|length }})</h2>
+    <table style="width: 100%; border-collapse: collapse">
+      <thead>
+        <tr>
+          <th style="text-align: left">user</th>
+          <th style="text-align: left">display name</th>
+          <th style="text-align: right">files</th>
+          <th style="text-align: right">storage</th>
+          <th style="text-align: left">joined</th>
+          <th style="text-align: left">role</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in all_users %}
+          {% set stats = storage_by_user.get(u.id, {}) %}
+          <tr>
+            <td>
+              <a href="/u/{{ u.username }}">{{ u.username }}</a>
+            </td>
+            <td>{{ u.display_name }}</td>
+            <td style="text-align: right">{{ stats.get('file_count', 0) }}</td>
+            <td style="text-align: right">
+              {{ stats.get('total_bytes', 0)|human_bytes }}
+            </td>
+            <td>
+              {{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}
+            </td>
+            <td>{{ 'admin' if u.is_admin else '' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

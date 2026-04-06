@@ -17,6 +17,9 @@
         {% if me %}
           <a href="/u/{{ me.username }}">my page</a>
           <a href="/settings">settings</a>
+          {% if me.is_admin %}
+            <a href="/admin">admin</a>
+          {% endif %}
           <form method="post" action="/logout" class="inline">
             <button>logout</button>
           </form>

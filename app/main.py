@@ -5,7 +5,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import engine as default_engine
@@ -36,7 +36,7 @@ from app.queries.users import (
     list_profile_cards,
 )
 from app.rendering import render_content
-from app.schema import create_all, profile_cards, users
+from app.schema import create_all, media, profile_cards, users
 from app.security import verify_password
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -108,6 +108,14 @@ def current_user(request: Request):
         return None
     with get_engine(request).begin() as conn:
         return get_user_by_id(conn, user_id)
+
+
+def require_admin(request: Request):
+    """Return the current user if they are an admin, otherwise raise 403."""
+    me = current_user(request)
+    if not me or not me["is_admin"]:
+        raise HTTPException(403)
+    return me
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -588,4 +596,52 @@ def settings_pages_edit_post(
 
     return RedirectResponse(
         url=f"/u/{me['username']}/page/{cleaned_slug}", status_code=303
+    )
+
+
+# --- Admin ---
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_dashboard(request: Request):
+    me = require_admin(request)
+    with get_engine(request).begin() as conn:
+        all_users = (
+            conn.execute(
+                select(
+                    users.c.id,
+                    users.c.username,
+                    users.c.display_name,
+                    users.c.is_admin,
+                    users.c.created_at,
+                ).order_by(users.c.created_at)
+            )
+            .mappings()
+            .all()
+        )
+
+        storage_stats = (
+            conn.execute(
+                select(
+                    users.c.id,
+                    users.c.username,
+                    func.count(media.c.id).label("file_count"),
+                    func.coalesce(func.sum(media.c.size_bytes), 0).label("total_bytes"),
+                )
+                .select_from(users.outerjoin(media, users.c.id == media.c.user_id))
+                .group_by(users.c.id)
+            )
+            .mappings()
+            .all()
+        )
+        storage_by_user = {s["id"]: s for s in storage_stats}
+
+    return templates.TemplateResponse(
+        request,
+        "admin.html",
+        {
+            "me": me,
+            "all_users": all_users,
+            "storage_by_user": storage_by_user,
+        },
     )
