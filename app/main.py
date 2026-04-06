@@ -510,16 +510,21 @@ def settings_pages(
     if not me:
         return RedirectResponse(url="/login", status_code=303)
 
-    with get_engine(request).begin() as conn:
-        create_page(
-            conn,
-            user_id=me["id"],
-            slug=slug.strip(),
-            title=title.strip(),
-            content=content,
-            content_format=content_format,
-            is_public=True,
-        )
+    from sqlalchemy.exc import IntegrityError
+
+    try:
+        with get_engine(request).begin() as conn:
+            create_page(
+                conn,
+                user_id=me["id"],
+                slug=slug.strip(),
+                title=title.strip(),
+                content=content,
+                content_format=content_format,
+                is_public=True,
+            )
+    except IntegrityError:
+        return RedirectResponse(url="/settings?error=slug_taken", status_code=303)
 
     return RedirectResponse(
         url=f"/u/{me['username']}/page/{slug.strip()}", status_code=303

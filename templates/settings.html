@@ -9,6 +9,11 @@
       new invite code: <code>{{ request.query_params.get("new_invite") }}</code>
     </p>
   {% endif %}
+  {% if request.query_params.get('error') == 'slug_taken' %}
+    <p class="error">
+      a page with that slug already exists. try a different one.
+    </p>
+  {% endif %}
   <details class="panel" open>
     <summary><h2>profile</h2></summary>
     <form method="post" action="/settings/profile" class="stack">

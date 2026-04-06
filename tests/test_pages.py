@@ -87,6 +87,31 @@ def test_edit_page_renders(authed_client, seed_user):
     assert "Edit Me" in r.text
 
 
+def test_create_duplicate_slug(authed_client, seed_user):
+    authed_client.post(
+        "/settings/pages",
+        data={
+            "slug": "dupe",
+            "title": "First",
+            "content": "first",
+            "content_format": "html",
+        },
+    )
+
+    r = authed_client.post(
+        "/settings/pages",
+        data={
+            "slug": "dupe",
+            "title": "Second",
+            "content": "second",
+            "content_format": "html",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "slug already exists" in r.text
+
+
 def test_page_not_found(client, seed_user):
     r = client.get(f"/u/{seed_user['username']}/page/nonexistent")
     assert r.status_code == 404
