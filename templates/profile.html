@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}{{ profile.display_name }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>{{ profile.display_name }}</h1>
+  <p class="muted">@{{ profile.username }}</p>
+  <p>{{ profile.bio }}</p>
+  <p><a href="/lineage/{{ profile.username }}">view lineage</a></p>
+</section>
+
+{% if profile.custom_css %}
+<style>{{ profile.custom_css|safe }}</style>
+{% endif %}
+
+<section class="panel">
+  <h2>pages</h2>
+  <ul>
+    {% for p in pages %}
+      <li><a href="/u/{{ profile.username }}/page/{{ p.slug }}">{{ p.title }}</a></li>
+    {% else %}
+      <li>no pages yet.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}settings{% endblock %}
+{% block content %}
+<h1>settings</h1>
+{% if request.query_params.get('new_invite') %}
+  <p class="ok">new invite code: <code>{{ request.query_params.get('new_invite') }}</code></p>
+{% endif %}
+
+<section class="panel">
+  <h2>profile</h2>
+  <form method="post" action="/settings/profile" class="stack">
+    <label>display name <input name="display_name" value="{{ me.display_name }}" /></label>
+    <label>bio <textarea name="bio">{{ me.bio }}</textarea></label>
+    <button>save profile</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>custom css (raw)</h2>
+  <form method="post" action="/settings/css" class="stack">
+    <textarea name="custom_css" rows="10">{{ me.custom_css }}</textarea>
+    <button>save css</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>inventory card</h2>
+  <form method="post" action="/settings/card" class="stack">
+    <label>headline <input name="headline" /></label>
+    <label>subhead <input name="subhead" /></label>
+    <label>accent color <input name="accent_color" value="#00ffff" /></label>
+    <label>border style
+      <select name="border_style">
+        <option>solid</option><option>double</option><option>dashed</option><option>dotted</option><option>outset</option><option>inset</option><option>ridge</option><option>groove</option>
+      </select>
+    </label>
+    <label>card css <textarea name="card_css" rows="5"></textarea></label>
+    <button>save card</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>create invite</h2>
+  <form method="post" action="/settings/invites" class="inline">
+    <label>max uses <input type="number" name="max_uses" value="1" min="1" max="50" /></label>
+    <button>create</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>create page (raw html)</h2>
+  <form method="post" action="/settings/pages" class="stack">
+    <label>slug <input name="slug" placeholder="about" /></label>
+    <label>title <input name="title" placeholder="about me" /></label>
+    <label>content <textarea name="content_html" rows="12" placeholder="<marquee>hello world</marquee>"></textarea></label>
+    <button>publish</button>
+  </form>
+</section>
+{% endblock %}

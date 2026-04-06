@@ -1,0 +1,111 @@
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    func,
+)
+
+metadata = MetaData()
+
+users = Table(
+    "users",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("username", String(32), nullable=False, unique=True),
+    Column("password_hash", String(255), nullable=False),
+    Column("display_name", String(80), nullable=False),
+    Column("bio", Text, nullable=False, server_default=""),
+    Column("avatar_media_id", Integer, ForeignKey("media.id", ondelete="SET NULL")),
+    Column("custom_css", Text, nullable=False, server_default=""),
+    Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+invites = Table(
+    "invites",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("code", String(64), nullable=False, unique=True),
+    Column("created_by_user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("used_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
+    Column("max_uses", Integer, nullable=False, server_default="1"),
+    Column("uses_count", Integer, nullable=False, server_default="0"),
+    Column("expires_at", DateTime(timezone=True)),
+    Column("disabled", Boolean, nullable=False, server_default="0"),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("used_at", DateTime(timezone=True)),
+    CheckConstraint("max_uses >= 1", name="ck_invites_max_uses"),
+)
+
+pages = Table(
+    "pages",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("slug", String(80), nullable=False),
+    Column("title", String(140), nullable=False),
+    Column("content_html", Text, nullable=False, server_default=""),
+    Column("is_public", Boolean, nullable=False, server_default="1"),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("user_id", "slug", name="uq_pages_user_slug"),
+)
+
+media = Table(
+    "media",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("storage_path", String(255), nullable=False),
+    Column("mime_type", String(120), nullable=False),
+    Column("width", Integer),
+    Column("height", Integer),
+    Column("size_bytes", Integer, nullable=False, server_default="0"),
+    Column("alt_text", String(255), nullable=False, server_default=""),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+galleries = Table(
+    "galleries",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("title", String(140), nullable=False),
+    Column("description", Text, nullable=False, server_default=""),
+    Column("is_public", Boolean, nullable=False, server_default="1"),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+gallery_items = Table(
+    "gallery_items",
+    metadata,
+    Column("gallery_id", Integer, ForeignKey("galleries.id", ondelete="CASCADE"), primary_key=True),
+    Column("media_id", Integer, ForeignKey("media.id", ondelete="CASCADE"), primary_key=True),
+    Column("position", Integer, nullable=False, server_default="0"),
+)
+
+inventory_cards = Table(
+    "inventory_cards",
+    metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("headline", String(120), nullable=False, server_default=""),
+    Column("subhead", String(200), nullable=False, server_default=""),
+    Column("accent_color", String(20), nullable=False, server_default="#00ffff"),
+    Column("border_style", String(20), nullable=False, server_default="outset"),
+    Column("card_css", Text, nullable=False, server_default=""),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+
+def create_all(engine):
+    metadata.create_all(engine)

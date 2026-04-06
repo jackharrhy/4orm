@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block content %}
+<article class="panel content-html">
+  <h1>{{ page.title }}</h1>
+  <p class="muted">by <a href="/u/{{ page.username }}">{{ page.display_name }}</a></p>
+  <hr />
+  {{ page.content_html|safe }}
+</article>
+{% endblock %}
