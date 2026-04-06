@@ -135,9 +135,17 @@ def settings_get(request: Request):
     with engine.begin() as conn:
         my_pages = list_pages_for_user(conn, me["id"])
         card_settings = conn.execute(select(inventory_cards).where(inventory_cards.c.user_id == me["id"])).mappings().first()
+        media_items = list_media_for_user(conn, me["id"])
     return templates.TemplateResponse(
         "settings.html",
-        {"request": request, "me": me, "my_pages": my_pages, "card_settings": card_settings, "error": None},
+        {
+            "request": request,
+            "me": me,
+            "my_pages": my_pages,
+            "card_settings": card_settings,
+            "media_items": media_items,
+            "error": None,
+        },
     )
 
 
@@ -287,11 +295,15 @@ def settings_pages_edit_get(request: Request, slug: str):
 
     with engine.begin() as conn:
         page = get_user_page(conn, me["id"], slug)
+        media_items = list_media_for_user(conn, me["id"])
 
     if not page:
         raise HTTPException(404)
 
-    return templates.TemplateResponse("edit_page.html", {"request": request, "me": me, "page": page, "error": None})
+    return templates.TemplateResponse(
+        "edit_page.html",
+        {"request": request, "me": me, "page": page, "media_items": media_items, "error": None},
+    )
 
 
 @app.post("/settings/pages/{slug}/edit")

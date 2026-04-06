@@ -11,8 +11,53 @@
       <input type="checkbox" name="is_public" {% if page.is_public %}checked{% endif %} />
       public page
     </label>
-    <label>content <textarea name="content_html" rows="16">{{ page.content_html }}</textarea></label>
+    <label>content <textarea id="edit_content_html" name="content_html" rows="16">{{ page.content_html }}</textarea></label>
     <button type="submit">save changes</button>
   </form>
 </section>
+
+<section class="panel">
+  <h2>media snippets</h2>
+  <p class="muted">click to insert at cursor</p>
+  <div class="stack">
+    {% for item in media_items %}
+      {% set img_snippet = '<img src="/uploads/' ~ item.storage_path ~ '" alt="' ~ (item.alt_text or '') ~ '" />' %}
+      {% set linked_img_snippet = '<a href="/uploads/' ~ item.storage_path ~ '"><img src="/uploads/' ~ item.storage_path ~ '" alt="' ~ (item.alt_text or '') ~ '" /></a>' %}
+      {% set video_snippet = '<video controls src="/uploads/' ~ item.storage_path ~ '"></video>' %}
+      {% set audio_snippet = '<audio controls src="/uploads/' ~ item.storage_path ~ '"></audio>' %}
+      {% set link_snippet = '<a href="/uploads/' ~ item.storage_path ~ '">download</a>' %}
+      <div class="panel" style="margin:0;">
+        <p><code>/uploads/{{ item.storage_path }}</code></p>
+        <div class="inline" style="flex-wrap:wrap;">
+          <button type="button" data-snippet="{{ img_snippet|e }}" onclick="insertSnippetFromButton(this, 'edit_content_html')">img</button>
+          <button type="button" data-snippet="{{ linked_img_snippet|e }}" onclick="insertSnippetFromButton(this, 'edit_content_html')">linked img</button>
+          <button type="button" data-snippet="{{ video_snippet|e }}" onclick="insertSnippetFromButton(this, 'edit_content_html')">video</button>
+          <button type="button" data-snippet="{{ audio_snippet|e }}" onclick="insertSnippetFromButton(this, 'edit_content_html')">audio</button>
+          <button type="button" data-snippet="{{ link_snippet|e }}" onclick="insertSnippetFromButton(this, 'edit_content_html')">link</button>
+        </div>
+      </div>
+    {% else %}
+      <p>no media uploaded yet.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<script>
+function insertSnippet(textareaId, snippet) {
+  const el = document.getElementById(textareaId);
+  if (!el) return;
+  const start = el.selectionStart ?? el.value.length;
+  const end = el.selectionEnd ?? el.value.length;
+  const before = el.value.slice(0, start);
+  const after = el.value.slice(end);
+  el.value = before + snippet + after;
+  const pos = start + snippet.length;
+  el.focus();
+  el.setSelectionRange(pos, pos);
+}
+
+function insertSnippetFromButton(button, textareaId) {
+  insertSnippet(textareaId, button.dataset.snippet || "");
+}
+</script>
 {% endblock %}
