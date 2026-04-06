@@ -665,6 +665,29 @@ def admin_dashboard(request: Request):
         )
         storage_by_user = {s["id"]: s for s in storage_stats}
 
+        # Scan for orphans
+        db_paths = set(
+            row[0] for row in conn.execute(select(media.c.storage_path)).fetchall()
+        )
+
+    # Files on disk but not in DB
+    orphaned_files = []
+    if UPLOADS_DIR.exists():
+        for user_dir in UPLOADS_DIR.iterdir():
+            if not user_dir.is_dir() or user_dir.name.startswith("."):
+                continue
+            for f in user_dir.iterdir():
+                if f.is_file() and not f.name.startswith("."):
+                    rel = f"{user_dir.name}/{f.name}"
+                    if rel not in db_paths:
+                        orphaned_files.append({"path": rel, "size": f.stat().st_size})
+
+    # Records in DB but file missing from disk
+    orphaned_records = []
+    for p in db_paths:
+        if not (UPLOADS_DIR / p).exists():
+            orphaned_records.append(p)
+
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -672,5 +695,43 @@ def admin_dashboard(request: Request):
             "me": me,
             "all_users": all_users,
             "storage_by_user": storage_by_user,
+            "orphaned_files": sorted(orphaned_files, key=lambda x: x["path"]),
+            "orphaned_records": sorted(orphaned_records),
         },
     )
+
+
+@app.post("/admin/cleanup/files")
+def admin_cleanup_files(request: Request):
+    """Delete orphaned files from disk that have no DB record."""
+    require_admin(request)
+    with get_engine(request).begin() as conn:
+        db_paths = set(
+            row[0] for row in conn.execute(select(media.c.storage_path)).fetchall()
+        )
+    removed = 0
+    if UPLOADS_DIR.exists():
+        for user_dir in UPLOADS_DIR.iterdir():
+            if not user_dir.is_dir() or user_dir.name.startswith("."):
+                continue
+            for f in user_dir.iterdir():
+                if f.is_file() and not f.name.startswith("."):
+                    rel = f"{user_dir.name}/{f.name}"
+                    if rel not in db_paths:
+                        f.unlink()
+                        removed += 1
+    return RedirectResponse(url=f"/admin?cleaned_files={removed}", status_code=303)
+
+
+@app.post("/admin/cleanup/records")
+def admin_cleanup_records(request: Request):
+    """Delete orphaned DB records whose files are missing from disk."""
+    require_admin(request)
+    removed = 0
+    with get_engine(request).begin() as conn:
+        all_paths = conn.execute(select(media.c.id, media.c.storage_path)).fetchall()
+        for media_id, path in all_paths:
+            if not (UPLOADS_DIR / path).exists():
+                conn.execute(media.delete().where(media.c.id == media_id))
+                removed += 1
+    return RedirectResponse(url=f"/admin?cleaned_records={removed}", status_code=303)

@@ -2,6 +2,18 @@
 {% block title %}admin{% endblock %}
 {% block content %}
   <h1>admin</h1>
+  {% if request.query_params.get('cleaned_files') %}
+    <p class="ok">
+      removed {{ request.query_params.get('cleaned_files') }} orphaned file(s)
+      from disk.
+    </p>
+  {% endif %}
+  {% if request.query_params.get('cleaned_records') %}
+    <p class="ok">
+      removed {{ request.query_params.get('cleaned_records') }} orphaned
+      record(s) from database.
+    </p>
+  {% endif %}
   <section class="panel">
     <h2>users ({{ all_users|length }})</h2>
     <table style="width: 100%; border-collapse: collapse">
@@ -35,5 +47,64 @@
         {% endfor %}
       </tbody>
     </table>
+  </section>
+  <section class="panel">
+    <h2>orphaned files</h2>
+    <p class="muted">files on disk with no database record</p>
+    {% if orphaned_files %}
+      <table style="width: 100%; border-collapse: collapse">
+        <thead>
+          <tr>
+            <th style="text-align: left">path</th>
+            <th style="text-align: right">size</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in orphaned_files %}
+            <tr>
+              <td><code>{{ f.path }}</code></td>
+              <td style="text-align: right">{{ f.size|human_bytes }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <form
+        method="post"
+        action="/admin/cleanup/files"
+        class="inline"
+        style="margin-top: 10px"
+        onsubmit="return confirm('Delete {{ orphaned_files|length }} orphaned file(s) from disk?');"
+      >
+        <button type="submit">
+          delete {{ orphaned_files|length }} orphaned file(s)
+        </button>
+      </form>
+    {% else %}
+      <p>none found.</p>
+    {% endif %}
+  </section>
+  <section class="panel">
+    <h2>orphaned records</h2>
+    <p class="muted">database records whose files are missing from disk</p>
+    {% if orphaned_records %}
+      <ul>
+        {% for path in orphaned_records %}
+          <li><code>{{ path }}</code></li>
+        {% endfor %}
+      </ul>
+      <form
+        method="post"
+        action="/admin/cleanup/records"
+        class="inline"
+        style="margin-top: 10px"
+        onsubmit="return confirm('Delete {{ orphaned_records|length }} orphaned record(s) from database?');"
+      >
+        <button type="submit">
+          delete {{ orphaned_records|length }} orphaned record(s)
+        </button>
+      </form>
+    {% else %}
+      <p>none found.</p>
+    {% endif %}
   </section>
 {% endblock %}
