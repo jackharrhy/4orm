@@ -11,24 +11,26 @@
 <html>
 <head>
 <style>
-*, *::before, *::after { box-sizing: border-box; }
-* { margin: 0; }
-body {
-  font-family: Verdana, Tahoma, Arial, sans-serif;
-  background: {{ card.accent_color }};
-  color: #111;
-  line-height: 1.45;
-  border: 3px {{ card.border_style }} #333;
-  padding: 10px;
-  height: 100vh;
-  overflow: hidden;
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; }
+  body {
+    font-family: Verdana, Tahoma, Arial, sans-serif;
+    background: {{ card.accent_color }};
+    color: #111;
+    line-height: 1.45;
+    border: 3px {{ card.border_style }} #333;
+    padding: 10px;
+    height: 100vh;
+    overflow: hidden;
+  }
+  h2 { margin: 0 0 6px; font-size: 1rem; line-height: 1.2; }
+  p { margin: 0 0 6px; font-size: 0.85rem; }
+  a { color: #0000ee; }
+  a:visited { color: #551a8b; }
+  a:hover { color: #ff0000; }
+  .muted { color: #333; font-size: 0.8rem; }
 }
-h2 { margin: 0 0 6px; font-size: 1rem; line-height: 1.2; }
-p { margin: 0 0 6px; font-size: 0.85rem; }
-a { color: #0000ee; }
-a:visited { color: #551a8b; }
-a:hover { color: #ff0000; }
-.muted { color: #333; font-size: 0.8rem; }
 {{ card.card_css|e }}
 </style>
 </head>
