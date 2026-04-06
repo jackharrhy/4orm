@@ -26,6 +26,7 @@ users = Table(
     Column("avatar_media_id", Integer, ForeignKey("media.id", ondelete="SET NULL")),
     Column("custom_css", Text, nullable=False, server_default=""),
     Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
+    Column("invite_id", Integer, ForeignKey("invites.id", ondelete="SET NULL")),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
