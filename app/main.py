@@ -74,7 +74,20 @@ templates.env.filters["human_bytes"] = human_bytes
 
 @app.on_event("startup")
 def on_startup():
+    from alembic.config import Config
+
+    from alembic import command
+
     create_all(engine)
+
+    alembic_cfg = Config("alembic.ini")
+    # Stamp if no alembic_version table yet (fresh DB from create_all)
+    with engine.connect() as conn:
+        has_version = conn.dialect.has_table(conn, "alembic_version")
+    if not has_version:
+        command.stamp(alembic_cfg, "head")
+    else:
+        command.upgrade(alembic_cfg, "head")
 
 
 def current_user(request: Request):
