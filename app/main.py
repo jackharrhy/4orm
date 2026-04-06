@@ -1,8 +1,11 @@
 import re
+from datetime import UTC, datetime
+from email.utils import format_datetime
+from html import escape
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select, update
@@ -23,7 +26,9 @@ from app.queries.pages import (
     get_public_page,
     get_user_page,
     list_pages_for_user,
+    list_public_pages_for_rss,
     list_public_pages_for_user,
+    list_public_pages_for_user_rss,
     update_user_page,
 )
 from app.queries.users import (
@@ -99,6 +104,42 @@ def human_bytes(size: int | None) -> str:
 
 
 templates.env.filters["human_bytes"] = human_bytes
+
+
+def _format_rfc2822(dt) -> str:
+    if dt is None:
+        dt = datetime.now(UTC)
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+        except ValueError:
+            dt = datetime.now(UTC)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return format_datetime(dt)
+
+
+def build_rss_feed(*, title: str, link: str, description: str, items: list[dict]) -> str:
+    entries = []
+    for item in items:
+        entries.append(
+            "<item>"
+            f"<title>{escape(item['title'])}</title>"
+            f"<link>{escape(item['link'])}</link>"
+            f"<guid>{escape(item['guid'])}</guid>"
+            f"<pubDate>{_format_rfc2822(item.get('updated_at'))}</pubDate>"
+            "</item>"
+        )
+
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<rss version="2.0"><channel>'
+        f"<title>{escape(title)}</title>"
+        f"<link>{escape(link)}</link>"
+        f"<description>{escape(description)}</description>"
+        f"{''.join(entries)}"
+        "</channel></rss>"
+    )
 
 
 def get_engine(request: Request):
@@ -235,6 +276,63 @@ def page_view(request: Request, username: str, slug: str):
             "me": current_user(request),
         },
     )
+
+
+@app.get("/feed.xml")
+def global_feed(request: Request):
+    with get_engine(request).begin() as conn:
+        pages = list_public_pages_for_rss(conn, limit=100)
+
+    site_url = str(request.base_url).rstrip("/")
+    items = []
+    for p in pages:
+        link = f"{site_url}/u/{p['username']}/page/{p['slug']}"
+        items.append(
+            {
+                "title": f"{p['display_name']}: {p['title']}",
+                "link": link,
+                "guid": f"{link}#{p['updated_at']}",
+                "updated_at": p["updated_at"],
+            }
+        )
+
+    xml = build_rss_feed(
+        title="4orm global updates",
+        link=f"{site_url}/",
+        description="Recent public page updates (published after 20 minutes of no edits)",
+        items=items,
+    )
+    return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+
+
+@app.get("/u/{username}/feed.xml")
+def user_feed(request: Request, username: str):
+    with get_engine(request).begin() as conn:
+        profile = get_user_by_username(conn, username)
+        if not profile:
+            raise HTTPException(404)
+        pages = list_public_pages_for_user_rss(conn, username, limit=100)
+
+    site_url = str(request.base_url).rstrip("/")
+    items = []
+    for p in pages:
+        link = f"{site_url}/u/{p['username']}/page/{p['slug']}"
+        items.append(
+            {
+                "title": p["title"],
+                "link": link,
+                "guid": f"{link}#{p['updated_at']}",
+                "updated_at": p["updated_at"],
+            }
+        )
+
+    xml = build_rss_feed(
+        title=f"4orm updates from {profile['display_name']}",
+        link=f"{site_url}/u/{username}",
+        description="Recent public page updates (published after 20 minutes of no edits)",
+        items=items,
+    )
+    return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
 
 @app.get("/lineage", response_class=HTMLResponse)
