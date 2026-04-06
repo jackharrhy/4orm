@@ -12,13 +12,15 @@
       <a href="/lineage/{{ profile.username }}">view lineage</a>
     </p>
   </section>
-  {% if profile.custom_css %}<style>
-    {
-            {
-            profile.custom_css|safe
+  {% if profile.custom_css %}
+    <style>
+        {
+                {
+                profile.custom_css|safe
+            }
         }
-    }
-</style>{% endif %}
+    </style>
+  {% endif %}
   <section class="panel">
     <h2>pages</h2>
     <ul>
