@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Optional
-from uuid import uuid4
+import re
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -32,6 +32,14 @@ app.add_middleware(SessionMiddleware, secret_key="replace-this-dev-key")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def clean_filename(name: str) -> str:
+    raw = Path(name or "file").name
+    stem = Path(raw).stem or "file"
+    suffix = Path(raw).suffix[:16].lower()
+    safe_stem = re.sub(r"[^a-zA-Z0-9._-]+", "-", stem).strip("-._") or "file"
+    return f"{safe_stem}{suffix}"
 
 
 @app.on_event("startup")
@@ -165,15 +173,31 @@ async def settings_media_upload(request: Request, files: list[UploadFile] = File
     if not me:
         return RedirectResponse(url="/login", status_code=303)
 
-    user_upload_dir = UPLOADS_DIR / str(me["id"])
+    username = me["username"]
+    user_upload_dir = UPLOADS_DIR / username
     user_upload_dir.mkdir(parents=True, exist_ok=True)
 
     with engine.begin() as conn:
         for f in files:
-            suffix = Path(f.filename or "").suffix[:16]
-            filename = f"{uuid4().hex}{suffix}"
-            rel_path = f"{me['id']}/{filename}"
+            filename = clean_filename(f.filename or "file")
+            rel_path = f"{username}/{filename}"
             disk_path = UPLOADS_DIR / rel_path
+
+            # Avoid collisions by suffixing -2, -3, ...
+            if disk_path.exists():
+                base = Path(filename).stem
+                ext = Path(filename).suffix
+                i = 2
+                while True:
+                    candidate = f"{base}-{i}{ext}"
+                    candidate_path = user_upload_dir / candidate
+                    if not candidate_path.exists():
+                        filename = candidate
+                        rel_path = f"{username}/{filename}"
+                        disk_path = candidate_path
+                        break
+                    i += 1
+
             content = await f.read()
             disk_path.write_bytes(content)
             create_media(
