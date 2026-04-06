@@ -80,13 +80,6 @@ def home(request: Request):
     return templates.TemplateResponse("home.html", {"request": request, "cards": cards, "me": current_user(request)})
 
 
-@app.get("/inventory", response_class=HTMLResponse)
-def inventory(request: Request):
-    with engine.begin() as conn:
-        cards = list_inventory_cards(conn)
-    return templates.TemplateResponse("inventory.html", {"request": request, "cards": cards, "me": current_user(request)})
-
-
 @app.get("/register", response_class=HTMLResponse)
 def register_get(request: Request, invite: Optional[str] = None):
     return templates.TemplateResponse("register.html", {"request": request, "invite": invite, "error": None})
