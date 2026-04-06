@@ -42,7 +42,31 @@ from app.security import verify_password
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
-app = FastAPI(title="4orm")
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    from alembic.config import Config
+
+    from alembic import command
+
+    engine = application.state.engine
+    alembic_cfg = Config("alembic.ini")
+
+    with engine.connect() as conn:
+        has_tables = conn.dialect.has_table(conn, "users")
+
+    if not has_tables:
+        create_all(engine)
+        command.stamp(alembic_cfg, "head")
+    else:
+        command.upgrade(alembic_cfg, "head")
+
+    yield
+
+
+app = FastAPI(title="4orm", lifespan=lifespan)
 app.state.engine = default_engine
 app.add_middleware(SessionMiddleware, secret_key="replace-this-dev-key")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -76,25 +100,6 @@ templates.env.filters["human_bytes"] = human_bytes
 
 def get_engine(request: Request):
     return request.app.state.engine
-
-
-@app.on_event("startup")
-def on_startup():
-    from alembic.config import Config
-
-    from alembic import command
-
-    engine = app.state.engine
-    alembic_cfg = Config("alembic.ini")
-
-    with engine.connect() as conn:
-        has_tables = conn.dialect.has_table(conn, "users")
-
-    if not has_tables:
-        create_all(engine)
-        command.stamp(alembic_cfg, "head")
-    else:
-        command.upgrade(alembic_cfg, "head")
 
 
 def current_user(request: Request):

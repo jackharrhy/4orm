@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, insert
@@ -6,6 +8,11 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.schema import metadata, profile_cards, users
 from app.security import hash_password
+
+
+@asynccontextmanager
+async def _noop_lifespan(application):
+    yield
 
 
 @pytest.fixture()
@@ -32,15 +39,15 @@ def test_engine():
 def client(test_engine):
     """TestClient with the app's engine swapped to the test database."""
     original_engine = app.state.engine
-    original_handlers = app.router.on_startup.copy()
+    original_lifespan = app.router.lifespan_context
 
     app.state.engine = test_engine
-    app.router.on_startup.clear()
+    app.router.lifespan_context = _noop_lifespan
 
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c
 
-    app.router.on_startup = original_handlers
+    app.router.lifespan_context = original_lifespan
     app.state.engine = original_engine
 
 
