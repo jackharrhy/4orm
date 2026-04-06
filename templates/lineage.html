@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
 {% block title %}lineage{% endblock %}
-{% block content %}
-<h1>invite lineage</h1>
-<ol class="lineage">
-  {% for user in chain %}
-    <li><a href="/u/{{ user.username }}">{{ user.username }}</a></li>
-  {% endfor %}
-</ol>
+{% block
+  content %}
+  <h1>invite lineage</h1>
+  <ol class="lineage">
+    {% for user in chain %}
+      <li>
+        <a href="/u/{{ user.username }}">{{ user.username }}</a>
+      </li>
+    {% endfor %}
+  </ol>
 {% endblock %}

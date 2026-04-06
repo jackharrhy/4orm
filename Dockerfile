@@ -7,11 +7,9 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Install deps first for better cache hits
 COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev
 
-# App source
 COPY app ./app
 COPY templates ./templates
 COPY static ./static

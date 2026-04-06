@@ -22,7 +22,11 @@ def main():
 
     create_all(engine)
     with engine.begin() as conn:
-        existing = conn.execute(users.select().where(users.c.username == args.username)).mappings().first()
+        existing = (
+            conn.execute(users.select().where(users.c.username == args.username))
+            .mappings()
+            .first()
+        )
         if existing:
             user_id = existing["id"]
         else:
@@ -34,7 +38,11 @@ def main():
                 )
             )
             user_id = result.inserted_primary_key[0]
-            conn.execute(insert(inventory_cards).values(user_id=user_id, headline=f"{args.username}'s card"))
+            conn.execute(
+                insert(inventory_cards).values(
+                    user_id=user_id, headline=f"{args.username}'s card"
+                )
+            )
 
         invite = create_invite(conn, user_id, max_uses=1)
         print(f"Seed user id={user_id}")

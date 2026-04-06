@@ -31,7 +31,11 @@ def create_media(
 
 
 def list_media_for_user(conn: Connection, user_id: int):
-    q = select(media).where(media.c.user_id == user_id).order_by(media.c.created_at.desc())
+    q = (
+        select(media)
+        .where(media.c.user_id == user_id)
+        .order_by(media.c.created_at.desc())
+    )
     return conn.execute(q).mappings().all()
 
 
@@ -48,7 +52,9 @@ def update_media_alt_text(conn: Connection, user_id: int, media_id: int, alt_tex
     )
 
 
-def update_media_storage_path(conn: Connection, user_id: int, media_id: int, storage_path: str):
+def update_media_storage_path(
+    conn: Connection, user_id: int, media_id: int, storage_path: str
+):
     conn.execute(
         update(media)
         .where(media.c.id == media_id, media.c.user_id == user_id)
@@ -57,4 +63,6 @@ def update_media_storage_path(conn: Connection, user_id: int, media_id: int, sto
 
 
 def delete_media_for_user(conn: Connection, user_id: int, media_id: int):
-    conn.execute(delete(media).where(media.c.id == media_id, media.c.user_id == user_id))
+    conn.execute(
+        delete(media).where(media.c.id == media_id, media.c.user_id == user_id)
+    )

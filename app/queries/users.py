@@ -1,5 +1,4 @@
 import secrets
-from typing import Optional
 
 from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.engine import Connection
@@ -9,23 +8,33 @@ from app.security import hash_password
 
 
 def get_user_by_username(conn: Connection, username: str):
-    return conn.execute(select(users).where(users.c.username == username)).mappings().first()
+    return (
+        conn.execute(select(users).where(users.c.username == username))
+        .mappings()
+        .first()
+    )
 
 
 def get_user_by_id(conn: Connection, user_id: int):
     return conn.execute(select(users).where(users.c.id == user_id)).mappings().first()
 
 
-def create_user_with_invite(conn: Connection, *, username: str, password: str, invite_code: str):
-    invite = conn.execute(
-        select(invites).where(
-            and_(
-                invites.c.code == invite_code,
-                invites.c.disabled.is_(False),
-                invites.c.uses_count < invites.c.max_uses,
+def create_user_with_invite(
+    conn: Connection, *, username: str, password: str, invite_code: str
+):
+    invite = (
+        conn.execute(
+            select(invites).where(
+                and_(
+                    invites.c.code == invite_code,
+                    invites.c.disabled.is_(False),
+                    invites.c.uses_count < invites.c.max_uses,
+                )
             )
         )
-    ).mappings().first()
+        .mappings()
+        .first()
+    )
 
     if not invite:
         return None, "Invalid or exhausted invite code"
@@ -53,13 +62,19 @@ def create_user_with_invite(conn: Connection, *, username: str, password: str, i
         )
     )
 
-    conn.execute(insert(inventory_cards).values(user_id=user_id, headline=f"{username}'s card"))
+    conn.execute(
+        insert(inventory_cards).values(user_id=user_id, headline=f"{username}'s card")
+    )
     return get_user_by_id(conn, user_id), None
 
 
 def create_invite(conn: Connection, creator_user_id: int, max_uses: int = 1) -> str:
     code = secrets.token_urlsafe(12)
-    conn.execute(insert(invites).values(code=code, created_by_user_id=creator_user_id, max_uses=max_uses))
+    conn.execute(
+        insert(invites).values(
+            code=code, created_by_user_id=creator_user_id, max_uses=max_uses
+        )
+    )
     return code
 
 
@@ -75,7 +90,9 @@ def list_inventory_cards(conn: Connection):
             inventory_cards.c.border_style,
             inventory_cards.c.card_css,
         )
-        .select_from(users.join(inventory_cards, users.c.id == inventory_cards.c.user_id))
+        .select_from(
+            users.join(inventory_cards, users.c.id == inventory_cards.c.user_id)
+        )
         .order_by(users.c.created_at.desc())
     )
     return conn.execute(q).mappings().all()

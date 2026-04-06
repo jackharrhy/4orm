@@ -1,18 +1,30 @@
-from pathlib import Path
-from typing import Optional
 import re
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import select, update
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import engine
-from app.queries.pages import create_page, get_public_page, list_public_pages_for_user
-from app.queries.pages import get_user_page, list_pages_for_user, update_user_page
-from app.queries.media import create_media, delete_media_for_user, get_media_for_user, list_media_for_user, update_media_alt_text
-from app.queries.media import update_media_storage_path
+from app.queries.media import (
+    create_media,
+    delete_media_for_user,
+    get_media_for_user,
+    list_media_for_user,
+    update_media_alt_text,
+    update_media_storage_path,
+)
+from app.queries.pages import (
+    create_page,
+    get_public_page,
+    get_user_page,
+    list_pages_for_user,
+    list_public_pages_for_user,
+    update_user_page,
+)
 from app.queries.users import (
     create_invite,
     create_user_with_invite,
@@ -23,8 +35,6 @@ from app.queries.users import (
 )
 from app.schema import create_all, inventory_cards, users
 from app.security import verify_password
-from sqlalchemy import select, update
-
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
@@ -77,21 +87,37 @@ def current_user(request: Request):
 def home(request: Request):
     with engine.begin() as conn:
         cards = list_inventory_cards(conn)
-    return templates.TemplateResponse("home.html", {"request": request, "cards": cards, "me": current_user(request)})
+    return templates.TemplateResponse(
+        "home.html", {"request": request, "cards": cards, "me": current_user(request)}
+    )
 
 
 @app.get("/register", response_class=HTMLResponse)
-def register_get(request: Request, invite: Optional[str] = None):
-    return templates.TemplateResponse("register.html", {"request": request, "invite": invite, "error": None})
+def register_get(request: Request, invite: str | None = None):
+    return templates.TemplateResponse(
+        "register.html", {"request": request, "invite": invite, "error": None}
+    )
 
 
 @app.post("/register", response_class=HTMLResponse)
-def register_post(request: Request, username: str = Form(...), password: str = Form(...), invite_code: str = Form(...)):
+def register_post(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    invite_code: str = Form(...),
+):
     with engine.begin() as conn:
-        user, error = create_user_with_invite(conn, username=username.strip(), password=password, invite_code=invite_code.strip())
+        user, error = create_user_with_invite(
+            conn,
+            username=username.strip(),
+            password=password,
+            invite_code=invite_code.strip(),
+        )
     if error:
         return templates.TemplateResponse(
-            "register.html", {"request": request, "invite": invite_code, "error": error}, status_code=400
+            "register.html",
+            {"request": request, "invite": invite_code, "error": error},
+            status_code=400,
         )
     request.session["user_id"] = user["id"]
     return RedirectResponse(url=f"/u/{user['username']}", status_code=303)
@@ -107,7 +133,11 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
     with engine.begin() as conn:
         user = get_user_by_username(conn, username.strip())
     if not user or not verify_password(password, user["password_hash"]):
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"}, status_code=400)
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": "Invalid credentials"},
+            status_code=400,
+        )
     request.session["user_id"] = user["id"]
     return RedirectResponse(url=f"/u/{user['username']}", status_code=303)
 
@@ -125,7 +155,15 @@ def profile(request: Request, username: str):
         if not user:
             raise HTTPException(404)
         pages = list_public_pages_for_user(conn, username)
-    return templates.TemplateResponse("profile.html", {"request": request, "profile": user, "pages": pages, "me": current_user(request)})
+    return templates.TemplateResponse(
+        "profile.html",
+        {
+            "request": request,
+            "profile": user,
+            "pages": pages,
+            "me": current_user(request),
+        },
+    )
 
 
 @app.get("/u/{username}/page/{slug}", response_class=HTMLResponse)
@@ -134,7 +172,9 @@ def page_view(request: Request, username: str, slug: str):
         page = get_public_page(conn, username, slug)
     if not page:
         raise HTTPException(404)
-    return templates.TemplateResponse("page.html", {"request": request, "page": page, "me": current_user(request)})
+    return templates.TemplateResponse(
+        "page.html", {"request": request, "page": page, "me": current_user(request)}
+    )
 
 
 @app.get("/lineage/{username}", response_class=HTMLResponse)
@@ -143,7 +183,10 @@ def lineage(request: Request, username: str):
         chain = lineage_for_user(conn, username)
     if not chain:
         raise HTTPException(404)
-    return templates.TemplateResponse("lineage.html", {"request": request, "chain": chain, "me": current_user(request)})
+    return templates.TemplateResponse(
+        "lineage.html",
+        {"request": request, "chain": chain, "me": current_user(request)},
+    )
 
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -153,7 +196,13 @@ def settings_get(request: Request):
         return RedirectResponse(url="/login", status_code=303)
     with engine.begin() as conn:
         my_pages = list_pages_for_user(conn, me["id"])
-        card_settings = conn.execute(select(inventory_cards).where(inventory_cards.c.user_id == me["id"])).mappings().first()
+        card_settings = (
+            conn.execute(
+                select(inventory_cards).where(inventory_cards.c.user_id == me["id"])
+            )
+            .mappings()
+            .first()
+        )
         media_items = list_media_for_user(conn, me["id"])
     return templates.TemplateResponse(
         "settings.html",
@@ -175,11 +224,15 @@ def settings_media_get(request: Request):
         return RedirectResponse(url="/login", status_code=303)
     with engine.begin() as conn:
         items = list_media_for_user(conn, me["id"])
-    return templates.TemplateResponse("settings_media.html", {"request": request, "me": me, "items": items})
+    return templates.TemplateResponse(
+        "settings_media.html", {"request": request, "me": me, "items": items}
+    )
 
 
 @app.post("/settings/media/upload")
-async def settings_media_upload(request: Request, file: UploadFile = File(...), filename: str = Form("")):
+async def settings_media_upload(
+    request: Request, file: UploadFile = File(...), filename: str = Form("")
+):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
@@ -302,12 +355,18 @@ def settings_media_rename(request: Request, media_id: int, filename: str = Form(
 
 
 @app.post("/settings/profile")
-def settings_profile(request: Request, display_name: str = Form(""), bio: str = Form("")):
+def settings_profile(
+    request: Request, display_name: str = Form(""), bio: str = Form("")
+):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
     with engine.begin() as conn:
-        conn.execute(update(users).where(users.c.id == me["id"]).values(display_name=display_name, bio=bio))
+        conn.execute(
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(display_name=display_name, bio=bio)
+        )
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -317,7 +376,9 @@ def settings_css(request: Request, custom_css: str = Form("")):
     if not me:
         return RedirectResponse(url="/login", status_code=303)
     with engine.begin() as conn:
-        conn.execute(update(users).where(users.c.id == me["id"]).values(custom_css=custom_css))
+        conn.execute(
+            update(users).where(users.c.id == me["id"]).values(custom_css=custom_css)
+        )
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -361,15 +422,29 @@ def settings_invites(request: Request, max_uses: int = Form(1)):
 
 
 @app.post("/settings/pages")
-def settings_pages(request: Request, slug: str = Form(...), title: str = Form(...), content_html: str = Form("")):
+def settings_pages(
+    request: Request,
+    slug: str = Form(...),
+    title: str = Form(...),
+    content_html: str = Form(""),
+):
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
 
     with engine.begin() as conn:
-        create_page(conn, user_id=me["id"], slug=slug.strip(), title=title.strip(), content_html=content_html, is_public=True)
+        create_page(
+            conn,
+            user_id=me["id"],
+            slug=slug.strip(),
+            title=title.strip(),
+            content_html=content_html,
+            is_public=True,
+        )
 
-    return RedirectResponse(url=f"/u/{me['username']}/page/{slug.strip()}", status_code=303)
+    return RedirectResponse(
+        url=f"/u/{me['username']}/page/{slug.strip()}", status_code=303
+    )
 
 
 @app.get("/settings/pages/{slug}/edit", response_class=HTMLResponse)
@@ -387,7 +462,13 @@ def settings_pages_edit_get(request: Request, slug: str):
 
     return templates.TemplateResponse(
         "edit_page.html",
-        {"request": request, "me": me, "page": page, "media_items": media_items, "error": None},
+        {
+            "request": request,
+            "me": me,
+            "page": page,
+            "media_items": media_items,
+            "error": None,
+        },
     )
 
 
@@ -398,7 +479,7 @@ def settings_pages_edit_post(
     new_slug: str = Form(...),
     title: str = Form(...),
     content_html: str = Form(""),
-    is_public: Optional[str] = Form(None),
+    is_public: str | None = Form(None),
 ):
     me = current_user(request)
     if not me:
@@ -419,4 +500,6 @@ def settings_pages_edit_post(
             is_public=is_public == "on",
         )
 
-    return RedirectResponse(url=f"/u/{me['username']}/page/{cleaned_slug}", status_code=303)
+    return RedirectResponse(
+        url=f"/u/{me['username']}/page/{cleaned_slug}", status_code=303
+    )

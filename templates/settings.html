@@ -1,123 +1,248 @@
 {% extends 'base.html' %}
 {% block title %}settings{% endblock %}
-{% block content %}
-<h1>settings</h1>
-{% if request.query_params.get('new_invite') %}
-  <p class="ok">new invite code: <code>{{ request.query_params.get('new_invite') }}</code></p>
-{% endif %}
-<p><a href="/settings/media">manage media library →</a></p>
-
-<section class="panel">
-  <h2>profile</h2>
-  <form method="post" action="/settings/profile" class="stack">
-    <label>display name <input name="display_name" value="{{ me.display_name }}" /></label>
-    <label>bio <textarea name="bio">{{ me.bio }}</textarea></label>
-    <button>save profile</button>
-  </form>
-</section>
-
-<section class="panel">
-  <h2>css</h2>
-  <form method="post" action="/settings/css" class="stack">
-    <textarea name="custom_css" rows="10">{{ me.custom_css }}</textarea>
-    <button>save css</button>
-  </form>
-</section>
-
-<section class="panel">
-  <h2>inventory card</h2>
-  <form method="post" action="/settings/card" class="stack">
-    <label>headline <input name="headline" value="{{ card_settings.headline if card_settings else '' }}" /></label>
-    <label>subhead <input name="subhead" value="{{ card_settings.subhead if card_settings else '' }}" /></label>
-    <label>accent color <input type="color" name="accent_color" value="{{ card_settings.accent_color if card_settings else '#00ffff' }}" /></label>
-    <label>border style
-      <select name="border_style">
-        <option {% if card_settings and card_settings.border_style == 'solid' %}selected{% endif %}>solid</option>
-        <option {% if card_settings and card_settings.border_style == 'double' %}selected{% endif %}>double</option>
-        <option {% if card_settings and card_settings.border_style == 'dashed' %}selected{% endif %}>dashed</option>
-        <option {% if card_settings and card_settings.border_style == 'dotted' %}selected{% endif %}>dotted</option>
-        <option {% if card_settings and card_settings.border_style == 'outset' %}selected{% endif %}>outset</option>
-        <option {% if card_settings and card_settings.border_style == 'inset' %}selected{% endif %}>inset</option>
-        <option {% if card_settings and card_settings.border_style == 'ridge' %}selected{% endif %}>ridge</option>
-        <option {% if card_settings and card_settings.border_style == 'groove' %}selected{% endif %}>groove</option>
-      </select>
-    </label>
-    <label>card css <textarea name="card_css" rows="5">{{ card_settings.card_css if card_settings else '' }}</textarea></label>
-    <button>save card</button>
-  </form>
-</section>
-
-<section class="panel">
-  <h2>create invite</h2>
-  <form method="post" action="/settings/invites" class="inline">
-    <label>max uses <input type="number" name="max_uses" value="1" min="1" max="50" /></label>
-    <button>create</button>
-  </form>
-</section>
-
-<section class="panel">
-  <h2>create page html</h2>
-  <form method="post" action="/settings/pages" class="stack">
-    <label>slug <input name="slug" placeholder="about" /></label>
-    <label>title <input name="title" placeholder="about me" /></label>
-    <label>content <textarea id="create_content_html" name="content_html" rows="12" placeholder="<marquee>hello world</marquee>"></textarea></label>
-    <button>publish</button>
-  </form>
-
-  <h3>media snippets</h3>
-  <p class="muted">click to insert at cursor</p>
-  <div class="stack">
-    {% for item in media_items %}
-      <div class="panel" style="margin:0;">
-        {% set img_snippet = '<img src="/uploads/' ~ item.storage_path ~ '" alt="' ~ (item.alt_text or '') ~ '" />' %}
-        {% set linked_img_snippet = '<a href="/uploads/' ~ item.storage_path ~ '"><img src="/uploads/' ~ item.storage_path ~ '" alt="' ~ (item.alt_text or '') ~ '" /></a>' %}
-        {% set video_snippet = '<video controls src="/uploads/' ~ item.storage_path ~ '"></video>' %}
-        {% set audio_snippet = '<audio controls src="/uploads/' ~ item.storage_path ~ '"></audio>' %}
-        {% set link_snippet = '<a href="/uploads/' ~ item.storage_path ~ '">download</a>' %}
-        <p><code>/uploads/{{ item.storage_path }}</code></p>
-        <div class="inline" style="flex-wrap:wrap;">
-          <button type="button" data-snippet="{{ img_snippet|e }}" onclick="insertSnippetFromButton(this, 'create_content_html')">img</button>
-          <button type="button" data-snippet="{{ linked_img_snippet|e }}" onclick="insertSnippetFromButton(this, 'create_content_html')">linked img</button>
-          <button type="button" data-snippet="{{ video_snippet|e }}" onclick="insertSnippetFromButton(this, 'create_content_html')">video</button>
-          <button type="button" data-snippet="{{ audio_snippet|e }}" onclick="insertSnippetFromButton(this, 'create_content_html')">audio</button>
-          <button type="button" data-snippet="{{ link_snippet|e }}" onclick="insertSnippetFromButton(this, 'create_content_html')">link</button>
+{% block
+  content %}
+  <h1>settings</h1>
+  {% if request.query_params.get('new_invite') %}
+    <p class="ok">
+      new invite code: <code>{{ request.query_params.get("new_invite") }}</code>
+    </p>
+  {% endif %}
+  <p>
+    <a href="/settings/media">manage media library →</a>
+  </p>
+  <section class="panel">
+    <h2>profile</h2>
+    <form method="post" action="/settings/profile" class="stack">
+      <label>
+        display name
+        <input name="display_name" value="{{ me.display_name }}" />
+      </label>
+      <label>
+        bio <textarea name="bio">{{ me.bio }}</textarea>
+      </label>
+      <button>save profile</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>css</h2>
+    <form method="post" action="/settings/css" class="stack">
+      <textarea name="custom_css" rows="10">{{ me.custom_css }}</textarea>
+      <button>save css</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>inventory card</h2>
+    <form method="post" action="/settings/card" class="stack">
+      <label>
+        headline
+        <input name="headline"
+               value="{{ card_settings.headline if card_settings else '' }}" />
+      </label>
+      <label>
+        subhead
+        <input name="subhead"
+               value="{{ card_settings.subhead if card_settings else '' }}" />
+      </label>
+      <label>
+        accent color
+        <input type="color"
+               name="accent_color"
+               value="{{ card_settings.accent_color if card_settings else '#00ffff' }}" />
+      </label>
+      <label>
+        border style
+        <select name="border_style">
+          <option
+            {%
+            if
+            card_settings
+            and
+            card_settings.border_style=""
+            ="solid"
+            %}selected{%
+            endif
+            %}
+            >solid</option>
+          <option
+            {%
+            if
+            card_settings
+            and
+            card_settings.border_style=""
+            ="double"
+            %}selected{%
+            endif
+            %}
+            >double</option>
+          <option
+            {%
+            if
+            card_settings
+            and
+            card_settings.border_style=""
+            ="dashed"
+            %}selected{%
+            endif
+            %}
+            >dashed</option>
+          <option
+            {%
+            if
+            card_settings
+            and
+            card_settings.border_style=""
+            ="dotted"
+            %}selected{%
+            endif
+            %}
+            >dotted</option>
+          <option
+            {%
+            if
+            card_settings
+            and
+            card_settings.border_style=""
+            ="outset"
+            %}selected{%
+            endif
+            %}
+            >outset</option>
+          <option
+            {%
+            if
+            card_settings
+            and
+            card_settings.border_style=""
+            ="inset"
+            %}selected{%
+            endif
+            %}
+            >inset</option>
+          <option
+            {%
+            if
+            card_settings
+            and
+            card_settings.border_style=""
+            ="ridge"
+            %}selected{%
+            endif
+            %}
+            >ridge</option>
+          <option
+            {%
+            if
+            card_settings
+            and
+            card_settings.border_style=""
+            ="groove"
+            %}selected{%
+            endif
+            %}
+            >groove</option>
+        </select>
+      </label>
+      <label>
+        card css
+        <textarea name="card_css" rows="5">
+{{ card_settings.card_css if card_settings else '' }}</textarea>
+      </label>
+      <button>save card</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>create invite</h2>
+    <form method="post" action="/settings/invites" class="inline">
+      <label>
+        max uses
+        <input type="number" name="max_uses" value="1" min="1" max="50" />
+      </label>
+      <button>create</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>create page html</h2>
+    <form method="post" action="/settings/pages" class="stack">
+      <label>
+        slug
+        <input name="slug" placeholder="about" />
+      </label>
+      <label>
+        title
+        <input name="title" placeholder="about me" />
+      </label>
+      <label>
+        content
+        <textarea id="create_content_html"
+                  name="content_html"
+                  rows="12"
+                  placeholder="<marquee>hello world</marquee>"></textarea>
+      </label>
+      <button>publish</button>
+    </form>
+    <h3>media snippets</h3>
+    <p class="muted">click to insert at cursor</p>
+    <div class="stack">
+      {% for item in media_items %}
+        <div class="panel" style="margin: 0">
+          {% set img_snippet = '<img src="/uploads/' ~ item.storage_path ~ '"
+               alt="' ~ (item.alt_text or '') ~ '" />' %} {% set linked_img_snippet = '<a href="/uploads/' ~ item.storage_path ~ '"><img src="/uploads/' ~ item.storage_path ~ '"
+      alt="' ~ (item.alt_text or '') ~ '" /></a>' %} {% set video_snippet = '<video controls src="/uploads/' ~ item.storage_path ~ '"></video>' %} {% set audio_snippet = '<audio controls src="/uploads/' ~ item.storage_path ~ '"></audio>' %} {% set link_snippet = '<a href="/uploads/' ~ item.storage_path ~ '">download</a>' %}
+          <p>
+            <code>/uploads/{{ item.storage_path }}</code>
+          </p>
+          <div class="inline" style="flex-wrap: wrap">
+            <button type="button"
+                    data-snippet="{{ img_snippet|e }}"
+                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">img</button>
+            <button type="button"
+                    data-snippet="{{ linked_img_snippet|e }}"
+                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">linked img</button>
+            <button type="button"
+                    data-snippet="{{ video_snippet|e }}"
+                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">video</button>
+            <button type="button"
+                    data-snippet="{{ audio_snippet|e }}"
+                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">audio</button>
+            <button type="button"
+                    data-snippet="{{ link_snippet|e }}"
+                    onclick=" insertSnippetFromButton(this, 'create_content_html') ">link</button>
+          </div>
         </div>
-      </div>
-    {% else %}
-      <p>no media uploaded yet.</p>
-    {% endfor %}
-  </div>
+      {% else %}
+        <p>no media uploaded yet.</p>
+      {% endfor %}
+    </div>
+    <h3>your pages</h3>
+    <ul>
+      {% for p in my_pages %}
+        <li>
+          <a href="/u/{{ me.username }}/page/{{ p.slug }}">{{ p.title }}</a>
+          <span class="muted">({{ 'public' if p.is_public else 'private' }})</span>
+          — <a href="/settings/pages/{{ p.slug }}/edit">edit</a>
+        </li>
+      {% else %}
+        <li>no pages yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  <script>
+      function insertSnippet(textareaId, snippet) {
+          const el = document.getElementById(textareaId);
+          if (!el) return;
+          const start = el.selectionStart ?? el.value.length;
+          const end = el.selectionEnd ?? el.value.length;
+          const before = el.value.slice(0, start);
+          const after = el.value.slice(end);
+          el.value = before + snippet + after;
+          const pos = start + snippet.length;
+          el.focus();
+          el.setSelectionRange(pos, pos);
+      }
 
-  <h3>your pages</h3>
-  <ul>
-    {% for p in my_pages %}
-      <li>
-        <a href="/u/{{ me.username }}/page/{{ p.slug }}">{{ p.title }}</a>
-        <span class="muted">({{ 'public' if p.is_public else 'private' }})</span>
-        — <a href="/settings/pages/{{ p.slug }}/edit">edit</a>
-      </li>
-    {% else %}
-      <li>no pages yet.</li>
-    {% endfor %}
-  </ul>
-</section>
-
-<script>
-function insertSnippet(textareaId, snippet) {
-  const el = document.getElementById(textareaId);
-  if (!el) return;
-  const start = el.selectionStart ?? el.value.length;
-  const end = el.selectionEnd ?? el.value.length;
-  const before = el.value.slice(0, start);
-  const after = el.value.slice(end);
-  el.value = before + snippet + after;
-  const pos = start + snippet.length;
-  el.focus();
-  el.setSelectionRange(pos, pos);
-}
-
-function insertSnippetFromButton(button, textareaId) {
-  insertSnippet(textareaId, button.dataset.snippet || "");
-}
-</script>
+      function insertSnippetFromButton(button, textareaId) {
+          insertSnippet(textareaId, button.dataset.snippet || "");
+      }
+  </script>
 {% endblock %}

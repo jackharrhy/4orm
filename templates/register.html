@@ -1,12 +1,22 @@
 {% extends 'base.html' %}
 {% block title %}register{% endblock %}
-{% block content %}
-<h1>register with invite</h1>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form method="post" class="stack">
-  <label>invite code <input name="invite_code" value="{{ invite or '' }}" required /></label>
-  <label>username <input name="username" required /></label>
-  <label>password <input name="password" type="password" required /></label>
-  <button type="submit">join</button>
-</form>
+{% block
+  content %}
+  <h1>register with invite</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="post" class="stack">
+    <label>
+      invite code
+      <input name="invite_code" value="{{ invite or '' }}" required />
+    </label>
+    <label>
+      username
+      <input name="username" required />
+    </label>
+    <label>
+      password
+      <input name="password" type="password" required />
+    </label>
+    <button type="submit">join</button>
+  </form>
 {% endblock %}

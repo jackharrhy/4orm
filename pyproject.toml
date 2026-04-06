@@ -1,7 +1,7 @@
 [project]
 name = "4orm"
 version = "0.1.0"
-description = "Minimal retro personal-page platform"
+description = "4orm software"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,5 +13,28 @@ dependencies = [
   "itsdangerous==2.2.0",
 ]
 
+[dependency-groups]
+dev = [
+  "ruff>=0.11",
+  "djlint>=1.36",
+]
+
 [tool.uv]
 package = false
+
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]  # FastAPI uses File(...), Form(...) etc. in defaults
+
+[tool.djlint]
+profile = "jinja"
+indent = 2
+max_line_length = 120
+format_css = true
+format_js = true
+ignore = "J018,T002"  # J018: url_for is Flask, not FastAPI; T002: single quotes in extends are fine

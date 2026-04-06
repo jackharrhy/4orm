@@ -1,11 +1,18 @@
 {% extends 'base.html' %}
 {% block title %}login{% endblock %}
-{% block content %}
-<h1>login</h1>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form method="post" class="stack">
-  <label>username <input name="username" required /></label>
-  <label>password <input name="password" type="password" required /></label>
-  <button type="submit">enter</button>
-</form>
+{% block content
+  %}
+  <h1>login</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="post" class="stack">
+    <label>
+      username
+      <input name="username" required />
+    </label>
+    <label>
+      password
+      <input name="password" type="password" required />
+    </label>
+    <button type="submit">enter</button>
+  </form>
 {% endblock %}

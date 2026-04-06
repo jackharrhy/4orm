@@ -1,28 +1,31 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}4orm{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
-<body>
-  <header class="topbar">
-    <a href="/" class="logo">4orm</a>
-    <nav>
-      {% if me %}
-        <a href="/u/{{ me.username }}">my page</a>
-        <a href="/settings">settings</a>
-        <form method="post" action="/logout" class="inline"><button>logout</button></form>
-      {% else %}
-        <a href="/login">login</a>
-        <a href="/register">register</a>
-      {% endif %}
-    </nav>
-  </header>
-
-  <main class="wrap">
-    {% block content %}{% endblock %}
-  </main>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      {% block title %}4orm{% endblock %}
+    </title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a href="/" class="logo">4orm</a>
+      <nav>
+        {% if me %}
+          <a href="/u/{{ me.username }}">my page</a>
+          <a href="/settings">settings</a>
+          <form method="post" action="/logout" class="inline">
+            <button>logout</button>
+          </form>
+        {% else %}
+          <a href="/login">login</a>
+          <a href="/register">register</a>
+        {% endif %}
+      </nav>
+    </header>
+    <main class="wrap">
+      {% block content %}{% endblock %}
+    </main>
+  </body>
 </html>
