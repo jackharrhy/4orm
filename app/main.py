@@ -28,6 +28,7 @@ from sqlalchemy import select, update
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 app = FastAPI(title="4orm")
 app.add_middleware(SessionMiddleware, secret_key="replace-this-dev-key")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -219,6 +220,9 @@ async def settings_media_upload(request: Request, file: UploadFile = File(...), 
             i += 1
 
     content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        return RedirectResponse(url="/settings/media?error=too_big", status_code=303)
+
     disk_path.write_bytes(content)
 
     with engine.begin() as conn:

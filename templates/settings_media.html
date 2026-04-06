@@ -4,6 +4,10 @@
 <h1>media library</h1>
 <p><a href="/settings">← back to settings</a></p>
 
+{% if request.query_params.get('error') == 'too_big' %}
+  <p class="error">That file is too big (max 10 MB). If you really want to upload it, reach out to harrhy and we can discuss raising the limit.</p>
+{% endif %}
+
 <section class="panel">
   <h2>upload files</h2>
   <form method="post" action="/settings/media/upload" enctype="multipart/form-data" class="stack">
