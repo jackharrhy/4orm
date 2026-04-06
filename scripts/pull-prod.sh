@@ -13,7 +13,7 @@ rsync -avz --progress "$REMOTE:$REMOTE_BASE/4orm_data/4orm.db" "$LOCAL_DIR/data/
 
 echo ""
 echo "==> Pulling uploads..."
-rsync -avz --progress --delete "$REMOTE:$REMOTE_BASE/4orm_uploads/" "$LOCAL_DIR/uploads/"
+rsync -avz --progress --delete --exclude=".gitkeep" "$REMOTE:$REMOTE_BASE/4orm_uploads/" "$LOCAL_DIR/uploads/"
 
 echo ""
 echo "Done. You can now run: uv run uvicorn app.main:app --reload"
