@@ -159,6 +159,10 @@ nav {
   gap: 8px;
   align-items: center;
 }
+.inline select,
+.inline button {
+  width: auto;
+}
 
 input,
 textarea,

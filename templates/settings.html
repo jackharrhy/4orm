@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'macros/media_snippets.html' import media_snippet_picker %}
 {% block title %}settings{% endblock %}
 {% block content %}
   <h1>settings</h1>
@@ -153,66 +154,19 @@
       </label>
       <button>publish</button>
     </form>
-    <h3>media snippets</h3>
-    <p class="muted">click to insert at cursor</p>
-    <div class="stack">
-      {% for item in media_items %}
-        <div class="panel" style="margin: 0">
-          {% set img_snippet = '<img src="/uploads/' ~ item.storage_path ~ '" alt="' ~ (item.alt_text or '') ~ '" />' %}
-          {% set linked_img_snippet = '<a href="/uploads/' ~ item.storage_path ~ '"><img src="/uploads/' ~ item.storage_path ~ '" alt="' ~ (item.alt_text or '') ~ '" /></a>' %}
-          {% set video_snippet = '<video controls src="/uploads/' ~ item.storage_path ~ '"></video>' %}
-          {% set audio_snippet = '<audio controls src="/uploads/' ~ item.storage_path ~ '"></audio>' %}
-          {% set link_snippet = '<a href="/uploads/' ~ item.storage_path ~ '">download</a>' %}
-          <p>
-            <code>/uploads/{{ item.storage_path }}</code>
-          </p>
-          {% set mime = item.mime_type or '' %}
-          <div class="inline" style="flex-wrap: wrap">
-            {% if mime.startswith('image/') %}
-              <button
-                type="button"
-                data-snippet="{{ img_snippet|e }}"
-                onclick="insertSnippetFromButton(this, 'create_content_html')"
-              >
-                img
-              </button>
-              <button
-                type="button"
-                data-snippet="{{ linked_img_snippet|e }}"
-                onclick="insertSnippetFromButton(this, 'create_content_html')"
-              >
-                linked img
-              </button>
-            {% elif mime.startswith('video/') %}
-              <button
-                type="button"
-                data-snippet="{{ video_snippet|e }}"
-                onclick="insertSnippetFromButton(this, 'create_content_html')"
-              >
-                video
-              </button>
-            {% elif mime.startswith('audio/') %}
-              <button
-                type="button"
-                data-snippet="{{ audio_snippet|e }}"
-                onclick="insertSnippetFromButton(this, 'create_content_html')"
-              >
-                audio
-              </button>
-            {% endif %}
+    {{ media_snippet_picker(media_items, 'create_content_html') }}
+              <option value="{{ link_snippet|e }}">link</option>
+            </select>
             <button
               type="button"
-              data-snippet="{{ link_snippet|e }}"
-              onclick="insertSnippetFromButton(this, 'create_content_html')"
+              onclick="insertSnippetFromSelect(this, 'create_content_html')"
             >
-              link
+              insert
             </button>
           </div>
-        </div>
-      {% else %}
-        <p>no media uploaded yet.</p>
-      {% endfor %}
-    </div>
+        {% endfor %}
+      </div>
+    {% endif %}
   </details>
   <p>
     <a href="/settings/media">manage media library →</a>
@@ -240,6 +194,11 @@
 
     function insertSnippetFromButton(button, textareaId) {
       insertSnippet(textareaId, button.dataset.snippet || "");
+    }
+
+    function insertSnippetFromSelect(button, textareaId) {
+      const select = button.previousElementSibling;
+      insertSnippet(textareaId, select.value);
     }
   </script>
   <script type="module" src="/static/codemirror-setup.js"></script>
