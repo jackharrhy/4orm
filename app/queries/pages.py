@@ -17,7 +17,11 @@ def list_public_pages_for_user(conn: Connection, username: str):
 def get_public_page(conn: Connection, username: str, slug: str):
     q = (
         select(
-            pages.c.title, pages.c.content_html, users.c.username, users.c.display_name
+            pages.c.title,
+            pages.c.content_html,
+            users.c.username,
+            users.c.display_name,
+            users.c.custom_css,
         )
         .select_from(pages.join(users, pages.c.user_id == users.c.id))
         .where(
