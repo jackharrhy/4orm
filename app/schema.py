@@ -27,6 +27,7 @@ users = Table(
     Column("avatar_media_id", Integer, ForeignKey("media.id", ondelete="SET NULL")),
     Column("custom_css", Text, nullable=False, server_default=""),
     Column("custom_html", Text, nullable=False, server_default=""),
+    Column("layout", String(20), nullable=False, server_default="default"),
     Column("is_admin", Boolean, nullable=False, server_default="0"),
     Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
     Column("invite_id", Integer, ForeignKey("invites.id", ondelete="SET NULL")),
@@ -72,6 +73,7 @@ pages = Table(
     Column("title", String(140), nullable=False),
     Column("content", Text, nullable=False, server_default=""),
     Column("content_format", String(20), nullable=False, server_default="html"),
+    Column("layout", String(20), nullable=False, server_default="default"),
     Column("is_public", Boolean, nullable=False, server_default="1"),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()

@@ -37,7 +37,9 @@
                 <a href="/u/{{ u.username }}">{{ u.username }}</a>
               </td>
               <td>{{ u.display_name }}</td>
-              <td style="text-align: right">{{ stats.get('file_count', 0) }}</td>
+              <td style="text-align: right">
+                {{ stats.get('file_count', 0) }}
+              </td>
               <td style="text-align: right">
                 {{ stats.get('total_bytes', 0)|human_bytes }}
               </td>

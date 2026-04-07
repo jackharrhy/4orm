@@ -112,6 +112,61 @@ def test_create_duplicate_slug(authed_client, seed_user):
     assert "slug already exists" in r.text
 
 
+def test_page_simple_layout(authed_client, seed_user):
+    authed_client.post(
+        "/settings/pages",
+        data={
+            "slug": "simple-page",
+            "title": "Simple",
+            "content": "<p>minimal</p>",
+            "content_format": "html",
+            "layout": "simple",
+        },
+    )
+    r = authed_client.get(f"/u/{seed_user['username']}/page/simple-page")
+    assert r.status_code == 200
+    assert "<p>minimal</p>" in r.text
+    # Simple layout has no .panel wrapper
+    assert "panel content-html" not in r.text
+
+
+def test_page_raw_layout(authed_client, seed_user):
+    authed_client.post(
+        "/settings/pages",
+        data={
+            "slug": "raw-page",
+            "title": "Raw",
+            "content": "<!doctype html><html><body>full control</body></html>",
+            "content_format": "html",
+            "layout": "raw",
+        },
+    )
+    r = authed_client.get(f"/u/{seed_user['username']}/page/raw-page")
+    assert r.status_code == 200
+    assert "full control" in r.text
+    # Raw layout has no topbar
+    assert "topbar" not in r.text
+
+
+def test_profile_raw_layout(authed_client, test_engine, seed_user):
+    from sqlalchemy import update as sql_update
+
+    from app.schema import users
+
+    with test_engine.begin() as conn:
+        conn.execute(
+            sql_update(users)
+            .where(users.c.id == seed_user["id"])
+            .values(layout="raw", content="<h1>my raw profile</h1>")
+        )
+
+    r = authed_client.get(f"/u/{seed_user['username']}")
+    assert r.status_code == 200
+    assert "my raw profile" in r.text
+    assert "__4ORM" in r.text  # JS data injection
+    assert "topbar" not in r.text
+
+
 def test_page_not_found(client, seed_user):
     r = client.get(f"/u/{seed_user['username']}/page/nonexistent")
     assert r.status_code == 404

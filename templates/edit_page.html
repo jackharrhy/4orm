@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% from 'macros/media_snippets.html' import media_snippet_picker %}
 {% from 'macros/content_editor.html' import content_editor %}
+{% from 'macros/layout_select.html' import layout_select %}
 {% block title %}edit page{% endblock %}
 {%
   block
@@ -32,6 +33,7 @@
       </label>
       <label>content</label>
       {{ content_editor('content', 'edit_content', value=page.content, format=page.content_format, rows=16) }}
+      {{ layout_select(page.layout) }}
       <button type="submit">save changes</button>
     </form>
   </section>

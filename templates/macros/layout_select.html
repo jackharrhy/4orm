@@ -1,0 +1,12 @@
+{% macro layout_select(current='default') %}
+  <label>
+    layout
+    <select name="layout">
+      {% for opt in ['default', 'simple', 'raw'] %}
+        <option value="{{ opt }}" {% if current == opt %}selected{% endif %}>
+          {{ opt }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+{% endmacro %}

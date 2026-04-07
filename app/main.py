@@ -36,13 +36,13 @@ from app.queries.users import (
     create_user_with_invite,
     delete_invite,
     disable_invite,
-    get_invites_for_user,
     get_invite_tree,
+    get_invites_for_user,
     get_user_by_id,
     get_user_by_username,
     list_profile_cards,
 )
-from app.rendering import render_content
+from app.rendering import build_raw_html, render_content
 from app.schema import create_all, media, profile_cards, users
 from app.security import verify_password
 
@@ -249,10 +249,30 @@ def profile(request: Request, username: str):
         if not user:
             raise HTTPException(404)
         pages = list_public_pages_for_user(conn, username)
+
     rendered_content = render_content(user["content"], user["content_format"])
+    layout = user.get("layout", "default")
+
+    if layout == "raw":
+        data = {
+            "username": user["username"],
+            "display_name": user["display_name"],
+            "pages": [{"slug": p["slug"], "title": p["title"]} for p in pages],
+            "lineage_url": f"/lineage#user-{user['username']}",
+        }
+        return HTMLResponse(
+            build_raw_html(
+                rendered_content,
+                custom_css=user["custom_css"],
+                custom_html=user["custom_html"],
+                data=data,
+            )
+        )
+
+    template_name = "profile_simple.html" if layout == "simple" else "profile.html"
     return templates.TemplateResponse(
         request,
-        "profile.html",
+        template_name,
         {
             "profile": user,
             "rendered_content": rendered_content,
@@ -268,10 +288,23 @@ def page_view(request: Request, username: str, slug: str):
         page = get_public_page(conn, username, slug)
     if not page:
         raise HTTPException(404)
+
     rendered_content = render_content(page["content"], page["content_format"])
+    layout = page.get("layout", "default")
+
+    if layout == "raw":
+        return HTMLResponse(
+            build_raw_html(
+                rendered_content,
+                custom_css=page["custom_css"],
+                custom_html=page["custom_html"],
+            )
+        )
+
+    template_name = "page_simple.html" if layout == "simple" else "page.html"
     return templates.TemplateResponse(
         request,
-        "page.html",
+        template_name,
         {
             "page": page,
             "rendered_content": rendered_content,
@@ -577,6 +610,7 @@ def settings_profile(
     display_name: str = Form(""),
     content: str = Form(""),
     content_format: str = Form("html"),
+    layout: str = Form("default"),
 ):
     me = current_user(request)
     if not me:
@@ -589,6 +623,7 @@ def settings_profile(
                 display_name=display_name,
                 content=content,
                 content_format=content_format,
+                layout=layout,
             )
         )
     return _saved_or_redirect(request)
@@ -703,6 +738,7 @@ def settings_pages(
     title: str = Form(...),
     content: str = Form(""),
     content_format: str = Form("html"),
+    layout: str = Form("default"),
 ):
     me = current_user(request)
     if not me:
@@ -719,6 +755,7 @@ def settings_pages(
                 title=title.strip(),
                 content=content,
                 content_format=content_format,
+                layout=layout,
                 is_public=True,
             )
     except IntegrityError:
@@ -779,6 +816,7 @@ def settings_pages_edit_post(
     title: str = Form(...),
     content: str = Form(""),
     content_format: str = Form("html"),
+    layout: str = Form("default"),
     is_public: str | None = Form(None),
 ):
     me = current_user(request)
@@ -798,6 +836,7 @@ def settings_pages_edit_post(
             title=title.strip(),
             content=content,
             content_format=content_format,
+            layout=layout,
             is_public=is_public == "on",
         )
 

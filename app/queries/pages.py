@@ -20,6 +20,7 @@ def get_public_page(conn: Connection, username: str, slug: str):
             pages.c.title,
             pages.c.content,
             pages.c.content_format,
+            pages.c.layout,
             users.c.username,
             users.c.display_name,
             users.c.custom_css,
@@ -42,6 +43,7 @@ def create_page(
     title: str,
     content: str,
     content_format: str = "html",
+    layout: str = "default",
     is_public: bool = True,
 ):
     conn.execute(
@@ -51,6 +53,7 @@ def create_page(
             title=title,
             content=content,
             content_format=content_format,
+            layout=layout,
             is_public=is_public,
         )
     )
@@ -83,6 +86,7 @@ def update_user_page(
     title: str,
     content: str,
     content_format: str = "html",
+    layout: str = "default",
     is_public: bool,
 ):
     conn.execute(
@@ -93,6 +97,7 @@ def update_user_page(
             title=title,
             content=content,
             content_format=content_format,
+            layout=layout,
             is_public=is_public,
             updated_at=func.now(),
         )
@@ -119,7 +124,9 @@ def list_public_pages_for_rss(conn: Connection, *, limit: int = 100):
     return conn.execute(q).mappings().all()
 
 
-def list_public_pages_for_user_rss(conn: Connection, username: str, *, limit: int = 100):
+def list_public_pages_for_user_rss(
+    conn: Connection, username: str, *, limit: int = 100
+):
     q = (
         select(
             pages.c.slug,
