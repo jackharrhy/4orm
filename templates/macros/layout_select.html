@@ -1,10 +1,20 @@
 {% macro layout_select(current='default') %}
+  {%
+    set options = {
+      'default': 'topbar, panels, structured content',
+      'simple': 'topbar only, no chrome',
+      'raw': 'full HTML, no template',
+    }
+  %}
   <label>
     layout
     <select name="layout">
-      {% for opt in ['default', 'simple', 'raw'] %}
-        <option value="{{ opt }}" {% if current == opt %}selected{% endif %}>
-          {{ opt }}
+      {% for value, desc in options.items() %}
+        <option
+          value="{{ value }}"
+          {% if current == value %}selected{% endif %}
+        >
+          {{ value }} — {{ desc }}
         </option>
       {% endfor %}
     </select>
