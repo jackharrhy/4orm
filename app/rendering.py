@@ -13,6 +13,23 @@ def render_content(source: str, content_format: str) -> str:
     return source
 
 
+def _inject_into_head(html: str, snippet: str) -> str:
+    """Inject a snippet right after <head> (or after <html> if no <head>)."""
+    for tag in ("<head>", "<HEAD>", "<head >"):
+        pos = html.find(tag)
+        if pos != -1:
+            insert_at = pos + len(tag)
+            return html[:insert_at] + "\n" + snippet + "\n" + html[insert_at:]
+    # No <head> tag -- try after <html>
+    for tag in ("<html>", "<HTML>", "<html "):
+        pos = html.find(tag)
+        if pos != -1:
+            end = html.find(">", pos) + 1
+            return html[:end] + "\n" + snippet + "\n" + html[end:]
+    # No structure at all -- prepend
+    return snippet + "\n" + html
+
+
 def build_raw_html(
     rendered_content: str,
     custom_css: str = "",
@@ -20,12 +37,17 @@ def build_raw_html(
     data: dict | None = None,
 ) -> str:
     """Build a complete raw HTML page from user content."""
-    parts = [rendered_content]
-    if custom_css:
-        parts.append(f"<style>{custom_css}</style>")
-    if custom_html:
-        parts.append(custom_html)
+    html = rendered_content
+
+    # Inject __4ORM data into <head> so it's available before user scripts run
     if data:
         json_data = json.dumps(data, default=str)
-        parts.append(f"<script>window.__4ORM = {json_data};</script>")
-    return "\n".join(parts)
+        html = _inject_into_head(html, f"<script>window.__4ORM = {json_data};</script>")
+
+    # Append custom assets at the end (CSS/HTML may depend on user DOM)
+    if custom_css:
+        html += f"\n<style>{custom_css}</style>"
+    if custom_html:
+        html += f"\n{custom_html}"
+
+    return html
