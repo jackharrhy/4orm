@@ -41,7 +41,6 @@
   </head>
   <body>
     <h2>{{ owner.display_name }}'s guestbook</h2>
-    <div id="gb-entries">{% include 'fragments/guestbook_entries.html' %}</div>
     {% if me %}
       <form class="gb-form" method="post" action="/u/{{ owner.username }}/guestbook" hx-post="/u/{{ owner.username }}/guestbook" hx-target="#gb-entries" hx-swap="innerHTML">
         <textarea name="message" rows="3" maxlength="500" placeholder="sign the guestbook..." required></textarea>
@@ -52,6 +51,7 @@
         <a href="/login" target="_parent">sign in</a> to leave a message
       </p>
     {% endif %}
+    <div id="gb-entries">{% include 'fragments/guestbook_entries.html' %}</div>
     {{ owner.guestbook_html|safe }}
   </body>
 </html>
