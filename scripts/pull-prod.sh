@@ -16,4 +16,8 @@ echo "==> Pulling uploads..."
 rsync -avz --progress --delete --exclude=".gitkeep" "$REMOTE:$REMOTE_BASE/4orm_uploads/" "$LOCAL_DIR/uploads/"
 
 echo ""
+echo "==> Running migrations..."
+uv run alembic upgrade head
+
+echo ""
 echo "Done. You can now run: uv run uvicorn app.main:app --reload"
