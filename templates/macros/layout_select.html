@@ -2,7 +2,7 @@
   {%
     set options = {
       'default': 'topbar, panels, structured content',
-      'simple': 'topbar only, no chrome',
+      'simple': 'topbar only, blank page',
       'raw': 'full HTML, no template',
     }
   %}
@@ -14,7 +14,7 @@
           value="{{ value }}"
           {% if current == value %}selected{% endif %}
         >
-          {{ value }} — {{ desc }}
+          {{ value }} - {{ desc }}
         </option>
       {% endfor %}
     </select>
