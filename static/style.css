@@ -232,6 +232,12 @@ details.panel[open] > summary > h2::before {
   background: #ffff80;
 }
 
+.site-footer {
+  margin-top: 16px;
+  padding: 10px 12px 20px;
+  border-top: 2px solid #000;
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;

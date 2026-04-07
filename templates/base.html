@@ -31,5 +31,16 @@
       </nav>
     </header>
     <main class="wrap">{% block content %}{% endblock %}</main>
+
+    {% set feed_username = profile.username if profile is defined and profile else (me.username if me else none) %}
+    <footer class="site-footer wrap">
+      <p>
+        rss:
+        <a href="/feed.xml">global</a>
+        {% if feed_username %}
+          · <a href="/u/{{ feed_username }}/feed.xml">user</a>
+        {% endif %}
+      </p>
+    </footer>
   </body>
 </html>
