@@ -28,6 +28,8 @@ users = Table(
     Column("custom_css", Text, nullable=False, server_default=""),
     Column("custom_html", Text, nullable=False, server_default=""),
     Column("layout", String(20), nullable=False, server_default="default"),
+    Column("guestbook_css", Text, nullable=False, server_default=""),
+    Column("guestbook_html", Text, nullable=False, server_default=""),
     Column("is_admin", Boolean, nullable=False, server_default="0"),
     Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
     Column("invite_id", Integer, ForeignKey("invites.id", ondelete="SET NULL")),

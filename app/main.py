@@ -744,6 +744,24 @@ def settings_html(request: Request, custom_html: str = Form("")):
     return _saved_or_redirect(request)
 
 
+@app.post("/settings/guestbook")
+def settings_guestbook(
+    request: Request,
+    guestbook_css: str = Form(""),
+    guestbook_html: str = Form(""),
+):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        conn.execute(
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(guestbook_css=guestbook_css, guestbook_html=guestbook_html)
+        )
+    return _saved_or_redirect(request)
+
+
 @app.post("/settings/card")
 def settings_card(
     request: Request,

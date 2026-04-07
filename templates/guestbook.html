@@ -6,115 +6,45 @@
     <title>{{ owner.display_name }}'s guestbook</title>
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
     <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
+      @layer base {
+        * { box-sizing: border-box; margin: 0; }
+        body {
+          font-family: Verdana, Tahoma, Arial, sans-serif;
+          font-size: 13px;
+          background: #ffffee;
+          color: #333;
+          padding: 10px;
+          line-height: 1.4;
+        }
+        h2 { font-size: 14px; margin-bottom: 8px; color: #000; }
+        a { color: #0000ee; }
+        a:visited { color: #551a8b; }
+        .gb-entry { border-bottom: 1px dashed #ccc; padding: 6px 0; }
+        .gb-entry:last-child { border-bottom: none; }
+        .gb-meta { font-size: 11px; color: #666; display: flex; align-items: center; gap: 6px; }
+        .gb-date { color: #999; }
+        .gb-message { margin-top: 2px; word-break: break-word; }
+        .gb-empty { color: #999; font-style: italic; }
+        .gb-inline { display: inline; }
+        .gb-delete {
+          background: none; border: none; color: #cc0000;
+          cursor: pointer; font-size: 11px; padding: 0; text-decoration: underline;
+        }
+        .gb-form { margin-top: 10px; border-top: 2px solid #ccc; padding-top: 8px; }
+        .gb-form textarea { width: 100%; font: inherit; border: 2px inset #ccc; padding: 4px; resize: vertical; }
+        .gb-form button { margin-top: 4px; font: inherit; border: 2px outset #ccc; background: #eee; padding: 3px 10px; cursor: pointer; }
+        .gb-signin { color: #999; margin-top: 10px; font-size: 12px; }
+        .gb-signin a { color: #0000ee; }
       }
-      body {
-        font-family: Verdana, Tahoma, Arial, sans-serif;
-        font-size: 13px;
-        background: #ffffee;
-        color: #333;
-        padding: 10px;
-        line-height: 1.4;
-      }
-      h2 {
-        font-size: 14px;
-        margin-bottom: 8px;
-        color: #000;
-      }
-      a {
-        color: #0000ee;
-      }
-      a:visited {
-        color: #551a8b;
-      }
-      .gb-entry {
-        border-bottom: 1px dashed #ccc;
-        padding: 6px 0;
-      }
-      .gb-entry:last-child {
-        border-bottom: none;
-      }
-      .gb-meta {
-        font-size: 11px;
-        color: #666;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .gb-date {
-        color: #999;
-      }
-      .gb-message {
-        margin-top: 2px;
-        word-break: break-word;
-      }
-      .gb-empty {
-        color: #999;
-        font-style: italic;
-      }
-      .gb-inline {
-        display: inline;
-      }
-      .gb-delete {
-        background: none;
-        border: none;
-        color: #cc0000;
-        cursor: pointer;
-        font-size: 11px;
-        padding: 0;
-        text-decoration: underline;
-      }
-      .gb-form {
-        margin-top: 10px;
-        border-top: 2px solid #ccc;
-        padding-top: 8px;
-      }
-      .gb-form textarea {
-        width: 100%;
-        font: inherit;
-        border: 2px inset #ccc;
-        padding: 4px;
-        resize: vertical;
-      }
-      .gb-form button {
-        margin-top: 4px;
-        font: inherit;
-        border: 2px outset #ccc;
-        background: #eee;
-        padding: 3px 10px;
-        cursor: pointer;
-      }
-      .gb-signin {
-        color: #999;
-        margin-top: 10px;
-        font-size: 12px;
-      }
-      .gb-signin a {
-        color: #0000ee;
-      }
+      {{ owner.guestbook_css|safe }}
     </style>
   </head>
   <body>
     <h2>{{ owner.display_name }}'s guestbook</h2>
     <div id="gb-entries">{% include 'fragments/guestbook_entries.html' %}</div>
     {% if me %}
-      <form
-        class="gb-form"
-        method="post"
-        action="/u/{{ owner.username }}/guestbook"
-        hx-post="/u/{{ owner.username }}/guestbook"
-        hx-target="#gb-entries"
-        hx-swap="innerHTML"
-      >
-        <textarea
-          name="message"
-          rows="3"
-          maxlength="500"
-          placeholder="sign the guestbook..."
-          required
-        ></textarea>
+      <form class="gb-form" method="post" action="/u/{{ owner.username }}/guestbook" hx-post="/u/{{ owner.username }}/guestbook" hx-target="#gb-entries" hx-swap="innerHTML">
+        <textarea name="message" rows="3" maxlength="500" placeholder="sign the guestbook..." required></textarea>
         <button type="submit">sign</button>
       </form>
     {% else %}
@@ -122,5 +52,6 @@
         <a href="/login" target="_parent">sign in</a> to leave a message
       </p>
     {% endif %}
+    {{ owner.guestbook_html|safe }}
   </body>
 </html>

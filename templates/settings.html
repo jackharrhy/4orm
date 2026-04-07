@@ -143,6 +143,35 @@
     </form>
     {{ media_snippet_picker(media_items, 'create_content') }}
   </details>
+  <details class="panel">
+    <summary><h2>guestbook</h2></summary>
+    <p class="muted">
+      your guestbook lives at
+      <a href="/u/{{ me.username }}/guestbook" target="_blank"
+        ><code>/u/{{ me.username }}/guestbook</code></a
+      >. embed it on any page with:
+    </p>
+    <pre><code>&lt;iframe src="/u/{{ me.username }}/guestbook" style="width:100%; height:400px; border:2px inset #ccc;"&gt;&lt;/iframe&gt;</code></pre>
+    <form
+      method="post"
+      action="/settings/guestbook"
+      class="stack"
+      hx-post="/settings/guestbook"
+      hx-target="#guestbook-status"
+      hx-swap="innerHTML"
+    >
+      <label>guestbook css</label>
+      <textarea name="guestbook_css" rows="6" data-codemirror="css">
+{{ me.guestbook_css }}</textarea
+      >
+      <label>guestbook html</label>
+      <textarea name="guestbook_html" rows="6" data-codemirror="html">
+{{ me.guestbook_html }}</textarea
+      >
+      <button>save guestbook</button>
+      <span id="guestbook-status"></span>
+    </form>
+  </details>
   <p>
     <a href="/settings/media">manage media library →</a>
     · <a href="/how-to">how-to guide →</a>

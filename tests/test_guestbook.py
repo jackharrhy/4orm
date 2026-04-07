@@ -21,6 +21,34 @@ def _create_second_user(test_engine):
     return {"id": user_id, "username": "visitor", "password": "visitorpass"}
 
 
+def test_guestbook_custom_css(client, test_engine, seed_user):
+    from sqlalchemy import update as sql_update
+
+    with test_engine.begin() as conn:
+        conn.execute(
+            sql_update(users)
+            .where(users.c.id == seed_user["id"])
+            .values(guestbook_css="body { background: pink; }")
+        )
+
+    r = client.get(f"/u/{seed_user['username']}/guestbook")
+    assert r.status_code == 200
+    assert "body { background: pink; }" in r.text
+
+
+def test_save_guestbook_settings(authed_client):
+    r = authed_client.post(
+        "/settings/guestbook",
+        data={
+            "guestbook_css": "body { color: red; }",
+            "guestbook_html": "<p>custom</p>",
+        },
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    assert "saved" in r.text.lower()
+
+
 def test_guestbook_renders(client, seed_user):
     r = client.get(f"/u/{seed_user['username']}/guestbook")
     assert r.status_code == 200
