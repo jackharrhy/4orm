@@ -189,10 +189,23 @@ button:active {
 }
 
 code {
-  background: #eee;
+  background: #f4f4f4;
   padding: 1px 4px;
-  border: 1px solid #999;
-  word-break: break-all;
+  border: 1px solid #ddd;
+  font-size: 0.9em;
+}
+pre {
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  padding: 10px 12px;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.85rem;
 }
 
 .cm-editor {

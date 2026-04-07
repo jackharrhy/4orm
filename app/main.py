@@ -12,6 +12,11 @@ from sqlalchemy import func, select, update
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import engine as default_engine
+from app.queries.guestbook import (
+    create_guestbook_entry,
+    delete_guestbook_entry,
+    list_guestbook_entries,
+)
 from app.queries.media import (
     create_media,
     delete_media_for_user,
@@ -104,6 +109,20 @@ def human_bytes(size: int | None) -> str:
 
 
 templates.env.filters["human_bytes"] = human_bytes
+
+# Cache-busting hash for static assets
+import hashlib
+
+_css_path = BASE_DIR / "static" / "style.css"
+_css_hash = (
+    hashlib.md5(_css_path.read_bytes()).hexdigest()[:8] if _css_path.exists() else "0"
+)
+_cm_path = BASE_DIR / "static" / "codemirror-setup.js"
+_cm_hash = (
+    hashlib.md5(_cm_path.read_bytes()).hexdigest()[:8] if _cm_path.exists() else "0"
+)
+templates.env.globals["css_hash"] = _css_hash
+templates.env.globals["cm_hash"] = _cm_hash
 
 
 def _format_rfc2822(dt) -> str:
@@ -242,6 +261,13 @@ def logout(request: Request):
     return RedirectResponse(url="/", status_code=303)
 
 
+@app.get("/how-to", response_class=HTMLResponse)
+def how_to(request: Request):
+    return templates.TemplateResponse(
+        request, "how_to.html", {"me": current_user(request)}
+    )
+
+
 @app.get("/u/{username}", response_class=HTMLResponse)
 def profile(request: Request, username: str):
     with get_engine(request).begin() as conn:
@@ -311,6 +337,71 @@ def page_view(request: Request, username: str, slug: str):
             "me": current_user(request),
         },
     )
+
+
+# --- Guestbook ---
+
+
+@app.get("/u/{username}/guestbook", response_class=HTMLResponse)
+def guestbook_view(request: Request, username: str):
+    with get_engine(request).begin() as conn:
+        owner = get_user_by_username(conn, username)
+        if not owner:
+            raise HTTPException(404)
+        entries = list_guestbook_entries(conn, owner["id"])
+    me = current_user(request)
+    is_owner = me and me["id"] == owner["id"]
+    return templates.TemplateResponse(
+        request,
+        "guestbook.html",
+        {
+            "owner": owner,
+            "entries": entries,
+            "me": me,
+            "is_owner": is_owner,
+        },
+    )
+
+
+@app.post("/u/{username}/guestbook", response_class=HTMLResponse)
+def guestbook_post(request: Request, username: str, message: str = Form(...)):
+    me = current_user(request)
+    if not me:
+        raise HTTPException(403)
+    with get_engine(request).begin() as conn:
+        owner = get_user_by_username(conn, username)
+        if not owner:
+            raise HTTPException(404)
+        create_guestbook_entry(conn, owner["id"], me["id"], message)
+        entries = list_guestbook_entries(conn, owner["id"])
+    is_owner = me["id"] == owner["id"]
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            request,
+            "fragments/guestbook_entries.html",
+            {"owner": owner, "entries": entries, "me": me, "is_owner": is_owner},
+        )
+    return RedirectResponse(url=f"/u/{username}/guestbook", status_code=303)
+
+
+@app.post("/u/{username}/guestbook/{entry_id}/delete", response_class=HTMLResponse)
+def guestbook_delete(request: Request, username: str, entry_id: int):
+    me = current_user(request)
+    if not me:
+        raise HTTPException(403)
+    with get_engine(request).begin() as conn:
+        owner = get_user_by_username(conn, username)
+        if not owner or me["id"] != owner["id"]:
+            raise HTTPException(403)
+        delete_guestbook_entry(conn, entry_id, owner["id"])
+        entries = list_guestbook_entries(conn, owner["id"])
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            request,
+            "fragments/guestbook_entries.html",
+            {"owner": owner, "entries": entries, "me": me, "is_owner": True},
+        )
+    return RedirectResponse(url=f"/u/{username}/guestbook", status_code=303)
 
 
 @app.get("/feed.xml")

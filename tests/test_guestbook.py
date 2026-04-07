@@ -1,0 +1,160 @@
+from sqlalchemy import insert
+
+from app.schema import profile_cards, users
+from app.security import hash_password
+
+
+def _create_second_user(test_engine):
+    """Create a second user for guestbook interaction."""
+    with test_engine.begin() as conn:
+        result = conn.execute(
+            insert(users).values(
+                username="visitor",
+                password_hash=hash_password("visitorpass"),
+                display_name="Visitor",
+            )
+        )
+        user_id = result.inserted_primary_key[0]
+        conn.execute(
+            insert(profile_cards).values(user_id=user_id, headline="visitor's page")
+        )
+    return {"id": user_id, "username": "visitor", "password": "visitorpass"}
+
+
+def test_guestbook_renders(client, seed_user):
+    r = client.get(f"/u/{seed_user['username']}/guestbook")
+    assert r.status_code == 200
+    assert "guestbook" in r.text.lower()
+    assert "no entries yet" in r.text
+
+
+def test_guestbook_not_found(client):
+    r = client.get("/u/nobody/guestbook")
+    assert r.status_code == 404
+
+
+def test_guestbook_sign_in_prompt(client, seed_user):
+    r = client.get(f"/u/{seed_user['username']}/guestbook")
+    assert "sign in" in r.text.lower()
+
+
+def test_guestbook_post_requires_login(client, seed_user):
+    r = client.post(
+        f"/u/{seed_user['username']}/guestbook",
+        data={"message": "hello"},
+    )
+    assert r.status_code == 403
+
+
+def test_guestbook_post_and_display(client, test_engine, seed_user):
+    visitor = _create_second_user(test_engine)
+    # Log in as visitor
+    client.post(
+        "/login",
+        data={"username": visitor["username"], "password": visitor["password"]},
+    )
+
+    r = client.post(
+        f"/u/{seed_user['username']}/guestbook",
+        data={"message": "nice page!"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "nice page!" in r.text
+    assert "Visitor" in r.text
+
+
+def test_guestbook_post_htmx(client, test_engine, seed_user):
+    visitor = _create_second_user(test_engine)
+    client.post(
+        "/login",
+        data={"username": visitor["username"], "password": visitor["password"]},
+    )
+
+    r = client.post(
+        f"/u/{seed_user['username']}/guestbook",
+        data={"message": "htmx post"},
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    assert "htmx post" in r.text
+
+
+def test_guestbook_message_truncated(client, test_engine, seed_user):
+    visitor = _create_second_user(test_engine)
+    client.post(
+        "/login",
+        data={"username": visitor["username"], "password": visitor["password"]},
+    )
+
+    long_msg = "a" * 600
+    client.post(
+        f"/u/{seed_user['username']}/guestbook",
+        data={"message": long_msg},
+        headers={"HX-Request": "true"},
+    )
+
+    r = client.get(f"/u/{seed_user['username']}/guestbook")
+    # Should be truncated to 500
+    assert "a" * 500 in r.text
+    assert "a" * 501 not in r.text
+
+
+def test_guestbook_owner_can_delete(client, test_engine, seed_user):
+    visitor = _create_second_user(test_engine)
+
+    # Visitor signs the guestbook
+    client.post(
+        "/login",
+        data={"username": visitor["username"], "password": visitor["password"]},
+    )
+    client.post(
+        f"/u/{seed_user['username']}/guestbook",
+        data={"message": "delete me"},
+    )
+
+    # Get the entry ID
+    from sqlalchemy import select
+    from app.schema import guestbook_entries
+
+    with test_engine.begin() as conn:
+        entry = conn.execute(select(guestbook_entries.c.id)).first()
+
+    # Log in as owner
+    client.post(
+        "/login",
+        data={"username": seed_user["username"], "password": seed_user["password"]},
+    )
+
+    r = client.post(
+        f"/u/{seed_user['username']}/guestbook/{entry[0]}/delete",
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "delete me" not in r.text
+
+
+def test_guestbook_non_owner_cannot_delete(client, test_engine, seed_user):
+    visitor = _create_second_user(test_engine)
+
+    # Visitor signs the guestbook
+    client.post(
+        "/login",
+        data={"username": visitor["username"], "password": visitor["password"]},
+    )
+    client.post(
+        f"/u/{seed_user['username']}/guestbook",
+        data={"message": "keep me"},
+    )
+
+    from sqlalchemy import select
+    from app.schema import guestbook_entries
+
+    with test_engine.begin() as conn:
+        entry = conn.execute(select(guestbook_entries.c.id)).first()
+
+    # Visitor tries to delete (not the owner)
+    r = client.post(
+        f"/u/{seed_user['username']}/guestbook/{entry[0]}/delete",
+    )
+    assert r.status_code == 403

@@ -1,0 +1,30 @@
+{% if entries %}
+  {% for entry in entries %}
+    <div class="gb-entry" id="gb-entry-{{ entry.id }}">
+      <p class="gb-meta">
+        <a href="/u/{{ entry.author_username }}" target="_parent"
+          ><strong>{{ entry.author_display_name }}</strong></a
+        >
+        <span class="gb-date"
+          >{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</span
+        >
+        {% if is_owner %}
+          <form
+            method="post"
+            action="/u/{{ owner.username }}/guestbook/{{ entry.id }}/delete"
+            class="gb-inline"
+            hx-post="/u/{{ owner.username }}/guestbook/{{ entry.id }}/delete"
+            hx-target="#gb-entries"
+            hx-swap="innerHTML"
+            hx-confirm="Delete this entry?"
+          >
+            <button type="submit" class="gb-delete">x</button>
+          </form>
+        {% endif %}
+      </p>
+      <p class="gb-message">{{ entry.message }}</p>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="gb-empty">no entries yet. be the first to sign!</p>
+{% endif %}

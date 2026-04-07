@@ -43,6 +43,9 @@
       {{ media_snippet_picker(media_items, 'edit_content') }}
     </section>
   {% endif %}
-  <script src="/static/snippet-insert.js"></script>
-  <script type="module" src="/static/codemirror-setup.js"></script>
+  <script src="/static/snippet-insert.js?v={{ cm_hash }}"></script>
+  <script
+    type="module"
+    src="/static/codemirror-setup.js?v={{ cm_hash }}"
+  ></script>
 {% endblock %}

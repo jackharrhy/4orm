@@ -138,6 +138,22 @@ gallery_items = Table(
     Column("position", Integer, nullable=False, server_default="0"),
 )
 
+guestbook_entries = Table(
+    "guestbook_entries",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column(
+        "author_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("message", Text, nullable=False),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
 profile_cards = Table(
     "profile_cards",
     metadata,
