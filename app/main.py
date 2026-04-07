@@ -119,7 +119,9 @@ def _format_rfc2822(dt) -> str:
     return format_datetime(dt)
 
 
-def build_rss_feed(*, title: str, link: str, description: str, items: list[dict]) -> str:
+def build_rss_feed(
+    *, title: str, link: str, description: str, items: list[dict]
+) -> str:
     entries = []
     for item in items:
         entries.append(
@@ -297,7 +299,7 @@ def global_feed(request: Request):
         )
 
     xml = build_rss_feed(
-        title="4orm global updates",
+        title="4orm updates",
         link=f"{site_url}/",
         description="Recent public page updates (published after 20 minutes of no edits)",
         items=items,
