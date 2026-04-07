@@ -301,7 +301,7 @@ def global_feed(request: Request):
     xml = build_rss_feed(
         title="4orm updates",
         link=f"{site_url}/",
-        description="Recent public page updates (published after 20 minutes of no edits)",
+        description="Recent public page updates",
         items=items,
     )
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
