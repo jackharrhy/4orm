@@ -111,3 +111,27 @@ def test_admin_can_edit_page(authed_client, test_engine, seed_user):
     assert page["slug"] == "hello-updated"
     assert page["title"] == "Hello Updated"
     assert page["content"] == "clean content"
+
+
+def test_admin_can_toggle_user_disabled(authed_client, test_engine, seed_user):
+    _promote_admin(test_engine, seed_user["id"])
+
+    r = authed_client.post(
+        f"/admin/users/{seed_user['id']}/toggle-disabled",
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    with test_engine.begin() as conn:
+        user = conn.execute(select(users).where(users.c.id == seed_user["id"])).mappings().first()
+    assert user["is_disabled"] is True
+
+    r = authed_client.post(
+        f"/admin/users/{seed_user['id']}/toggle-disabled",
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    with test_engine.begin() as conn:
+        user = conn.execute(select(users).where(users.c.id == seed_user["id"])).mappings().first()
+    assert user["is_disabled"] is False

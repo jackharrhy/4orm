@@ -7,6 +7,7 @@
   </td>
   <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}</td>
   <td>{{ 'admin' if u.is_admin else '' }}</td>
+  <td>{{ 'disabled' if u.is_disabled else '' }}</td>
   <td>
     {% if not u.is_admin %}
       <form
@@ -21,5 +22,18 @@
         <button type="submit">make admin</button>
       </form>
     {% endif %}
+
+    <form
+      method="post"
+      action="/admin/users/{{ u.id }}/toggle-disabled"
+      class="inline"
+      hx-post="/admin/users/{{ u.id }}/toggle-disabled"
+      hx-target="#user-row-{{ u.id }}"
+      hx-swap="outerHTML"
+      hx-confirm="{% if u.is_disabled %}Re-enable{% else %}Disable{% endif %} {{ u.username }}?"
+      style="margin-left: 8px"
+    >
+      <button type="submit">{% if u.is_disabled %}re-enable{% else %}disable{% endif %}</button>
+    </form>
   </td>
 </tr>

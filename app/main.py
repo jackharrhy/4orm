@@ -1055,6 +1055,7 @@ def admin_dashboard(request: Request):
                     users.c.username,
                     users.c.display_name,
                     users.c.is_admin,
+                    users.c.is_disabled,
                     users.c.created_at,
                 ).order_by(users.c.created_at)
             )
@@ -1281,7 +1282,7 @@ def admin_cleanup_records(request: Request):
 
 @app.post("/admin/users/{user_id}/toggle-admin")
 def admin_toggle_admin(request: Request, user_id: int):
-    me = require_admin(request)
+    require_admin(request)
     with get_engine(request).begin() as conn:
         user = get_user_by_id(conn, user_id)
         if not user:
@@ -1298,6 +1299,52 @@ def admin_toggle_admin(request: Request, user_id: int):
                     users.c.username,
                     users.c.display_name,
                     users.c.is_admin,
+                    users.c.is_disabled,
+                    users.c.created_at,
+                ).where(users.c.id == user_id)
+            )
+            .mappings()
+            .first()
+        )
+        stats = (
+            conn.execute(
+                select(
+                    func.count(media.c.id).label("file_count"),
+                    func.coalesce(func.sum(media.c.size_bytes), 0).label("total_bytes"),
+                ).where(media.c.user_id == user_id)
+            )
+            .mappings()
+            .first()
+        )
+
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            request,
+            "fragments/admin_user_row.html",
+            {"u": u, "stats": stats},
+        )
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@app.post("/admin/users/{user_id}/toggle-disabled")
+def admin_toggle_disabled(request: Request, user_id: int):
+    require_admin(request)
+    with get_engine(request).begin() as conn:
+        user = get_user_by_id(conn, user_id)
+        if not user:
+            raise HTTPException(404)
+        new_val = not bool(user["is_disabled"])
+        conn.execute(
+            update(users).where(users.c.id == user_id).values(is_disabled=new_val)
+        )
+        u = (
+            conn.execute(
+                select(
+                    users.c.id,
+                    users.c.username,
+                    users.c.display_name,
+                    users.c.is_admin,
+                    users.c.is_disabled,
                     users.c.created_at,
                 ).where(users.c.id == user_id)
             )
