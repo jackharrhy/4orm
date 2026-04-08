@@ -9,7 +9,7 @@ from app.db import engine as default_engine
 from app.deps import BASE_DIR, UPLOADS_DIR, current_user, get_engine, templates
 from app.queries.users import list_profile_cards
 from app.rendering import render_content
-from app.routes import admin, auth, feeds, guestbook, media, pages, settings
+from app.routes import admin, auth, feeds, forum, guestbook, media, pages, settings
 from app.schema import create_all
 
 
@@ -48,6 +48,7 @@ app.include_router(media.router)
 app.include_router(admin.router)
 app.include_router(guestbook.router)
 app.include_router(feeds.router)
+app.include_router(forum.router)
 
 
 @app.get("/", response_class=HTMLResponse)

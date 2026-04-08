@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "macros/pagination.html" import pagination %}
+{% from "macros/bbcode_snippets.html" import bbcode_snippet_picker %}
+
+{% block title %}{{ thread.title }} — 4orm{% endblock %}
+
+{% block content %}
+  {% if thread.custom_css %}
+    <style>{{ thread.custom_css|safe }}</style>
+  {% endif %}
+
+  <h1>{{ thread.title }}</h1>
+
+  <p class="muted">
+    by <a href="/u/{{ thread.author_username }}">{{ thread.author_display_name or thread.author_username }}</a>
+    · {{ thread.created_at.strftime('%Y-%m-%d %H:%M') if thread.created_at else '' }}
+    {% if thread.is_pinned %} · 📌 pinned{% endif %}
+    {% if thread.is_locked %} · 🔒 locked{% endif %}
+  </p>
+
+  <div class="inline" style="margin: 8px 0; flex-wrap: wrap">
+    {% if is_author %}
+      <a href="/forum/{{ thread.id }}/edit"><button type="button">edit thread</button></a>
+      <form method="post" action="/forum/{{ thread.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this thread and all its posts?')">
+        <button>delete thread</button>
+      </form>
+    {% endif %}
+    {% if me and me.is_admin %}
+      <form method="post" action="/forum/{{ thread.id }}/pin" style="display:inline">
+        <button>{{ 'unpin' if thread.is_pinned else 'pin' }}</button>
+      </form>
+      <form method="post" action="/forum/{{ thread.id }}/lock" style="display:inline">
+        <button>{{ 'unlock' if thread.is_locked else 'lock' }}</button>
+      </form>
+    {% endif %}
+  </div>
+
+  {% if thread.custom_html %}
+    {{ thread.custom_html|safe }}
+  {% endif %}
+
+  <div id="forum-posts">
+    {% for post in posts %}
+      {% include "fragments/forum_post.html" %}
+    {% endfor %}
+  </div>
+
+  {{ pagination(current_page, total_pages, '/forum/' ~ thread.id) }}
+
+  {% if me and not thread.is_locked %}
+    <div class="panel" style="margin-top: 16px">
+      <h2>reply</h2>
+      <form method="post" action="/forum/{{ thread.id }}/reply" class="stack">
+        <input type="hidden" name="quoted_post_id" id="quoted_post_id" value="">
+        <input type="hidden" name="quoted_content" id="quoted_content" value="">
+        <input type="hidden" name="quoted_author" id="quoted_author" value="">
+
+        <div id="quote-preview" style="display:none" class="forum-quote">
+          <strong>quoting <span id="quote-preview-author"></span>:</strong>
+          <p id="quote-preview-text"></p>
+          <button type="button" onclick="clearQuote()">remove quote</button>
+        </div>
+
+        <label>
+          format:
+          <select name="content_format">
+            <option value="bbcode" selected>BBCode</option>
+            <option value="markdown">Markdown</option>
+          </select>
+        </label>
+
+        <textarea name="content" id="reply-content" rows="6" required placeholder="write your reply..."></textarea>
+
+        {{ bbcode_snippet_picker(media_items, 'reply-content') }}
+
+        <button type="submit">post reply</button>
+      </form>
+    </div>
+  {% elif not me %}
+    <p class="muted" style="margin-top: 12px"><a href="/login">log in</a> to reply</p>
+  {% elif thread.is_locked %}
+    <p class="muted" style="margin-top: 12px">🔒 this thread is locked</p>
+  {% endif %}
+
+  <script>
+    function quotePost(postId, author, content) {
+      document.getElementById('quoted_post_id').value = postId;
+      document.getElementById('quoted_content').value = content;
+      document.getElementById('quoted_author').value = author;
+      document.getElementById('quote-preview-author').textContent = author;
+      document.getElementById('quote-preview-text').textContent = content.substring(0, 200);
+      document.getElementById('quote-preview').style.display = 'block';
+      document.getElementById('reply-content').focus();
+    }
+    function clearQuote() {
+      document.getElementById('quoted_post_id').value = '';
+      document.getElementById('quoted_content').value = '';
+      document.getElementById('quoted_author').value = '';
+      document.getElementById('quote-preview').style.display = 'none';
+    }
+    function insertSnippetFromSelect(btn, textareaId) {
+      var sel = btn.parentElement.querySelector('.snippet-select');
+      var ta = document.getElementById(textareaId);
+      if (!ta || !sel) return;
+      var start = ta.selectionStart;
+      var end = ta.selectionEnd;
+      var val = sel.value;
+      ta.value = ta.value.substring(0, start) + val + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = start + val.length;
+      ta.focus();
+    }
+  </script>
+{% endblock %}

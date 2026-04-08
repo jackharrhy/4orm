@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}edit post — 4orm{% endblock %}
+
+{% block content %}
+  <h1>edit post</h1>
+
+  <form method="post" action="/forum/posts/{{ post.id }}/edit" class="stack">
+    <label>
+      format:
+      <select name="content_format">
+        <option
+          value="bbcode"
+          {% if post.content_format == 'bbcode' %}selected{% endif %}
+        >
+          BBCode
+        </option>
+        <option
+          value="markdown"
+          {% if post.content_format == 'markdown' %}selected{% endif %}
+        >
+          Markdown
+        </option>
+      </select>
+    </label>
+
+    <label>
+      content
+      <textarea name="content" rows="10" required>{{ post.content }}</textarea>
+    </label>
+
+    <button type="submit">save</button>
+  </form>
+
+  <p style="margin-top: 8px">
+    <a href="/forum/{{ post.thread_id }}">back to thread</a>
+  </p>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "macros/pagination.html" import pagination %}
+
+{% block title %}forum — 4orm{% endblock %}
+
+{% block content %}
+  <h1>forum</h1>
+
+  {% if me %}
+    <p>
+      <a href="/forum/new"><button type="button">new thread</button></a>
+    </p>
+  {% endif %}
+
+  {% if threads %}
+    <div class="table-wrap">
+      <table class="forum-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>thread</th>
+            <th>author</th>
+            <th>replies</th>
+            <th>last reply</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in threads %}
+            <tr>
+              <td>
+                {% if t.is_pinned %}📌{% endif %}{% if t.is_locked %}🔒{% endif %}
+              </td>
+              <td><a href="/forum/{{ t.id }}">{{ t.title }}</a></td>
+              <td>
+                <a href="/u/{{ t.author_username }}"
+                  >{{ t.author_display_name or t.author_username }}</a
+                >
+              </td>
+              <td>{{ t.reply_count }}</td>
+              <td class="muted">
+                {{ t.last_reply_at.strftime('%Y-%m-%d %H:%M') if t.last_reply_at else '' }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">no threads yet. be the first!</p>
+  {% endif %}
+
+  {{ pagination(current_page, total_pages, '/forum') }}
+{% endblock %}

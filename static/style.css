@@ -268,3 +268,50 @@ details.panel[open] > summary > h2::before {
   border-bottom: 1px solid #999;
   vertical-align: top;
 }
+
+/* Forum */
+.forum-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.forum-table th {
+  text-align: left;
+  border-bottom: 2px solid #000;
+  padding: 4px 8px;
+}
+.forum-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #ddd;
+}
+.forum-post {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.forum-post-meta {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 6px;
+}
+.forum-quote {
+  border-left: 3px solid #ccc;
+  padding: 4px 8px;
+  margin: 6px 0;
+  background: #f9f9f0;
+  font-size: 0.9rem;
+}
+.forum-signature {
+  border-top: 1px dashed #ccc;
+  margin-top: 8px;
+  padding-top: 4px;
+  font-size: 0.8rem;
+  color: #666;
+}
+.pagination {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+}
+.pagination strong {
+  font-weight: bold;
+}

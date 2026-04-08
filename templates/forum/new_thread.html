@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "macros/bbcode_snippets.html" import bbcode_snippet_picker %}
+
+{% block title %}new thread — 4orm{% endblock %}
+
+{% block content %}
+  <h1>new thread</h1>
+
+  <form method="post" action="/forum/new" class="stack">
+    <label>
+      title
+      <input
+        type="text"
+        name="title"
+        required
+        maxlength="200"
+        placeholder="thread title"
+      />
+    </label>
+
+    <label>
+      format:
+      <select name="content_format">
+        <option value="bbcode" selected>BBCode</option>
+        <option value="markdown">Markdown</option>
+      </select>
+    </label>
+
+    <label>
+      content
+      <textarea
+        name="content"
+        id="thread-content"
+        rows="10"
+        required
+        placeholder="write your post..."
+      ></textarea>
+    </label>
+
+    {{ bbcode_snippet_picker(media_items, 'thread-content') }}
+
+    <details class="panel">
+      <summary><h2>thread styling</h2></summary>
+      <div class="stack" style="margin-top: 8px">
+        <label>
+          custom CSS
+          <textarea
+            name="custom_css"
+            rows="4"
+            placeholder="CSS applied to this thread"
+          ></textarea>
+        </label>
+        <label>
+          custom HTML
+          <textarea
+            name="custom_html"
+            rows="4"
+            placeholder="HTML injected into this thread"
+          ></textarea>
+        </label>
+      </div>
+    </details>
+
+    <button type="submit">create thread</button>
+  </form>
+
+  <script>
+    function insertSnippetFromSelect(btn, textareaId) {
+      var sel = btn.parentElement.querySelector(".snippet-select");
+      var ta = document.getElementById(textareaId);
+      if (!ta || !sel) return;
+      var start = ta.selectionStart;
+      var end = ta.selectionEnd;
+      var val = sel.value;
+      ta.value = ta.value.substring(0, start) + val + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = start + val.length;
+      ta.focus();
+    }
+  </script>
+{% endblock %}

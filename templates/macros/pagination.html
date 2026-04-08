@@ -1,0 +1,13 @@
+{% macro pagination(current_page, total_pages, base_url) %}
+  {% if total_pages > 1 %}
+    <nav class="pagination">
+      {% for p in range(1, total_pages + 1) %}
+        {% if p == current_page %}
+          <strong>{{ p }}</strong>
+        {% else %}
+          <a href="{{ base_url }}?page={{ p }}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  {% endif %}
+{% endmacro %}

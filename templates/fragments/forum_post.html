@@ -1,0 +1,59 @@
+<div class="forum-post" id="post-{{ post.id }}">
+  <div class="forum-post-meta">
+    <a href="/u/{{ post.author_username }}"
+      ><strong
+        >{{ post.author_display_name or post.author_username }}</strong
+      ></a
+    >
+    ·
+    {{ post.created_at.strftime('%Y-%m-%d %H:%M') if post.created_at else '' }}
+    {% if post.is_edited %}· <em>(edited)</em>{% endif %}
+  </div>
+
+  {% if post.quoted_content %}
+    <blockquote class="forum-quote">
+      {% if post.quoted_author %}<strong>{{ post.quoted_author }} wrote:</strong
+      ><br />{% endif %}
+      {{ post.quoted_content }}
+    </blockquote>
+  {% endif %}
+
+  <div class="forum-post-content">{{ post.rendered_content|safe }}</div>
+
+  {% if post.rendered_signature %}
+    <div class="forum-signature">{{ post.rendered_signature|safe }}</div>
+  {% endif %}
+
+  <div class="forum-post-actions" style="margin-top: 6px">
+    {% if me and not thread.is_locked %}
+      <button
+        type="button"
+        onclick="quotePost({{ post.id }}, '{{ post.author_username }}', {{ post.content|tojson }})"
+      >
+        quote
+      </button>
+    {% endif %}
+    {% if me and me.id == post.author_id %}
+      <a href="/forum/posts/{{ post.id }}/edit"
+        ><button type="button">edit</button></a
+      >
+      <form
+        method="post"
+        action="/forum/posts/{{ post.id }}/delete"
+        style="display:inline"
+        onsubmit="return confirm('Delete this post?')"
+      >
+        <button>delete</button>
+      </form>
+    {% elif me and me.is_admin %}
+      <form
+        method="post"
+        action="/forum/posts/{{ post.id }}/delete"
+        style="display:inline"
+        onsubmit="return confirm('Delete this post?')"
+      >
+        <button>delete</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
