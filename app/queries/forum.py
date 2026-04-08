@@ -32,6 +32,28 @@ def recent_forum_posts(conn: Connection, hours: int = 2, limit: int = 5):
     return conn.execute(q).mappings().all()
 
 
+def recent_forum_posts_for_rss(conn: Connection, limit: int = 100):
+    """Get recent forum posts for the RSS feed, newest first."""
+    q = (
+        select(
+            forum_posts.c.id,
+            forum_posts.c.thread_id,
+            forum_posts.c.created_at,
+            forum_threads.c.title.label("thread_title"),
+            users.c.username.label("author_username"),
+            users.c.display_name.label("author_display_name"),
+        )
+        .select_from(
+            forum_posts.join(users, forum_posts.c.author_id == users.c.id).join(
+                forum_threads, forum_posts.c.thread_id == forum_threads.c.id
+            )
+        )
+        .order_by(forum_posts.c.created_at.desc())
+        .limit(limit)
+    )
+    return conn.execute(q).mappings().all()
+
+
 def list_threads(conn: Connection, page: int = 1, per_page: int = 25):
     """List threads: pinned first, then by last_reply_at. Returns (threads, total)."""
     total = conn.execute(select(func.count(forum_threads.c.id))).scalar()

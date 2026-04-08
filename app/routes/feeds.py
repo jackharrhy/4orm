@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from app.deps import _format_rfc2822, get_engine
+from app.queries.forum import recent_forum_posts_for_rss
 from app.queries.pages import list_public_pages_for_rss, list_public_pages_for_user_rss
 from app.queries.users import get_user_by_username
 
@@ -59,6 +60,33 @@ def global_feed(request: Request):
         title="4orm updates",
         link=f"{site_url}/",
         description="Recent public page updates",
+        items=items,
+    )
+    return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+
+
+@router.get("/forum/feed.xml")
+def forum_feed(request: Request):
+    with get_engine(request).begin() as conn:
+        posts = recent_forum_posts_for_rss(conn, limit=100)
+
+    site_url = str(request.base_url).rstrip("/")
+    items = []
+    for p in posts:
+        link = f"{site_url}/forum/{p['thread_id']}#post-{p['id']}"
+        items.append(
+            {
+                "title": f"{p['author_display_name']} in {p['thread_title']}",
+                "link": link,
+                "guid": link,
+                "updated_at": p["created_at"],
+            }
+        )
+
+    xml = build_rss_feed(
+        title="4orm forum",
+        link=f"{site_url}/forum",
+        description="Recent forum posts and replies",
         items=items,
     )
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
