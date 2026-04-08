@@ -3,7 +3,7 @@ import secrets
 from sqlalchemy import and_, delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 
-from app.schema import invites, profile_cards, users
+from app.schema import invites, pages, profile_cards, users
 from app.security import hash_password
 
 
@@ -146,6 +146,16 @@ def delete_invite(conn: Connection, invite_id: int, user_id: int) -> bool:
 
 
 def list_profile_cards(conn: Connection):
+    # Subquery: most recent page update per user
+    latest_page = (
+        select(
+            pages.c.user_id,
+            func.max(pages.c.updated_at).label("latest_page_at"),
+        )
+        .group_by(pages.c.user_id)
+        .subquery()
+    )
+
     q = (
         select(
             users.c.username,
@@ -156,8 +166,18 @@ def list_profile_cards(conn: Connection):
             profile_cards.c.border_style,
             profile_cards.c.card_css,
         )
-        .select_from(users.join(profile_cards, users.c.id == profile_cards.c.user_id))
-        .order_by(users.c.created_at.desc())
+        .select_from(
+            users.join(profile_cards, users.c.id == profile_cards.c.user_id).outerjoin(
+                latest_page, users.c.id == latest_page.c.user_id
+            )
+        )
+        .order_by(
+            func.max(
+                users.c.updated_at,
+                profile_cards.c.updated_at,
+                func.coalesce(latest_page.c.latest_page_at, users.c.created_at),
+            ).desc()
+        )
     )
     return conn.execute(q).mappings().all()
 
