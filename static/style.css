@@ -292,6 +292,18 @@ details.panel[open] > summary > h2::before {
   font-size: 0.85rem;
   color: #666;
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.btn-sm {
+  font-size: 0.75rem;
+  padding: 1px 6px;
+  border: 1px solid #999;
+  background: #f0f0f0;
+  cursor: pointer;
+  width: auto;
 }
 .forum-quote {
   border-left: 3px solid #ccc;

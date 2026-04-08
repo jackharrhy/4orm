@@ -18,19 +18,19 @@
     {% if thread.is_locked %} · 🔒 locked{% endif %}
   </p>
 
-  <div class="inline" style="margin: 8px 0; flex-wrap: wrap">
+  <div class="inline" style="margin: 8px 0; flex-wrap: wrap; gap: 4px">
     {% if is_author %}
-      <a href="/forum/{{ thread.id }}/edit"><button type="button">edit thread</button></a>
+      <a href="/forum/{{ thread.id }}/edit"><button type="button" class="btn-sm">edit thread</button></a>
       <form method="post" action="/forum/{{ thread.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this thread and all its posts?')">
-        <button>delete thread</button>
+        <button class="btn-sm">delete thread</button>
       </form>
     {% endif %}
     {% if me and me.is_admin %}
       <form method="post" action="/forum/{{ thread.id }}/pin" style="display:inline">
-        <button>{{ 'unpin' if thread.is_pinned else 'pin' }}</button>
+        <button class="btn-sm">{{ 'unpin' if thread.is_pinned else 'pin' }}</button>
       </form>
       <form method="post" action="/forum/{{ thread.id }}/lock" style="display:inline">
-        <button>{{ 'unlock' if thread.is_locked else 'lock' }}</button>
+        <button class="btn-sm">{{ 'unlock' if thread.is_locked else 'lock' }}</button>
       </form>
     {% endif %}
   </div>
@@ -48,21 +48,23 @@
   {{ pagination(current_page, total_pages, '/forum/' ~ thread.id) }}
 
   {% if me and not thread.is_locked %}
-    <div class="panel" style="margin-top: 16px">
-      <h2>reply</h2>
+    <details class="panel" style="margin-top: 16px" id="reply-details">
+      <summary><h2>reply</h2></summary>
       <form method="post" action="/forum/{{ thread.id }}/reply" class="stack">
         <input type="hidden" name="quoted_post_id" id="quoted_post_id" value="">
         <input type="hidden" name="quoted_content" id="quoted_content" value="">
         <input type="hidden" name="quoted_author" id="quoted_author" value="">
 
         <div id="quote-preview" style="display:none" class="forum-quote">
-          <strong>quoting <span id="quote-preview-author"></span>:</strong>
-          <p id="quote-preview-text"></p>
-          <button type="button" onclick="clearQuote()">remove quote</button>
+          <div class="inline" style="justify-content: space-between">
+            <strong>quoting <span id="quote-preview-author"></span>:</strong>
+            <button type="button" class="btn-sm" onclick="clearQuote()">remove</button>
+          </div>
+          <p id="quote-preview-text" class="muted" style="margin-top: 4px"></p>
         </div>
 
         <label>
-          format:
+          format (<a href="https://www.phpbb.com/community/help/bbcode" target="_blank">BBCode?</a>):
           <select name="content_format">
             <option value="bbcode" selected>BBCode</option>
             <option value="markdown">Markdown</option>
@@ -75,7 +77,7 @@
 
         <button type="submit">post reply</button>
       </form>
-    </div>
+    </details>
   {% elif not me %}
     <p class="muted" style="margin-top: 12px"><a href="/login">log in</a> to reply</p>
   {% elif thread.is_locked %}
@@ -88,8 +90,11 @@
       document.getElementById('quoted_content').value = content;
       document.getElementById('quoted_author').value = author;
       document.getElementById('quote-preview-author').textContent = author;
-      document.getElementById('quote-preview-text').textContent = content.substring(0, 200);
+      document.getElementById('quote-preview-text').textContent = content.substring(0, 300) + (content.length > 300 ? '...' : '');
       document.getElementById('quote-preview').style.display = 'block';
+      // Open the reply details and scroll to it
+      var details = document.getElementById('reply-details');
+      if (details) { details.open = true; }
       document.getElementById('reply-content').focus();
     }
     function clearQuote() {

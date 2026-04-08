@@ -7,7 +7,11 @@
 
   <form method="post" action="/forum/posts/{{ post.id }}/edit" class="stack">
     <label>
-      format:
+      format (<a
+        href="https://www.phpbb.com/community/help/bbcode"
+        target="_blank"
+        >BBCode?</a
+      >):
       <select name="content_format">
         <option
           value="bbcode"
