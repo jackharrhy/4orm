@@ -191,6 +191,27 @@
   </details>
 
   <details class="panel">
+    <summary><h2>forum signature</h2></summary>
+    <p class="muted">
+      BBCode signature shown below your forum posts. max 200 characters.
+    </p>
+    <form
+      method="post"
+      action="/settings/signature"
+      class="stack"
+      hx-post="/settings/signature"
+      hx-target="#sig-status"
+      hx-swap="innerHTML"
+    >
+      <textarea name="forum_signature" rows="3" maxlength="200">
+{{ me.forum_signature }}</textarea
+      >
+      <button>save signature</button>
+      <span id="sig-status"></span>
+    </form>
+  </details>
+
+  <details class="panel">
     <summary><h2>visitor counter</h2></summary>
     <p class="muted">
       your counter lives at
