@@ -22,7 +22,6 @@
         <button type="submit">make admin</button>
       </form>
     {% endif %}
-
     <form
       method="post"
       action="/admin/users/{{ u.id }}/toggle-disabled"
@@ -31,9 +30,36 @@
       hx-target="#user-row-{{ u.id }}"
       hx-swap="outerHTML"
       hx-confirm="{% if u.is_disabled %}Re-enable{% else %}Disable{% endif %} {{ u.username }}?"
-      style="margin-left: 8px"
     >
-      <button type="submit">{% if u.is_disabled %}re-enable{% else %}disable{% endif %}</button>
+      <button type="submit">
+        {% if u.is_disabled %}re-enable{% else %}disable{% endif %}
+      </button>
     </form>
+    {% if not u.is_admin %}
+      <form
+        method="post"
+        action="/admin/users/{{ u.id }}/delete"
+        class="inline"
+        hx-post="/admin/users/{{ u.id }}/delete"
+        hx-target="#user-row-{{ u.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Delete {{ u.username }}? Their invitees will be reparented."
+      >
+        <input type="hidden" name="mode" value="reparent" />
+        <button type="submit">delete</button>
+      </form>
+      <form
+        method="post"
+        action="/admin/users/{{ u.id }}/delete"
+        class="inline"
+        hx-post="/admin/users/{{ u.id }}/delete"
+        hx-target="#user-row-{{ u.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Delete {{ u.username }} AND everyone they invited? This is irreversible!"
+      >
+        <input type="hidden" name="mode" value="prune" />
+        <button type="submit">prune tree</button>
+      </form>
+    {% endif %}
   </td>
 </tr>

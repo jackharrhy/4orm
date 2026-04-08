@@ -20,6 +20,8 @@ def increment_counter(conn: Connection, user_id: int):
 
 def get_total_views(conn: Connection, user_id: int) -> int:
     row = conn.execute(
-        select(visitor_counters.c.total_views).where(visitor_counters.c.user_id == user_id)
+        select(visitor_counters.c.total_views).where(
+            visitor_counters.c.user_id == user_id
+        )
     ).first()
     return int(row[0]) if row else 0

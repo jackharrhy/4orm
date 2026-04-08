@@ -12,12 +12,13 @@ from sqlalchemy import func, select, update
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import engine as default_engine
+from app.queries.admin import delete_user_prune, delete_user_reparent
+from app.queries.counter import get_total_views, increment_counter
 from app.queries.guestbook import (
     create_guestbook_entry,
     delete_guestbook_entry,
     list_guestbook_entries,
 )
-from app.queries.counter import get_total_views, increment_counter
 from app.queries.media import (
     create_media,
     delete_media_for_user,
@@ -781,11 +782,15 @@ def settings_username(request: Request, username: str = Form(...)):
                     '<span class="error">That username is already taken</span>',
                     status_code=400,
                 )
-            return RedirectResponse(url="/settings?error=username_taken", status_code=303)
+            return RedirectResponse(
+                url="/settings?error=username_taken", status_code=303
+            )
 
         media_rows = (
             conn.execute(
-                select(media.c.id, media.c.storage_path).where(media.c.user_id == me["id"])
+                select(media.c.id, media.c.storage_path).where(
+                    media.c.user_id == me["id"]
+                )
             )
             .mappings()
             .all()
@@ -1218,7 +1223,9 @@ def admin_update_page(
 ):
     require_admin(request)
     with get_engine(request).begin() as conn:
-        page = conn.execute(select(pages).where(pages.c.id == page_id)).mappings().first()
+        page = (
+            conn.execute(select(pages).where(pages.c.id == page_id)).mappings().first()
+        )
         if not page:
             raise HTTPException(404)
         conn.execute(
@@ -1350,6 +1357,25 @@ def admin_toggle_admin(request: Request, user_id: int):
             "fragments/admin_user_row.html",
             {"u": u, "stats": stats},
         )
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@app.post("/admin/users/{user_id}/delete")
+def admin_delete_user(request: Request, user_id: int, mode: str = Form("reparent")):
+    me = require_admin(request)
+    if me["id"] == user_id:
+        raise HTTPException(400)
+    with get_engine(request).begin() as conn:
+        user = get_user_by_id(conn, user_id)
+        if not user:
+            raise HTTPException(404)
+        if mode == "prune":
+            count = delete_user_prune(conn, user_id, UPLOADS_DIR)
+        else:
+            delete_user_reparent(conn, user_id, UPLOADS_DIR)
+            count = 1
+    if is_htmx(request):
+        return HTMLResponse(f"<tr><td colspan='8'>deleted {count} user(s)</td></tr>")
     return RedirectResponse(url="/admin", status_code=303)
 
 

@@ -161,9 +161,13 @@ guestbook_entries = Table(
 visitor_counters = Table(
     "visitor_counters",
     metadata,
-    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    ),
     Column("total_views", Integer, nullable=False, server_default="0"),
-    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column(
+        "updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
 )
 
 profile_cards = Table(
