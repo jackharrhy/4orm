@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 
 import app.deps as deps
 from app.deps import (
@@ -85,6 +85,7 @@ def settings_profile(
                 content=content,
                 content_format=content_format,
                 layout=layout,
+                updated_at=func.now(),
             )
         )
     return _saved_or_redirect(request)
@@ -170,7 +171,9 @@ def settings_username(request: Request, username: str = Form(...)):
             )
 
         conn.execute(
-            update(users).where(users.c.id == me["id"]).values(username=new_username)
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(username=new_username, updated_at=func.now())
         )
 
     if old_user_dir.exists() and old_user_dir != new_user_dir:
@@ -187,7 +190,9 @@ def settings_css(request: Request, custom_css: str = Form("")):
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
         conn.execute(
-            update(users).where(users.c.id == me["id"]).values(custom_css=custom_css)
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(custom_css=custom_css, updated_at=func.now())
         )
     return _saved_or_redirect(request)
 
@@ -199,7 +204,9 @@ def settings_html(request: Request, custom_html: str = Form("")):
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
         conn.execute(
-            update(users).where(users.c.id == me["id"]).values(custom_html=custom_html)
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(custom_html=custom_html, updated_at=func.now())
         )
     return _saved_or_redirect(request)
 
@@ -217,7 +224,11 @@ def settings_guestbook(
         conn.execute(
             update(users)
             .where(users.c.id == me["id"])
-            .values(guestbook_css=guestbook_css, guestbook_html=guestbook_html)
+            .values(
+                guestbook_css=guestbook_css,
+                guestbook_html=guestbook_html,
+                updated_at=func.now(),
+            )
         )
     return _saved_or_redirect(request)
 
@@ -231,7 +242,7 @@ def settings_signature(request: Request, forum_signature: str = Form("")):
         conn.execute(
             update(users)
             .where(users.c.id == me["id"])
-            .values(forum_signature=forum_signature[:200])
+            .values(forum_signature=forum_signature[:200], updated_at=func.now())
         )
     return _saved_or_redirect(request)
 
@@ -261,6 +272,7 @@ def settings_card(
                 accent_color=accent_color,
                 border_style=border_style,
                 card_css=card_css,
+                updated_at=func.now(),
             )
         )
     return _saved_or_redirect(request)

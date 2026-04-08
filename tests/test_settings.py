@@ -329,7 +329,89 @@ def test_settings_username_change_rejects_invalid(
     assert user["username"] == seed_user["username"]
 
 
-from sqlalchemy import insert, select
+from datetime import datetime
+
+from sqlalchemy import insert, select, update as sql_update
 
 from app import deps
-from app.schema import media, users
+from app.schema import media, profile_cards, users
+
+# Set a known past time to test updated_at changes (SQLite has 1s precision)
+_PAST = datetime(2020, 1, 1)
+
+
+def test_profile_save_updates_updated_at(authed_client, test_engine, seed_user):
+    """Saving profile should bump users.updated_at."""
+    with test_engine.begin() as conn:
+        conn.execute(
+            sql_update(users)
+            .where(users.c.id == seed_user["id"])
+            .values(updated_at=_PAST)
+        )
+
+    authed_client.post(
+        "/settings/profile",
+        data={
+            "display_name": "Updated",
+            "content": "new",
+            "content_format": "html",
+            "layout": "default",
+        },
+    )
+
+    with test_engine.begin() as conn:
+        after = conn.execute(
+            select(users.c.updated_at).where(users.c.id == seed_user["id"])
+        ).scalar()
+
+    assert after > _PAST
+
+
+def test_css_save_updates_updated_at(authed_client, test_engine, seed_user):
+    """Saving CSS should bump users.updated_at."""
+    with test_engine.begin() as conn:
+        conn.execute(
+            sql_update(users)
+            .where(users.c.id == seed_user["id"])
+            .values(updated_at=_PAST)
+        )
+
+    authed_client.post("/settings/css", data={"custom_css": "body{}"})
+
+    with test_engine.begin() as conn:
+        after = conn.execute(
+            select(users.c.updated_at).where(users.c.id == seed_user["id"])
+        ).scalar()
+
+    assert after > _PAST
+
+
+def test_card_save_updates_updated_at(authed_client, test_engine, seed_user):
+    """Saving card should bump profile_cards.updated_at."""
+    with test_engine.begin() as conn:
+        conn.execute(
+            sql_update(profile_cards)
+            .where(profile_cards.c.user_id == seed_user["id"])
+            .values(updated_at=_PAST)
+        )
+
+    authed_client.post(
+        "/settings/card",
+        data={
+            "headline": "new",
+            "content": "new",
+            "content_format": "html",
+            "accent_color": "#00ffff",
+            "border_style": "solid",
+            "card_css": "",
+        },
+    )
+
+    with test_engine.begin() as conn:
+        after = conn.execute(
+            select(profile_cards.c.updated_at).where(
+                profile_cards.c.user_id == seed_user["id"]
+            )
+        ).scalar()
+
+    assert after > _PAST
