@@ -1,38 +1,157 @@
-{% macro media_snippet_picker(media_items, textarea_id) %}
+{% macro media_snippet_picker(media_items, textarea_id, format="html") %}
   {% if media_items %}
-    <h3>media snippets</h3>
-    <p class="muted">select type and insert at cursor</p>
-    <div class="stack">
-      {% for item in media_items %}
-        {% set mime = item.mime_type or '' %}
-        {% set img_snippet = '<img src="/uploads/' ~ item.storage_path ~ '" alt="' ~ (item.alt_text or '') ~ '" />' %}
-        {% set linked_img_snippet = '<a href="/uploads/' ~ item.storage_path ~ '"><img src="/uploads/' ~ item.storage_path ~ '" alt="' ~ (item.alt_text or '') ~ '" /></a>' %}
-        {% set video_snippet = '<video controls src="/uploads/' ~ item.storage_path ~ '"></video>' %}
-        {% set audio_snippet = '<audio controls src="/uploads/' ~ item.storage_path ~ '"></audio>' %}
-        {% set link_snippet = '<a href="/uploads/' ~ item.storage_path ~ '">download</a>' %}
-        <div class="inline" style="flex-wrap: wrap">
-          <code style="font-size: 0.8rem"
-            >{{ item.storage_path.split('/')[-1] }}</code
-          >
-          <select class="snippet-select">
-            {% if mime.startswith('image/') %}
-              <option value="{{ img_snippet|e }}">img</option>
-              <option value="{{ linked_img_snippet|e }}">linked img</option>
-            {% elif mime.startswith('video/') %}
-              <option value="{{ video_snippet|e }}">video</option>
-            {% elif mime.startswith('audio/') %}
-              <option value="{{ audio_snippet|e }}">audio</option>
-            {% endif %}
-            <option value="{{ link_snippet|e }}">link</option>
-          </select>
-          <button
-            type="button"
-            onclick="insertSnippetFromSelect(this, '{{ textarea_id }}')"
-          >
-            insert
-          </button>
-        </div>
-      {% endfor %}
+    <div class="media-picker">
+      <label>
+        media
+        <select
+          id="media-select-{{ textarea_id }}"
+          onchange="updateMediaButtons('{{ textarea_id }}')"
+        >
+          {% for item in media_items %}
+            <option
+              value="{{ item.storage_path }}"
+              data-mime="{{ item.mime_type or '' }}"
+              data-alt="{{ item.alt_text or '' }}"
+            >
+              {{ item.storage_path.split('/')[-1] }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <div
+        class="inline"
+        style="flex-wrap: wrap; margin-top: 4px"
+        id="media-buttons-{{ textarea_id }}"
+      >
+        <button
+          type="button"
+          class="btn-sm media-btn-img"
+          onclick="insertMediaSnippet('{{ textarea_id }}', 'img')"
+        >
+          img
+        </button>
+        <button
+          type="button"
+          class="btn-sm media-btn-linked-img"
+          onclick="insertMediaSnippet('{{ textarea_id }}', 'linked-img')"
+        >
+          linked img
+        </button>
+        <button
+          type="button"
+          class="btn-sm media-btn-video"
+          onclick="insertMediaSnippet('{{ textarea_id }}', 'video')"
+        >
+          video
+        </button>
+        <button
+          type="button"
+          class="btn-sm media-btn-audio"
+          onclick="insertMediaSnippet('{{ textarea_id }}', 'audio')"
+        >
+          audio
+        </button>
+        <button
+          type="button"
+          class="btn-sm"
+          onclick="insertMediaSnippet('{{ textarea_id }}', 'link')"
+        >
+          link
+        </button>
+      </div>
     </div>
+    <script>
+      (function () {
+        var format = "{{ format }}";
+        window._mediaFormat = window._mediaFormat || {};
+        window._mediaFormat["{{ textarea_id }}"] = format;
+
+        window.updateMediaButtons =
+          window.updateMediaButtons ||
+          function (textareaId) {
+            var sel = document.getElementById("media-select-" + textareaId);
+            var opt = sel.options[sel.selectedIndex];
+            var mime = opt.dataset.mime || "";
+            var wrap = document.getElementById("media-buttons-" + textareaId);
+            var isImg = mime.startsWith("image/");
+            var isVid = mime.startsWith("video/");
+            var isAud = mime.startsWith("audio/");
+            wrap.querySelector(".media-btn-img").style.display = isImg
+              ? ""
+              : "none";
+            wrap.querySelector(".media-btn-linked-img").style.display = isImg
+              ? ""
+              : "none";
+            wrap.querySelector(".media-btn-video").style.display = isVid
+              ? ""
+              : "none";
+            wrap.querySelector(".media-btn-audio").style.display = isAud
+              ? ""
+              : "none";
+          };
+
+        window.insertMediaSnippet =
+          window.insertMediaSnippet ||
+          function (textareaId, type) {
+            var sel = document.getElementById("media-select-" + textareaId);
+            var path = "/uploads/" + sel.value;
+            var alt = sel.options[sel.selectedIndex].dataset.alt || "";
+            var fmt = window._mediaFormat[textareaId] || "html";
+            var snippet = "";
+            if (fmt === "bbcode") {
+              if (type === "img") snippet = "[img]" + path + "[/img]";
+              else if (type === "linked-img")
+                snippet = "[url=" + path + "][img]" + path + "[/img][/url]";
+              else if (type === "video")
+                snippet = "[video]" + path + "[/video]";
+              else if (type === "audio")
+                snippet = "[audio]" + path + "[/audio]";
+              else
+                snippet =
+                  "[url=" +
+                  path +
+                  "]" +
+                  sel.options[sel.selectedIndex].text +
+                  "[/url]";
+            } else {
+              if (type === "img")
+                snippet = '<img src="' + path + '" alt="' + alt + '" />';
+              else if (type === "linked-img")
+                snippet =
+                  '<a href="' +
+                  path +
+                  '"><img src="' +
+                  path +
+                  '" alt="' +
+                  alt +
+                  '" /></a>';
+              else if (type === "video")
+                snippet = '<video controls src="' + path + '"></video>';
+              else if (type === "audio")
+                snippet = '<audio controls src="' + path + '"></audio>';
+              else snippet = '<a href="' + path + '">download</a>';
+            }
+            // Insert at cursor — use CM editor if available, else textarea
+            var cm = window._cmEditors && window._cmEditors[textareaId];
+            if (cm) {
+              var pos = cm.state.selection.main.head;
+              cm.dispatch({ changes: { from: pos, insert: snippet } });
+              cm.focus();
+              return;
+            }
+            var ta = document.getElementById(textareaId);
+            if (!ta) return;
+            var start = ta.selectionStart || 0;
+            var end = ta.selectionEnd || 0;
+            ta.value =
+              ta.value.substring(0, start) + snippet + ta.value.substring(end);
+            ta.selectionStart = ta.selectionEnd = start + snippet.length;
+            ta.focus();
+          };
+
+        // Init button visibility for first item
+        updateMediaButtons("{{ textarea_id }}");
+      })();
+    </script>
   {% endif %}
 {% endmacro %}

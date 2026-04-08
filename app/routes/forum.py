@@ -222,14 +222,15 @@ def edit_post_form(request: Request, post_id: int):
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
         post = get_post(conn, post_id)
-    if not post:
-        raise HTTPException(404)
-    if me["id"] != post["author_id"]:
-        raise HTTPException(403)
+        if not post:
+            raise HTTPException(404)
+        if me["id"] != post["author_id"]:
+            raise HTTPException(403)
+        media_items = list_media_for_user(conn, me["id"])
     return templates.TemplateResponse(
         request,
         "forum/edit_post.html",
-        {"me": me, "post": post},
+        {"me": me, "post": post, "media_items": media_items},
     )
 
 

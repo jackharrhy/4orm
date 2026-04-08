@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "macros/pagination.html" import pagination %}
-{% from "macros/bbcode_snippets.html" import bbcode_snippet_picker %}
+{% from "macros/media_snippets.html" import media_snippet_picker %}
 
 {% block title %}{{ thread.title }} — 4orm{% endblock %}
 
@@ -73,7 +73,7 @@
 
         <textarea name="content" id="reply-content" rows="6" required placeholder="write your reply..."></textarea>
 
-        {{ bbcode_snippet_picker(media_items, 'reply-content') }}
+        {{ media_snippet_picker(media_items, 'reply-content', format='bbcode') }}
 
         <button type="submit">post reply</button>
       </form>
@@ -102,17 +102,6 @@
       document.getElementById('quoted_content').value = '';
       document.getElementById('quoted_author').value = '';
       document.getElementById('quote-preview').style.display = 'none';
-    }
-    function insertSnippetFromSelect(btn, textareaId) {
-      var sel = btn.parentElement.querySelector('.snippet-select');
-      var ta = document.getElementById(textareaId);
-      if (!ta || !sel) return;
-      var start = ta.selectionStart;
-      var end = ta.selectionEnd;
-      var val = sel.value;
-      ta.value = ta.value.substring(0, start) + val + ta.value.substring(end);
-      ta.selectionStart = ta.selectionEnd = start + val.length;
-      ta.focus();
     }
   </script>
 {% endblock %}
