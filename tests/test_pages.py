@@ -130,6 +130,23 @@ def test_page_simple_layout(authed_client, seed_user):
     assert "panel content-html" not in r.text
 
 
+def test_page_cssonly_layout(authed_client, seed_user):
+    authed_client.post(
+        "/settings/pages",
+        data={
+            "slug": "cssonly-page",
+            "title": "CSS Only",
+            "content": "<p>should not render</p>",
+            "content_format": "html",
+            "layout": "cssonly",
+        },
+    )
+    r = authed_client.get(f"/u/{seed_user['username']}/page/cssonly-page")
+    assert r.status_code == 200
+    assert "topbar" in r.text
+    assert "should not render" not in r.text
+
+
 def test_page_raw_layout(authed_client, seed_user):
     authed_client.post(
         "/settings/pages",
@@ -146,6 +163,24 @@ def test_page_raw_layout(authed_client, seed_user):
     assert "full control" in r.text
     # Raw layout has no topbar
     assert "topbar" not in r.text
+
+
+def test_profile_cssonly_layout(authed_client, test_engine, seed_user):
+    from sqlalchemy import update as sql_update
+
+    from app.schema import users
+
+    with test_engine.begin() as conn:
+        conn.execute(
+            sql_update(users)
+            .where(users.c.id == seed_user["id"])
+            .values(layout="cssonly", content="<h1>hidden in cssonly</h1>")
+        )
+
+    r = authed_client.get(f"/u/{seed_user['username']}")
+    assert r.status_code == 200
+    assert "topbar" in r.text
+    assert "hidden in cssonly" not in r.text
 
 
 def test_profile_raw_layout(authed_client, test_engine, seed_user):

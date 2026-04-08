@@ -297,7 +297,12 @@ def profile(request: Request, username: str):
             )
         )
 
-    template_name = "profile_simple.html" if layout == "simple" else "profile.html"
+    if layout == "simple":
+        template_name = "profile_simple.html"
+    elif layout == "cssonly":
+        template_name = "profile_cssonly.html"
+    else:
+        template_name = "profile.html"
     return templates.TemplateResponse(
         request,
         template_name,
@@ -329,7 +334,12 @@ def page_view(request: Request, username: str, slug: str):
             )
         )
 
-    template_name = "page_simple.html" if layout == "simple" else "page.html"
+    if layout == "simple":
+        template_name = "page_simple.html"
+    elif layout == "cssonly":
+        template_name = "page_cssonly.html"
+    else:
+        template_name = "page.html"
     return templates.TemplateResponse(
         request,
         template_name,
