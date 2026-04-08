@@ -21,6 +21,8 @@
   <div class="inline" style="margin: 8px 0; flex-wrap: wrap; gap: 4px">
     {% if is_author %}
       <a href="/forum/{{ thread.id }}/edit"><button type="button" class="btn-sm">edit thread</button></a>
+    {% endif %}
+    {% if is_author or (me and me.is_admin) %}
       <form method="post" action="/forum/{{ thread.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this thread and all its posts?')">
         <button class="btn-sm">delete thread</button>
       </form>
