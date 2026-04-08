@@ -1396,7 +1396,12 @@ def _admin_user_row_response(request, conn, user_id):
 
 
 @app.post("/admin/users/{user_id}/rename")
-def admin_rename_user(request: Request, user_id: int, new_username: str = Form(...)):
+def admin_rename_user(
+    request: Request,
+    user_id: int,
+    new_username: str = Form(...),
+    new_display_name: str = Form(""),
+):
     require_admin(request)
     new_username = new_username.strip().lower()
     if not USERNAME_RE.match(new_username):
@@ -1413,6 +1418,15 @@ def admin_rename_user(request: Request, user_id: int, new_username: str = Form(.
             raise HTTPException(404)
 
         old_username = user["username"]
+
+        # Always save display name if provided
+        if new_display_name.strip():
+            conn.execute(
+                update(users)
+                .where(users.c.id == user_id)
+                .values(display_name=new_display_name.strip())
+            )
+
         if old_username == new_username:
             return _admin_user_row_response(request, conn, user_id)
 

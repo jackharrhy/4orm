@@ -296,6 +296,29 @@ def test_admin_rename_user(client, test_engine):
         assert user == "goodname"
 
 
+def test_admin_rename_display_name_only(client, test_engine):
+    """Admin can change just the display name without renaming the user."""
+    with test_engine.begin() as conn:
+        admin_id = _make_admin(conn, "admin")
+        target_id = _make_user(conn, "target")
+
+    _login(client, "admin")
+
+    r = client.post(
+        f"/admin/users/{target_id}/rename",
+        data={"new_username": "target", "new_display_name": "Better Name"},
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    assert "Better Name" in r.text
+
+    with test_engine.begin() as conn:
+        dn = conn.execute(
+            select(users.c.display_name).where(users.c.id == target_id)
+        ).scalar()
+        assert dn == "Better Name"
+
+
 def test_admin_rename_taken(client, test_engine):
     """Admin cannot rename to an existing username."""
     with test_engine.begin() as conn:
