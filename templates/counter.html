@@ -3,29 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="/static/style.css" />
     <title>{{ owner.username }} counter</title>
     <style>
-      body {
-        background: transparent;
-        padding: 0;
+      @layer base {
+        body { background: transparent; padding: 0; margin: 0; }
+        .counter-box {
+          display: inline-block;
+          min-width: 200px;
+          border: 2px outset #999;
+          background: #fff8a6;
+          padding: 8px 10px;
+          font-family: Verdana, Tahoma, Arial, sans-serif;
+        }
+        .counter-label { font-size: 12px; }
+        .counter-number { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
       }
-      .counter-box {
-        display: inline-block;
-        min-width: 200px;
-        border: 2px outset #999;
-        background: #fff8a6;
-        padding: 8px 10px;
-        font-family: Verdana, Tahoma, Arial, sans-serif;
-      }
-      .counter-label {
-        font-size: 12px;
-      }
-      .counter-number {
-        font-size: 20px;
-        font-weight: 700;
-        letter-spacing: 1px;
-      }
+      {{ owner.counter_css|safe }}
     </style>
   </head>
   <body>
@@ -33,5 +26,6 @@
       <div class="counter-label">{{ owner.username }} visitors</div>
       <div class="counter-number">{{ total_views }}</div>
     </div>
+    {{ owner.counter_html|safe }}
   </body>
 </html>

@@ -30,6 +30,8 @@ users = Table(
     Column("layout", String(20), nullable=False, server_default="default"),
     Column("guestbook_css", Text, nullable=False, server_default=""),
     Column("guestbook_html", Text, nullable=False, server_default=""),
+    Column("counter_css", Text, nullable=False, server_default=""),
+    Column("counter_html", Text, nullable=False, server_default=""),
     Column("forum_signature", Text, nullable=False, server_default=""),
     Column("is_admin", Boolean, nullable=False, server_default="0"),
     Column("is_disabled", Boolean, nullable=False, server_default="0"),

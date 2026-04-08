@@ -233,6 +233,28 @@ def settings_guestbook(
     return _saved_or_redirect(request)
 
 
+@router.post("/settings/counter")
+def settings_counter(
+    request: Request,
+    counter_css: str = Form(""),
+    counter_html: str = Form(""),
+):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        conn.execute(
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(
+                counter_css=counter_css,
+                counter_html=counter_html,
+                updated_at=func.now(),
+            )
+        )
+    return _saved_or_redirect(request)
+
+
 @router.post("/settings/signature")
 def settings_signature(request: Request, forum_signature: str = Form("")):
     me = current_user(request)

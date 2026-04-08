@@ -189,7 +189,35 @@
       <span id="guestbook-status"></span>
     </form>
   </details>
-
+  <details class="panel">
+    <summary><h2>visitor counter</h2></summary>
+    <p class="muted">
+      your counter lives at
+      <a href="/u/{{ me.username }}/counter" target="_blank"
+        ><code>/u/{{ me.username }}/counter</code></a
+      >. embed it on any page with:
+    </p>
+    <pre><code>&lt;iframe src="/u/{{ me.username }}/counter" style="width:220px; height:56px; border:2px inset #ccc;"&gt;&lt;/iframe&gt;</code></pre>
+    <form
+      method="post"
+      action="/settings/counter"
+      class="stack"
+      hx-post="/settings/counter"
+      hx-target="#counter-status"
+      hx-swap="innerHTML"
+    >
+      <label>counter css</label>
+      <textarea name="counter_css" rows="6" data-codemirror="css">
+{{ me.counter_css }}</textarea
+      >
+      <label>counter html</label>
+      <textarea name="counter_html" rows="6" data-codemirror="html">
+{{ me.counter_html }}</textarea
+      >
+      <button>save counter</button>
+      <span id="counter-status"></span>
+    </form>
+  </details>
   <details class="panel">
     <summary><h2>forum signature</h2></summary>
     <p class="muted">
@@ -212,17 +240,6 @@
       <button>save signature</button>
       <span id="sig-status"></span>
     </form>
-  </details>
-
-  <details class="panel">
-    <summary><h2>visitor counter</h2></summary>
-    <p class="muted">
-      your counter lives at
-      <a href="/u/{{ me.username }}/counter" target="_blank"
-        ><code>/u/{{ me.username }}/counter</code></a
-      >. embed it on any page with:
-    </p>
-    <pre><code>&lt;iframe src="/u/{{ me.username }}/counter" style="width:220px; height:56px; border:2px inset #ccc;"&gt;&lt;/iframe&gt;</code></pre>
   </details>
 
   <p>
