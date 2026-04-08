@@ -30,6 +30,7 @@ users = Table(
     Column("layout", String(20), nullable=False, server_default="default"),
     Column("guestbook_css", Text, nullable=False, server_default=""),
     Column("guestbook_html", Text, nullable=False, server_default=""),
+    Column("forum_signature", Text, nullable=False, server_default=""),
     Column("is_admin", Boolean, nullable=False, server_default="0"),
     Column("is_disabled", Boolean, nullable=False, server_default="0"),
     Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
@@ -165,6 +166,53 @@ visitor_counters = Table(
         "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     ),
     Column("total_views", Integer, nullable=False, server_default="0"),
+    Column(
+        "updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
+forum_threads = Table(
+    "forum_threads",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "author_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("title", String(200), nullable=False),
+    Column("custom_css", Text, nullable=False, server_default=""),
+    Column("custom_html", Text, nullable=False, server_default=""),
+    Column("is_pinned", Boolean, nullable=False, server_default="0"),
+    Column("is_locked", Boolean, nullable=False, server_default="0"),
+    Column("reply_count", Integer, nullable=False, server_default="0"),
+    Column("last_reply_at", DateTime(timezone=True), server_default=func.now()),
+    Column("last_reply_by_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
+forum_posts = Table(
+    "forum_posts",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "thread_id",
+        Integer,
+        ForeignKey("forum_threads.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "author_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("content", Text, nullable=False),
+    Column("content_format", String(20), nullable=False, server_default="bbcode"),
+    Column("quoted_post_id", Integer),
+    Column("quoted_content", Text),
+    Column("quoted_author", String(80)),
+    Column("is_edited", Boolean, nullable=False, server_default="0"),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
     Column(
         "updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
