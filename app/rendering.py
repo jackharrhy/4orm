@@ -47,15 +47,32 @@ BLEACH_ALLOWED_TAGS = [
     "tr",
     "u",
     "ul",
+    "video",
+    "audio",
 ]
 BLEACH_ALLOWED_ATTRS = {
     "a": ["href", "title", "target"],
     "img": ["src", "alt", "width", "height"],
+    "video": ["src", "controls"],
+    "audio": ["src", "controls"],
     "td": ["colspan", "rowspan"],
     "th": ["colspan", "rowspan"],
 }
 
 _bbcode_parser = bbcode.Parser()
+_bbcode_parser.add_simple_formatter(
+    "img", '<img src="%(value)s" alt="" style="max-width:100%%" />', replace_links=False
+)
+_bbcode_parser.add_simple_formatter(
+    "video",
+    '<video controls src="%(value)s" style="max-width:100%%"></video>',
+    replace_links=False,
+)
+_bbcode_parser.add_simple_formatter(
+    "audio",
+    '<audio controls src="%(value)s"></audio>',
+    replace_links=False,
+)
 
 
 def render_forum_post(source: str, content_format: str) -> str:
