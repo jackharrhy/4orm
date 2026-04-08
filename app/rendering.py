@@ -1,5 +1,7 @@
 import json
 
+import bbcode
+import bleach
 import markdown
 
 
@@ -11,6 +13,72 @@ def render_content(source: str, content_format: str) -> str:
             extensions=["fenced_code", "tables", "attr_list"],
         )
     return source
+
+
+BLEACH_ALLOWED_TAGS = [
+    "a",
+    "abbr",
+    "acronym",
+    "b",
+    "blockquote",
+    "br",
+    "code",
+    "em",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "hr",
+    "i",
+    "img",
+    "li",
+    "ol",
+    "p",
+    "pre",
+    "s",
+    "strong",
+    "sub",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "th",
+    "thead",
+    "tr",
+    "u",
+    "ul",
+]
+BLEACH_ALLOWED_ATTRS = {
+    "a": ["href", "title", "target"],
+    "img": ["src", "alt", "width", "height"],
+    "td": ["colspan", "rowspan"],
+    "th": ["colspan", "rowspan"],
+}
+
+_bbcode_parser = bbcode.Parser()
+
+
+def render_forum_post(source: str, content_format: str) -> str:
+    """Render a forum post to safe HTML."""
+    if content_format == "bbcode":
+        return _bbcode_parser.format(source)
+    # Markdown — render then sanitize
+    raw_html = markdown.markdown(
+        source, extensions=["fenced_code", "tables", "attr_list"]
+    )
+    return bleach.clean(
+        raw_html,
+        tags=BLEACH_ALLOWED_TAGS,
+        attributes=BLEACH_ALLOWED_ATTRS,
+        strip=True,
+    )
+
+
+def render_signature(source: str) -> str:
+    """Render a forum signature (always BBCode)."""
+    if not source:
+        return ""
+    return _bbcode_parser.format(source)
 
 
 def _inject_into_head(html: str, snippet: str) -> str:
