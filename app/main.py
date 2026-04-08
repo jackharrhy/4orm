@@ -17,6 +17,7 @@ from app.queries.guestbook import (
     delete_guestbook_entry,
     list_guestbook_entries,
 )
+from app.queries.counter import get_total_views, increment_counter
 from app.queries.media import (
     create_media,
     delete_media_for_user,
@@ -403,6 +404,22 @@ def guestbook_delete(request: Request, username: str, entry_id: int):
             {"owner": owner, "entries": entries, "me": me, "is_owner": True},
         )
     return RedirectResponse(url=f"/u/{username}/guestbook", status_code=303)
+
+
+@app.get("/u/{username}/counter", response_class=HTMLResponse)
+def counter_view(request: Request, username: str):
+    with get_engine(request).begin() as conn:
+        owner = get_user_by_username(conn, username)
+        if not owner:
+            raise HTTPException(404)
+        increment_counter(conn, owner["id"])
+        total_views = get_total_views(conn, owner["id"])
+
+    return templates.TemplateResponse(
+        request,
+        "counter.html",
+        {"owner": owner, "total_views": total_views, "me": current_user(request)},
+    )
 
 
 @app.get("/feed.xml")

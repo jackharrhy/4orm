@@ -189,6 +189,18 @@
       <span id="guestbook-status"></span>
     </form>
   </details>
+
+  <details class="panel">
+    <summary><h2>visitor counter</h2></summary>
+    <p class="muted">
+      your counter lives at
+      <a href="/u/{{ me.username }}/counter" target="_blank"
+        ><code>/u/{{ me.username }}/counter</code></a
+      >. embed it on any page with:
+    </p>
+    <pre><code>&lt;iframe src="/u/{{ me.username }}/counter" style="width:220px; height:56px; border:2px inset #ccc;"&gt;&lt;/iframe&gt;</code></pre>
+  </details>
+
   <p>
     <a href="/settings/media">manage media library →</a>
     · <a href="/how-to">how-to guide →</a>
