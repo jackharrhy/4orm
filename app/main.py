@@ -48,7 +48,7 @@ from app.queries.users import (
     list_profile_cards,
 )
 from app.rendering import build_raw_html, render_content
-from app.schema import create_all, media, profile_cards, users
+from app.schema import create_all, media, pages, profile_cards, users
 from app.security import verify_password
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -991,6 +991,33 @@ def admin_dashboard(request: Request):
         )
         storage_by_user = {s["id"]: s for s in storage_stats}
 
+        cards = (
+            conn.execute(select(profile_cards).order_by(profile_cards.c.user_id))
+            .mappings()
+            .all()
+        )
+        cards_by_user = {c["user_id"]: c for c in cards}
+
+        all_pages = (
+            conn.execute(
+                select(
+                    pages.c.id,
+                    pages.c.user_id,
+                    users.c.username,
+                    pages.c.slug,
+                    pages.c.title,
+                    pages.c.content,
+                    pages.c.is_public,
+                    pages.c.content_format,
+                    pages.c.updated_at,
+                )
+                .select_from(pages.join(users, pages.c.user_id == users.c.id))
+                .order_by(pages.c.updated_at.desc())
+            )
+            .mappings()
+            .all()
+        )
+
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -998,8 +1025,100 @@ def admin_dashboard(request: Request):
             "me": me,
             "all_users": all_users,
             "storage_by_user": storage_by_user,
+            "cards_by_user": cards_by_user,
+            "all_pages": all_pages,
         },
     )
+
+
+@app.post("/admin/users/{user_id}/profile")
+def admin_update_user_profile(
+    request: Request,
+    user_id: int,
+    display_name: str = Form(""),
+    content: str = Form(""),
+    content_format: str = Form("markdown"),
+    custom_css: str = Form(""),
+):
+    require_admin(request)
+    with get_engine(request).begin() as conn:
+        exists = conn.execute(select(users.c.id).where(users.c.id == user_id)).first()
+        if not exists:
+            raise HTTPException(404)
+        conn.execute(
+            update(users)
+            .where(users.c.id == user_id)
+            .values(
+                display_name=display_name,
+                content=content,
+                content_format=content_format,
+                custom_css=custom_css,
+            )
+        )
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@app.post("/admin/users/{user_id}/card")
+def admin_update_user_card(
+    request: Request,
+    user_id: int,
+    headline: str = Form(""),
+    content: str = Form(""),
+    content_format: str = Form("markdown"),
+    accent_color: str = Form("#00ffff"),
+    border_style: str = Form("outset"),
+    card_css: str = Form(""),
+):
+    require_admin(request)
+    with get_engine(request).begin() as conn:
+        card = conn.execute(
+            select(profile_cards.c.user_id).where(profile_cards.c.user_id == user_id)
+        ).first()
+        if not card:
+            raise HTTPException(404)
+        conn.execute(
+            update(profile_cards)
+            .where(profile_cards.c.user_id == user_id)
+            .values(
+                headline=headline,
+                content=content,
+                content_format=content_format,
+                accent_color=accent_color,
+                border_style=border_style,
+                card_css=card_css,
+            )
+        )
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@app.post("/admin/pages/{page_id}")
+def admin_update_page(
+    request: Request,
+    page_id: int,
+    slug: str = Form(...),
+    title: str = Form(...),
+    content: str = Form(""),
+    content_format: str = Form("html"),
+    is_public: str | None = Form(None),
+):
+    require_admin(request)
+    with get_engine(request).begin() as conn:
+        page = conn.execute(select(pages).where(pages.c.id == page_id)).mappings().first()
+        if not page:
+            raise HTTPException(404)
+        conn.execute(
+            update(pages)
+            .where(pages.c.id == page_id)
+            .values(
+                slug=slug.strip(),
+                title=title.strip(),
+                content=content,
+                content_format=content_format,
+                is_public=is_public == "on",
+                updated_at=func.now(),
+            )
+        )
+    return RedirectResponse(url="/admin", status_code=303)
 
 
 @app.get("/admin/orphans", response_class=HTMLResponse)

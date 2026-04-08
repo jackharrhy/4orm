@@ -68,6 +68,85 @@
       </table>
     </div>
   </section>
+
+  <section class="panel">
+    <h2>edit user profiles</h2>
+    {% for u in all_users %}
+      <details class="panel" style="margin: 0 0 10px">
+        <summary><strong>@{{ u.username }}</strong> profile</summary>
+        <form method="post" action="/admin/users/{{ u.id }}/profile" class="stack" style="margin-top: 10px">
+          <label>display name <input name="display_name" value="{{ u.display_name or '' }}" /></label>
+          <label>content format
+            <select name="content_format">
+              <option value="markdown" {% if (u.content_format or 'markdown') == 'markdown' %}selected{% endif %}>markdown</option>
+              <option value="html" {% if u.content_format == 'html' %}selected{% endif %}>html</option>
+            </select>
+          </label>
+          <label>profile content <textarea name="content" rows="5">{{ u.content or '' }}</textarea></label>
+          <label>css <textarea name="custom_css" rows="4">{{ u.custom_css or '' }}</textarea></label>
+          <button type="submit">save profile</button>
+        </form>
+      </details>
+    {% endfor %}
+  </section>
+
+  <section class="panel">
+    <h2>edit cards</h2>
+    {% for u in all_users %}
+      {% set card = cards_by_user.get(u.id) %}
+      {% if card %}
+        <details class="panel" style="margin: 0 0 10px">
+          <summary><strong>@{{ u.username }}</strong> card</summary>
+          <form method="post" action="/admin/users/{{ u.id }}/card" class="stack" style="margin-top: 10px">
+            <label>headline <input name="headline" value="{{ card.headline or '' }}" /></label>
+            <label>content format
+              <select name="content_format">
+                <option value="markdown" {% if (card.content_format or 'markdown') == 'markdown' %}selected{% endif %}>markdown</option>
+                <option value="html" {% if card.content_format == 'html' %}selected{% endif %}>html</option>
+              </select>
+            </label>
+            <label>content <textarea name="content" rows="4">{{ card.content or '' }}</textarea></label>
+            <label>accent color <input type="color" name="accent_color" value="{{ card.accent_color or '#00ffff' }}" /></label>
+            <label>border style
+              <select name="border_style">
+                {% for b in ['solid','double','dashed','dotted','outset','inset','ridge','groove'] %}
+                  <option value="{{ b }}" {% if (card.border_style or 'outset') == b %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>card css <textarea name="card_css" rows="4">{{ card.card_css or '' }}</textarea></label>
+            <button type="submit">save card</button>
+          </form>
+        </details>
+      {% endif %}
+    {% endfor %}
+  </section>
+
+  <section class="panel">
+    <h2>edit pages</h2>
+    {% for p in all_pages %}
+      <details class="panel" style="margin: 0 0 10px">
+        <summary>
+          <strong>@{{ p.username }}</strong> / {{ p.slug }}
+          <span class="muted">({{ 'public' if p.is_public else 'private' }})</span>
+        </summary>
+        <form method="post" action="/admin/pages/{{ p.id }}" class="stack" style="margin-top: 10px">
+          <label>slug <input name="slug" value="{{ p.slug }}" required /></label>
+          <label>title <input name="title" value="{{ p.title }}" required /></label>
+          <label>content format
+            <select name="content_format">
+              <option value="html" {% if (p.content_format or 'html') == 'html' %}selected{% endif %}>html</option>
+              <option value="markdown" {% if p.content_format == 'markdown' %}selected{% endif %}>markdown</option>
+            </select>
+          </label>
+          <label><input type="checkbox" name="is_public" {% if p.is_public %}checked{% endif %} /> public</label>
+          <label>content <textarea name="content" rows="8">{{ p.content or '' }}</textarea></label>
+          <button type="submit">save page</button>
+        </form>
+      </details>
+    {% endfor %}
+  </section>
+
   <section class="panel">
     <h2>storage health</h2>
     <div id="orphan-results">
