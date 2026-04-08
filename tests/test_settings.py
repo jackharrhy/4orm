@@ -232,9 +232,11 @@ def test_settings_username_change_updates_user(authed_client, test_engine, seed_
     assert r.status_code == 303
 
     with test_engine.begin() as conn:
-        updated = conn.execute(
-            select(users).where(users.c.id == seed_user["id"])
-        ).mappings().first()
+        updated = (
+            conn.execute(select(users).where(users.c.id == seed_user["id"]))
+            .mappings()
+            .first()
+        )
     assert updated["username"] == "newname"
 
 
@@ -242,7 +244,7 @@ def test_settings_username_change_moves_media_paths_and_files(
     authed_client, test_engine, seed_user, tmp_path, monkeypatch
 ):
     uploads_root = tmp_path / "uploads"
-    monkeypatch.setattr(main, "UPLOADS_DIR", uploads_root)
+    monkeypatch.setattr(deps, "UPLOADS_DIR", uploads_root)
     old_dir = uploads_root / seed_user["username"]
     old_dir.mkdir(parents=True, exist_ok=True)
     old_file = old_dir / "photo.jpg"
@@ -271,9 +273,11 @@ def test_settings_username_change_moves_media_paths_and_files(
 
     with test_engine.begin() as conn:
         row = conn.execute(select(media)).mappings().first()
-        user = conn.execute(
-            select(users).where(users.c.id == seed_user["id"])
-        ).mappings().first()
+        user = (
+            conn.execute(select(users).where(users.c.id == seed_user["id"]))
+            .mappings()
+            .first()
+        )
     assert row["storage_path"] == "renamed/photo.jpg"
     assert user["username"] == "renamed"
 
@@ -298,13 +302,17 @@ def test_settings_username_change_rejects_taken_username(
     assert r.status_code == 303
 
     with test_engine.begin() as conn:
-        user = conn.execute(
-            select(users).where(users.c.id == seed_user["id"])
-        ).mappings().first()
+        user = (
+            conn.execute(select(users).where(users.c.id == seed_user["id"]))
+            .mappings()
+            .first()
+        )
     assert user["username"] == seed_user["username"]
 
 
-def test_settings_username_change_rejects_invalid(authed_client, test_engine, seed_user):
+def test_settings_username_change_rejects_invalid(
+    authed_client, test_engine, seed_user
+):
     r = authed_client.post(
         "/settings/username",
         data={"username": "no spaces allowed"},
@@ -313,11 +321,15 @@ def test_settings_username_change_rejects_invalid(authed_client, test_engine, se
     assert r.status_code == 303
 
     with test_engine.begin() as conn:
-        user = conn.execute(
-            select(users).where(users.c.id == seed_user["id"])
-        ).mappings().first()
+        user = (
+            conn.execute(select(users).where(users.c.id == seed_user["id"]))
+            .mappings()
+            .first()
+        )
     assert user["username"] == seed_user["username"]
+
+
 from sqlalchemy import insert, select
 
-from app import main
+from app import deps
 from app.schema import media, users

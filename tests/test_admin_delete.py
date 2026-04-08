@@ -112,11 +112,11 @@ def test_reparent_cleans_up_pages(client, test_engine):
 
 def test_reparent_cleans_up_media_files(client, test_engine, tmp_path):
     """Deleting a user removes their media files from disk."""
-    import app.main
+    import app.deps
 
     # Point UPLOADS_DIR to tmp_path for this test
-    original_uploads = app.main.UPLOADS_DIR
-    app.main.UPLOADS_DIR = tmp_path
+    original_uploads = app.deps.UPLOADS_DIR
+    app.deps.UPLOADS_DIR = tmp_path
 
     user_dir = tmp_path / "target"
     user_dir.mkdir()
@@ -139,7 +139,7 @@ def test_reparent_cleans_up_media_files(client, test_engine, tmp_path):
 
     assert not (user_dir / "test.png").exists()
 
-    app.main.UPLOADS_DIR = original_uploads
+    app.deps.UPLOADS_DIR = original_uploads
 
 
 def test_reparent_cleans_up_guestbook(client, test_engine):
@@ -216,10 +216,10 @@ def test_prune_htmx_returns_count(client, test_engine):
 
 def test_prune_cleans_up_media(client, test_engine, tmp_path):
     """Pruning cleans up media files for all users in the subtree."""
-    import app.main
+    import app.deps
 
-    original_uploads = app.main.UPLOADS_DIR
-    app.main.UPLOADS_DIR = tmp_path
+    original_uploads = app.deps.UPLOADS_DIR
+    app.deps.UPLOADS_DIR = tmp_path
 
     for name in ["bad", "spam"]:
         d = tmp_path / name
@@ -253,7 +253,7 @@ def test_prune_cleans_up_media(client, test_engine, tmp_path):
     assert not (tmp_path / "bad" / "file.png").exists()
     assert not (tmp_path / "spam" / "file.png").exists()
 
-    app.main.UPLOADS_DIR = original_uploads
+    app.deps.UPLOADS_DIR = original_uploads
 
 
 # --- Guard tests ---
