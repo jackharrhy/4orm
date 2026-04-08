@@ -1,7 +1,35 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import and_, delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 
 from app.schema import forum_posts, forum_threads, users
+
+
+def recent_forum_posts(conn: Connection, hours: int = 2, limit: int = 5):
+    """Get recent forum posts from the last N hours, newest first."""
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    q = (
+        select(
+            forum_posts.c.id,
+            forum_posts.c.thread_id,
+            forum_posts.c.content,
+            forum_posts.c.content_format,
+            forum_posts.c.created_at,
+            forum_threads.c.title.label("thread_title"),
+            users.c.username.label("author_username"),
+            users.c.display_name.label("author_display_name"),
+        )
+        .select_from(
+            forum_posts.join(users, forum_posts.c.author_id == users.c.id).join(
+                forum_threads, forum_posts.c.thread_id == forum_threads.c.id
+            )
+        )
+        .where(forum_posts.c.created_at >= cutoff)
+        .order_by(forum_posts.c.created_at.desc())
+        .limit(limit)
+    )
+    return conn.execute(q).mappings().all()
 
 
 def list_threads(conn: Connection, page: int = 1, per_page: int = 25):

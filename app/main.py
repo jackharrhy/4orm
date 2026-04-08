@@ -7,8 +7,9 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import engine as default_engine
 from app.deps import BASE_DIR, current_user, get_engine, templates
+from app.queries.forum import recent_forum_posts
 from app.queries.users import list_profile_cards
-from app.rendering import render_content
+from app.rendering import render_content, render_forum_post
 from app.routes import admin, auth, feeds, forum, guestbook, media, pages, settings
 from app.schema import create_all
 
@@ -55,6 +56,7 @@ app.include_router(forum.router)
 def home(request: Request):
     with get_engine(request).begin() as conn:
         raw_cards = list_profile_cards(conn)
+        raw_recent = recent_forum_posts(conn, hours=2, limit=5)
     cards = [
         {
             **card,
@@ -62,6 +64,17 @@ def home(request: Request):
         }
         for card in raw_cards
     ]
+    recent_posts = [
+        {
+            **post,
+            "rendered_content": render_forum_post(
+                post["content"], post["content_format"]
+            ),
+        }
+        for post in raw_recent
+    ]
     return templates.TemplateResponse(
-        request, "home.html", {"cards": cards, "me": current_user(request)}
+        request,
+        "home.html",
+        {"cards": cards, "recent_posts": recent_posts, "me": current_user(request)},
     )

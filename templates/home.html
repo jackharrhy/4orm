@@ -1,6 +1,31 @@
 {% extends 'base.html' %}
 {% block title %}4orm · home{% endblock %}
 {% block content %}
+  {% if recent_posts %}
+    <section class="panel" style="margin-bottom: 14px">
+      <h2>recent forum activity</h2>
+      {% for post in recent_posts %}
+        <div class="forum-post" style="margin-bottom: 6px; padding: 6px 8px">
+          <div class="forum-post-meta">
+            <a href="/u/{{ post.author_username }}"
+              ><strong
+                >{{ post.author_display_name or post.author_username }}</strong
+              ></a
+            >
+            in
+            <a href="/forum/{{ post.thread_id }}#post-{{ post.id }}"
+              >{{ post.thread_title }}</a
+            >
+            · {{ post.created_at.strftime('%H:%M') if post.created_at else '' }}
+          </div>
+          <div style="font-size: 0.9rem; margin-top: 2px">
+            {{ post.rendered_content|safe|truncate(200, True) }}
+          </div>
+        </div>
+      {% endfor %}
+      <p style="margin-top: 6px"><a href="/forum">view all threads →</a></p>
+    </section>
+  {% endif %}
   <div class="cards">
     {% for card in cards %}
       <!-- prettier-ignore-start -->
