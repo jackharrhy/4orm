@@ -5,7 +5,7 @@ import math
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.deps import current_user, get_engine, is_htmx, require_admin, templates
+from app.deps import current_user, get_engine, require_admin, templates
 from app.queries.forum import (
     create_reply,
     create_thread,

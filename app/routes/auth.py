@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.deps import current_user, get_engine, templates
+from app.deps import get_engine, templates
 from app.queries.users import create_user_with_invite, get_user_by_username
 from app.security import verify_password
 

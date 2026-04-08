@@ -88,7 +88,7 @@ def user_feed(request: Request, username: str):
     xml = build_rss_feed(
         title=f"4orm updates from {profile['display_name']}",
         link=f"{site_url}/u/{username}",
-        description="Recent public page updates (published after 20 minutes of no edits)",
+        description="Recent public page updates",
         items=items,
     )
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")

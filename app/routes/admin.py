@@ -1,6 +1,6 @@
 """Admin dashboard routes."""
 
-from pathlib import Path
+import contextlib
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -392,7 +392,6 @@ def admin_rename_user(
             return RedirectResponse(url="/admin", status_code=303)
 
         # Rename media paths
-        old_user_dir = deps.UPLOADS_DIR / old_username
         new_user_dir = deps.UPLOADS_DIR / new_username
 
         media_rows = (
@@ -428,10 +427,8 @@ def admin_rename_user(
     # Clean up old directory
     old_dir = deps.UPLOADS_DIR / old_username
     if old_dir.exists():
-        try:
+        with contextlib.suppress(OSError):
             old_dir.rmdir()
-        except OSError:
-            pass
 
     with get_engine(request).begin() as conn:
         return _admin_user_row_response(request, conn, user_id)

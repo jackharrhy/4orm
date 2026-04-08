@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import engine as default_engine
-from app.deps import BASE_DIR, UPLOADS_DIR, current_user, get_engine, templates
+from app.deps import BASE_DIR, current_user, get_engine, templates
 from app.queries.users import list_profile_cards
 from app.rendering import render_content
 from app.routes import admin, auth, feeds, forum, guestbook, media, pages, settings

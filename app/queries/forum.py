@@ -5,7 +5,7 @@ from app.schema import forum_posts, forum_threads, users
 
 
 def list_threads(conn: Connection, page: int = 1, per_page: int = 25):
-    """List threads: pinned first, then by last_reply_at desc. Returns (threads, total)."""
+    """List threads: pinned first, then by last_reply_at. Returns (threads, total)."""
     total = conn.execute(select(func.count(forum_threads.c.id))).scalar()
     q = (
         select(

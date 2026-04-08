@@ -1,5 +1,6 @@
 """User settings routes."""
 
+import contextlib
 from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, Request
@@ -28,7 +29,7 @@ from app.queries.users import (
     disable_invite,
     get_invites_for_user,
 )
-from app.schema import media, pages, profile_cards, users
+from app.schema import media, profile_cards, users
 
 router = APIRouter()
 
@@ -99,7 +100,9 @@ def settings_username(request: Request, username: str = Form(...)):
     if not deps.USERNAME_RE.match(new_username):
         if is_htmx(request):
             return HTMLResponse(
-                '<span class="error">Username must be 3-32 chars using a-z, 0-9, - or _</span>',
+                '<span class="error">'
+                "Username must be 3-32 chars using a-z, 0-9, - or _"
+                "</span>",
                 status_code=400,
             )
         return RedirectResponse(url="/settings?error=invalid_username", status_code=303)
@@ -171,10 +174,8 @@ def settings_username(request: Request, username: str = Form(...)):
         )
 
     if old_user_dir.exists() and old_user_dir != new_user_dir:
-        try:
+        with contextlib.suppress(OSError):
             old_user_dir.rmdir()
-        except OSError:
-            pass
 
     return _saved_or_redirect(request, url="/settings?saved=username")
 
