@@ -35,6 +35,23 @@
       <button>save profile</button>
       <span id="profile-status"></span>
     </form>
+
+    <form
+      method="post"
+      action="/settings/username"
+      class="stack"
+      hx-post="/settings/username"
+      hx-target="#username-status"
+      hx-swap="innerHTML"
+      style="margin-top: 10px"
+    >
+      <label>
+        username
+        <input name="username" value="{{ me.username }}" required />
+      </label>
+      <button>save username</button>
+      <span id="username-status"></span>
+    </form>
   </details>
   <details class="panel">
     <summary><h2>css</h2></summary>

@@ -221,3 +221,103 @@ def test_profile_renders(client, seed_user):
 def test_profile_not_found(client):
     r = client.get("/u/nobody")
     assert r.status_code == 404
+
+
+def test_settings_username_change_updates_user(authed_client, test_engine, seed_user):
+    r = authed_client.post(
+        "/settings/username",
+        data={"username": "newname"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    with test_engine.begin() as conn:
+        updated = conn.execute(
+            select(users).where(users.c.id == seed_user["id"])
+        ).mappings().first()
+    assert updated["username"] == "newname"
+
+
+def test_settings_username_change_moves_media_paths_and_files(
+    authed_client, test_engine, seed_user, tmp_path, monkeypatch
+):
+    uploads_root = tmp_path / "uploads"
+    monkeypatch.setattr(main, "UPLOADS_DIR", uploads_root)
+    old_dir = uploads_root / seed_user["username"]
+    old_dir.mkdir(parents=True, exist_ok=True)
+    old_file = old_dir / "photo.jpg"
+    old_file.write_bytes(b"abc")
+
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(media).values(
+                user_id=seed_user["id"],
+                storage_path=f"{seed_user['username']}/photo.jpg",
+                mime_type="image/jpeg",
+                size_bytes=3,
+            )
+        )
+
+    r = authed_client.post(
+        "/settings/username",
+        data={"username": "renamed"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    new_file = uploads_root / "renamed" / "photo.jpg"
+    assert new_file.exists()
+    assert not old_file.exists()
+
+    with test_engine.begin() as conn:
+        row = conn.execute(select(media)).mappings().first()
+        user = conn.execute(
+            select(users).where(users.c.id == seed_user["id"])
+        ).mappings().first()
+    assert row["storage_path"] == "renamed/photo.jpg"
+    assert user["username"] == "renamed"
+
+
+def test_settings_username_change_rejects_taken_username(
+    authed_client, test_engine, seed_user
+):
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(users).values(
+                username="takenname",
+                password_hash="x",
+                display_name="taken",
+            )
+        )
+
+    r = authed_client.post(
+        "/settings/username",
+        data={"username": "takenname"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    with test_engine.begin() as conn:
+        user = conn.execute(
+            select(users).where(users.c.id == seed_user["id"])
+        ).mappings().first()
+    assert user["username"] == seed_user["username"]
+
+
+def test_settings_username_change_rejects_invalid(authed_client, test_engine, seed_user):
+    r = authed_client.post(
+        "/settings/username",
+        data={"username": "no spaces allowed"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    with test_engine.begin() as conn:
+        user = conn.execute(
+            select(users).where(users.c.id == seed_user["id"])
+        ).mappings().first()
+    assert user["username"] == seed_user["username"]
+from sqlalchemy import insert, select
+
+from app import main
+from app.schema import media, users

@@ -54,6 +54,7 @@ from app.security import verify_password
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+USERNAME_RE = re.compile(r"^[a-z0-9_-]{3,32}$")
 MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
 from contextlib import asynccontextmanager
 
@@ -718,6 +719,92 @@ def settings_profile(
             )
         )
     return _saved_or_redirect(request)
+
+
+@app.post("/settings/username")
+def settings_username(request: Request, username: str = Form(...)):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+
+    new_username = username.strip().lower()
+    if not USERNAME_RE.match(new_username):
+        if is_htmx(request):
+            return HTMLResponse(
+                '<span class="error">Username must be 3-32 chars using a-z, 0-9, - or _</span>',
+                status_code=400,
+            )
+        return RedirectResponse(url="/settings?error=invalid_username", status_code=303)
+
+    if new_username == me["username"]:
+        return _saved_or_redirect(request)
+
+    uploads_root = UPLOADS_DIR
+    old_username = me["username"]
+    old_user_dir = uploads_root / old_username
+    new_user_dir = uploads_root / new_username
+
+    with get_engine(request).begin() as conn:
+        existing = conn.execute(
+            select(users.c.id).where(users.c.username == new_username)
+        ).first()
+        if existing:
+            if is_htmx(request):
+                return HTMLResponse(
+                    '<span class="error">That username is already taken</span>',
+                    status_code=400,
+                )
+            return RedirectResponse(url="/settings?error=username_taken", status_code=303)
+
+        media_rows = (
+            conn.execute(
+                select(media.c.id, media.c.storage_path).where(media.c.user_id == me["id"])
+            )
+            .mappings()
+            .all()
+        )
+
+        for row in media_rows:
+            old_storage = row["storage_path"]
+            if not old_storage.startswith(f"{old_username}/"):
+                continue
+
+            filename = old_storage.split("/", 1)[1]
+            src = uploads_root / old_storage
+            dst = new_user_dir / filename
+            dst.parent.mkdir(parents=True, exist_ok=True)
+
+            if src.exists():
+                if dst.exists() and dst != src:
+                    base = Path(filename).stem
+                    ext = Path(filename).suffix
+                    n = 2
+                    while True:
+                        candidate = dst.parent / f"{base}-{n}{ext}"
+                        if not candidate.exists():
+                            dst = candidate
+                            break
+                        n += 1
+                src.rename(dst)
+
+            new_storage = f"{new_username}/{dst.name}"
+            conn.execute(
+                update(media)
+                .where(media.c.id == row["id"], media.c.user_id == me["id"])
+                .values(storage_path=new_storage)
+            )
+
+        conn.execute(
+            update(users).where(users.c.id == me["id"]).values(username=new_username)
+        )
+
+    if old_user_dir.exists() and old_user_dir != new_user_dir:
+        try:
+            old_user_dir.rmdir()
+        except OSError:
+            pass
+
+    return _saved_or_redirect(request, url="/settings?saved=username")
 
 
 @app.post("/settings/css")
