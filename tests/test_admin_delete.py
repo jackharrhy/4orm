@@ -273,6 +273,63 @@ def test_cannot_delete_self(client, test_engine):
     assert r.status_code == 400
 
 
+def test_admin_rename_user(client, test_engine):
+    """Admin can rename a user."""
+    with test_engine.begin() as conn:
+        admin_id = _make_admin(conn, "admin")
+        target_id = _make_user(conn, "badname", invited_by=admin_id)
+
+    _login(client, "admin")
+
+    r = client.post(
+        f"/admin/users/{target_id}/rename",
+        data={"new_username": "goodname"},
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    assert "goodname" in r.text
+
+    with test_engine.begin() as conn:
+        user = conn.execute(
+            select(users.c.username).where(users.c.id == target_id)
+        ).scalar()
+        assert user == "goodname"
+
+
+def test_admin_rename_taken(client, test_engine):
+    """Admin cannot rename to an existing username."""
+    with test_engine.begin() as conn:
+        admin_id = _make_admin(conn, "admin")
+        _make_user(conn, "existing")
+        target_id = _make_user(conn, "target")
+
+    _login(client, "admin")
+
+    r = client.post(
+        f"/admin/users/{target_id}/rename",
+        data={"new_username": "existing"},
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 400
+    assert "taken" in r.text.lower()
+
+
+def test_admin_rename_invalid(client, test_engine):
+    """Admin cannot rename to an invalid username."""
+    with test_engine.begin() as conn:
+        admin_id = _make_admin(conn, "admin")
+        target_id = _make_user(conn, "target")
+
+    _login(client, "admin")
+
+    r = client.post(
+        f"/admin/users/{target_id}/rename",
+        data={"new_username": "ab"},  # too short
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 400
+
+
 def test_non_admin_cannot_delete(client, test_engine):
     """Non-admin users cannot delete anyone."""
     with test_engine.begin() as conn:

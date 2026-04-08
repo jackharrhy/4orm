@@ -6,60 +6,83 @@
     {{ stats.get('total_bytes', 0)|human_bytes }}
   </td>
   <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}</td>
-  <td>{{ 'admin' if u.is_admin else '' }}</td>
-  <td>{{ 'disabled' if u.is_disabled else '' }}</td>
   <td>
-    {% if not u.is_admin %}
-      <form
-        method="post"
-        action="/admin/users/{{ u.id }}/toggle-admin"
-        class="inline"
-        hx-post="/admin/users/{{ u.id }}/toggle-admin"
-        hx-target="#user-row-{{ u.id }}"
-        hx-swap="outerHTML"
-        hx-confirm="Make {{ u.username }} an admin?"
-      >
-        <button type="submit">make admin</button>
-      </form>
-    {% endif %}
-    <form
-      method="post"
-      action="/admin/users/{{ u.id }}/toggle-disabled"
-      class="inline"
-      hx-post="/admin/users/{{ u.id }}/toggle-disabled"
-      hx-target="#user-row-{{ u.id }}"
-      hx-swap="outerHTML"
-      hx-confirm="{% if u.is_disabled %}Re-enable{% else %}Disable{% endif %} {{ u.username }}?"
-    >
-      <button type="submit">
-        {% if u.is_disabled %}re-enable{% else %}disable{% endif %}
-      </button>
-    </form>
-    {% if not u.is_admin %}
-      <form
-        method="post"
-        action="/admin/users/{{ u.id }}/delete"
-        class="inline"
-        hx-post="/admin/users/{{ u.id }}/delete"
-        hx-target="#user-row-{{ u.id }}"
-        hx-swap="outerHTML"
-        hx-confirm="Delete {{ u.username }}? Their invitees will be reparented."
-      >
-        <input type="hidden" name="mode" value="reparent" />
-        <button type="submit">delete</button>
-      </form>
-      <form
-        method="post"
-        action="/admin/users/{{ u.id }}/delete"
-        class="inline"
-        hx-post="/admin/users/{{ u.id }}/delete"
-        hx-target="#user-row-{{ u.id }}"
-        hx-swap="outerHTML"
-        hx-confirm="Delete {{ u.username }} AND everyone they invited? This is irreversible!"
-      >
-        <input type="hidden" name="mode" value="prune" />
-        <button type="submit">prune tree</button>
-      </form>
-    {% endif %}
+    {{ 'admin' if u.is_admin else '' }}{{ ' / disabled' if u.is_disabled else '' }}
+  </td>
+  <td>
+    <div class="stack" style="gap: 4px">
+      {% if not u.is_admin %}
+        <form
+          method="post"
+          action="/admin/users/{{ u.id }}/rename"
+          class="inline"
+          hx-post="/admin/users/{{ u.id }}/rename"
+          hx-target="#user-row-{{ u.id }}"
+          hx-swap="outerHTML"
+        >
+          <input
+            name="new_username"
+            value="{{ u.username }}"
+            style="width: 120px"
+            required
+          />
+          <button type="submit">rename</button>
+        </form>
+      {% endif %}
+      <div class="inline" style="flex-wrap: wrap; gap: 4px">
+        {% if not u.is_admin %}
+          <form
+            method="post"
+            action="/admin/users/{{ u.id }}/toggle-admin"
+            class="inline"
+            hx-post="/admin/users/{{ u.id }}/toggle-admin"
+            hx-target="#user-row-{{ u.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Make {{ u.username }} an admin?"
+          >
+            <button type="submit">make admin</button>
+          </form>
+        {% endif %}
+        <form
+          method="post"
+          action="/admin/users/{{ u.id }}/toggle-disabled"
+          class="inline"
+          hx-post="/admin/users/{{ u.id }}/toggle-disabled"
+          hx-target="#user-row-{{ u.id }}"
+          hx-swap="outerHTML"
+          hx-confirm="{% if u.is_disabled %}Re-enable{% else %}Disable{% endif %} {{ u.username }}?"
+        >
+          <button type="submit">
+            {% if u.is_disabled %}re-enable{% else %}disable{% endif %}
+          </button>
+        </form>
+        {% if not u.is_admin %}
+          <form
+            method="post"
+            action="/admin/users/{{ u.id }}/delete"
+            class="inline"
+            hx-post="/admin/users/{{ u.id }}/delete"
+            hx-target="#user-row-{{ u.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Delete {{ u.username }}? Their invitees will be reparented."
+          >
+            <input type="hidden" name="mode" value="reparent" />
+            <button type="submit">delete</button>
+          </form>
+          <form
+            method="post"
+            action="/admin/users/{{ u.id }}/delete"
+            class="inline"
+            hx-post="/admin/users/{{ u.id }}/delete"
+            hx-target="#user-row-{{ u.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Delete {{ u.username }} AND everyone they invited? This is irreversible!"
+          >
+            <input type="hidden" name="mode" value="prune" />
+            <button type="submit">prune tree</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
   </td>
 </tr>

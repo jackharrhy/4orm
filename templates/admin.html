@@ -14,8 +14,9 @@
       record(s) from database.
     </p>
   {% endif %}
-  <section class="panel">
-    <h2>users ({{ all_users|length }})</h2>
+
+  <details class="panel" open>
+    <summary><h2>users ({{ all_users|length }})</h2></summary>
     <div class="table-wrap">
       <table class="admin-table">
         <thead>
@@ -25,7 +26,6 @@
             <th style="text-align: right">files</th>
             <th style="text-align: right">storage</th>
             <th style="text-align: left">joined</th>
-            <th style="text-align: left">role</th>
             <th style="text-align: left">status</th>
             <th></th>
           </tr>
@@ -33,45 +33,15 @@
         <tbody>
           {% for u in all_users %}
             {% set stats = storage_by_user.get(u.id, {}) %}
-            <tr id="user-row-{{ u.id }}">
-              <td>
-                <a href="/u/{{ u.username }}">{{ u.username }}</a>
-              </td>
-              <td>{{ u.display_name }}</td>
-              <td style="text-align: right">
-                {{ stats.get('file_count', 0) }}
-              </td>
-              <td style="text-align: right">
-                {{ stats.get('total_bytes', 0)|human_bytes }}
-              </td>
-              <td>
-                {{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}
-              </td>
-              <td>{{ 'admin' if u.is_admin else '' }}</td>
-              <td>
-                {% if not u.is_admin %}
-                  <form
-                    method="post"
-                    action="/admin/users/{{ u.id }}/toggle-admin"
-                    class="inline"
-                    hx-post="/admin/users/{{ u.id }}/toggle-admin"
-                    hx-target="#user-row-{{ u.id }}"
-                    hx-swap="outerHTML"
-                    hx-confirm="Make {{ u.username }} an admin?"
-                  >
-                    <button type="submit">make admin</button>
-                  </form>
-                {% endif %}
-              </td>
-            </tr>
+            {% include 'fragments/admin_user_row.html' %}
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </section>
+  </details>
 
-  <section class="panel">
-    <h2>edit user profiles</h2>
+  <details class="panel">
+    <summary><h2>edit user profiles</h2></summary>
     {% for u in all_users %}
       <details class="panel" style="margin: 0 0 10px">
         <summary><strong>@{{ u.username }}</strong> profile</summary>
@@ -116,10 +86,10 @@
         </form>
       </details>
     {% endfor %}
-  </section>
+  </details>
 
-  <section class="panel">
-    <h2>edit cards</h2>
+  <details class="panel">
+    <summary><h2>edit cards</h2></summary>
     {% for u in all_users %}
       {% set card = cards_by_user.get(u.id) %}
       {% if card %}
@@ -189,10 +159,10 @@
         </details>
       {% endif %}
     {% endfor %}
-  </section>
+  </details>
 
-  <section class="panel">
-    <h2>edit pages</h2>
+  <details class="panel">
+    <summary><h2>edit pages</h2></summary>
     {% for p in all_pages %}
       <details class="panel" style="margin: 0 0 10px">
         <summary>
@@ -246,10 +216,10 @@
         </form>
       </details>
     {% endfor %}
-  </section>
+  </details>
 
-  <section class="panel">
-    <h2>storage health</h2>
+  <details class="panel">
+    <summary><h2>storage health</h2></summary>
     <div id="orphan-results">
       <button
         hx-get="/admin/orphans"
@@ -261,5 +231,5 @@
       </button>
       <span id="orphan-spinner" class="htmx-indicator muted"> scanning...</span>
     </div>
-  </section>
+  </details>
 {% endblock %}

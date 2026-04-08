@@ -1360,6 +1360,120 @@ def admin_toggle_admin(request: Request, user_id: int):
     return RedirectResponse(url="/admin", status_code=303)
 
 
+def _admin_user_row_response(request, conn, user_id):
+    """Refetch user + stats and return the admin row fragment or redirect."""
+    u = (
+        conn.execute(
+            select(
+                users.c.id,
+                users.c.username,
+                users.c.display_name,
+                users.c.is_admin,
+                users.c.is_disabled,
+                users.c.created_at,
+            ).where(users.c.id == user_id)
+        )
+        .mappings()
+        .first()
+    )
+    stats = (
+        conn.execute(
+            select(
+                func.count(media.c.id).label("file_count"),
+                func.coalesce(func.sum(media.c.size_bytes), 0).label("total_bytes"),
+            ).where(media.c.user_id == user_id)
+        )
+        .mappings()
+        .first()
+    )
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            request,
+            "fragments/admin_user_row.html",
+            {"u": u, "stats": stats},
+        )
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@app.post("/admin/users/{user_id}/rename")
+def admin_rename_user(request: Request, user_id: int, new_username: str = Form(...)):
+    require_admin(request)
+    new_username = new_username.strip().lower()
+    if not USERNAME_RE.match(new_username):
+        if is_htmx(request):
+            return HTMLResponse(
+                '<tr><td colspan="8" class="error">Invalid username</td></tr>',
+                status_code=400,
+            )
+        return RedirectResponse(url="/admin", status_code=303)
+
+    with get_engine(request).begin() as conn:
+        user = get_user_by_id(conn, user_id)
+        if not user:
+            raise HTTPException(404)
+
+        old_username = user["username"]
+        if old_username == new_username:
+            return _admin_user_row_response(request, conn, user_id)
+
+        # Check if taken
+        existing = conn.execute(
+            select(users.c.id).where(users.c.username == new_username)
+        ).first()
+        if existing:
+            if is_htmx(request):
+                return HTMLResponse(
+                    '<tr><td colspan="8" class="error">Username taken</td></tr>',
+                    status_code=400,
+                )
+            return RedirectResponse(url="/admin", status_code=303)
+
+        # Rename media paths
+        old_user_dir = UPLOADS_DIR / old_username
+        new_user_dir = UPLOADS_DIR / new_username
+
+        media_rows = (
+            conn.execute(
+                select(media.c.id, media.c.storage_path).where(
+                    media.c.user_id == user_id
+                )
+            )
+            .mappings()
+            .all()
+        )
+
+        for row in media_rows:
+            old_storage = row["storage_path"]
+            if not old_storage.startswith(f"{old_username}/"):
+                continue
+            filename = old_storage.split("/", 1)[1]
+            src = UPLOADS_DIR / old_storage
+            dst = new_user_dir / filename
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if src.exists():
+                src.rename(dst)
+            conn.execute(
+                update(media)
+                .where(media.c.id == row["id"])
+                .values(storage_path=f"{new_username}/{dst.name}")
+            )
+
+        conn.execute(
+            update(users).where(users.c.id == user_id).values(username=new_username)
+        )
+
+    # Clean up old directory
+    old_dir = UPLOADS_DIR / old_username
+    if old_dir.exists():
+        try:
+            old_dir.rmdir()
+        except OSError:
+            pass
+
+    with get_engine(request).begin() as conn:
+        return _admin_user_row_response(request, conn, user_id)
+
+
 @app.post("/admin/users/{user_id}/delete")
 def admin_delete_user(request: Request, user_id: int, mode: str = Form("reparent")):
     me = require_admin(request)
