@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -50,6 +51,45 @@ app.include_router(admin.router)
 app.include_router(guestbook.router)
 app.include_router(feeds.router)
 app.include_router(forum.router)
+
+
+ERROR_MESSAGES = {
+    400: "bad request.",
+    403: "you don't have permission to access this.",
+    404: "this page doesn't exist.",
+    500: "something broke. sorry about that.",
+}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    me = None
+    try:
+        me = current_user(request)
+    except Exception:
+        pass
+    message = ERROR_MESSAGES.get(exc.status_code, exc.detail)
+    return templates.TemplateResponse(
+        request,
+        "error.html",
+        {"status_code": exc.status_code, "message": message, "me": me},
+        status_code=exc.status_code,
+    )
+
+
+@app.exception_handler(500)
+async def internal_error_handler(request: Request, exc: Exception):
+    me = None
+    try:
+        me = current_user(request)
+    except Exception:
+        pass
+    return templates.TemplateResponse(
+        request,
+        "error.html",
+        {"status_code": 500, "message": ERROR_MESSAGES[500], "me": me},
+        status_code=500,
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
