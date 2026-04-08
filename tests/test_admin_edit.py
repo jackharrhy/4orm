@@ -165,8 +165,8 @@ def test_admin_rename_preserves_pages(client, test_engine):
 # --- Admin profile edit preserves unedited fields ---
 
 
-def test_admin_profile_edit_preserves_unrelated_fields(client, test_engine):
-    """Editing profile via admin should not nuke custom_html, layout, guestbook settings."""
+def test_admin_profile_edit_preserves_all_fields(client, test_engine):
+    """Editing profile via admin should save all fields including custom_html and layout."""
     with test_engine.begin() as conn:
         admin_id = _make_admin(conn, "admin")
         uid = _setup_user_with_data(conn, "target", admin_id)
@@ -179,6 +179,8 @@ def test_admin_profile_edit_preserves_unrelated_fields(client, test_engine):
             "content": "new content",
             "content_format": "html",
             "custom_css": "body { color: green; }",
+            "custom_html": '<script>console.log("hi")</script>',
+            "layout": "simple",
         },
     )
 
@@ -194,13 +196,12 @@ def test_admin_profile_edit_preserves_unrelated_fields(client, test_engine):
                 users.c.guestbook_html,
             ).where(users.c.id == uid)
         ).first()
-        # These should be updated
         assert u.display_name == "New Display"
         assert u.content == "new content"
         assert u.custom_css == "body { color: green; }"
-        # These should be PRESERVED (not nuked to empty)
         assert u.custom_html == '<script>console.log("hi")</script>'
         assert u.layout == "simple"
+        # Guestbook settings are on a different form, should be untouched
         assert u.guestbook_css == ".gb-entry { color: red; }"
         assert u.guestbook_html == "<p>custom gb</p>"
 

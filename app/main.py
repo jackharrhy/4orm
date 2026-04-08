@@ -1157,8 +1157,10 @@ def admin_update_user_profile(
     user_id: int,
     display_name: str = Form(""),
     content: str = Form(""),
-    content_format: str = Form("markdown"),
+    content_format: str = Form("html"),
     custom_css: str = Form(""),
+    custom_html: str = Form(""),
+    layout: str = Form("default"),
 ):
     require_admin(request)
     with get_engine(request).begin() as conn:
@@ -1173,9 +1175,11 @@ def admin_update_user_profile(
                 content=content,
                 content_format=content_format,
                 custom_css=custom_css,
+                custom_html=custom_html,
+                layout=layout,
             )
         )
-    return RedirectResponse(url="/admin", status_code=303)
+    return _saved_or_redirect(request)
 
 
 @app.post("/admin/users/{user_id}/card")

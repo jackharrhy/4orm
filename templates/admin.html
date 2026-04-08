@@ -82,6 +82,25 @@
 {{ u.custom_css or '' }}</textarea
             >
           </label>
+          <label
+            >custom html
+            <textarea name="custom_html" rows="4">
+{{ u.custom_html or '' }}</textarea
+            >
+          </label>
+          <label
+            >layout
+            <select name="layout">
+              {% for opt in ['default', 'simple', 'raw'] %}
+                <option
+                  value="{{ opt }}"
+                  {% if (u.layout or 'default') == opt %}selected{% endif %}
+                >
+                  {{ opt }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
           <button type="submit">save profile</button>
         </form>
       </details>
