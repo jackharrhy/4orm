@@ -13,6 +13,8 @@ dependencies = [
   "itsdangerous==2.2.0",
   "alembic>=1.16",
   "markdown>=3.7",
+  "bbcode==1.1.0",
+  "bleach==6.3.0",
 ]
 
 [dependency-groups]
