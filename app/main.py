@@ -117,6 +117,18 @@ app.include_router(webring.router)
 app.include_router(push.router)
 
 
+@app.get("/sw.js")
+def service_worker():
+    """Serve the service worker from root scope."""
+    from fastapi.responses import FileResponse
+
+    return FileResponse(
+        BASE_DIR / "static" / "sw.js",
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/"},
+    )
+
+
 ERROR_MESSAGES = {
     400: "bad request.",
     403: "you don't have permission to access this.",
