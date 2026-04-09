@@ -190,12 +190,20 @@ def create_reply(
 
 
 def update_post(
-    conn: Connection, post_id: int, author_id: int, content: str, content_format: str
+    conn: Connection,
+    post_id: int,
+    author_id: int,
+    content: str,
+    content_format: str,
+    is_admin: bool = False,
 ):
-    """Update a post's content (author only)."""
+    """Update a post's content (author or admin)."""
+    conditions = [forum_posts.c.id == post_id]
+    if not is_admin:
+        conditions.append(forum_posts.c.author_id == author_id)
     conn.execute(
         update(forum_posts)
-        .where(and_(forum_posts.c.id == post_id, forum_posts.c.author_id == author_id))
+        .where(and_(*conditions))
         .values(
             content=content,
             content_format=content_format,
@@ -249,16 +257,15 @@ def update_thread_meta(
     title: str,
     custom_css: str,
     custom_html: str,
+    is_admin: bool = False,
 ):
-    """Update thread title/css/html (author only)."""
+    """Update thread title/css/html (author or admin)."""
+    conditions = [forum_threads.c.id == thread_id]
+    if not is_admin:
+        conditions.append(forum_threads.c.author_id == author_id)
     conn.execute(
         update(forum_threads)
-        .where(
-            and_(
-                forum_threads.c.id == thread_id,
-                forum_threads.c.author_id == author_id,
-            )
-        )
+        .where(and_(*conditions))
         .values(title=title, custom_css=custom_css, custom_html=custom_html)
     )
 

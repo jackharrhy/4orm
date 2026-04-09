@@ -178,7 +178,7 @@ def edit_thread_form(request: Request, thread_id: int):
         thread = get_thread(conn, thread_id)
     if not thread:
         raise HTTPException(404)
-    if me["id"] != thread["author_id"]:
+    if me["id"] != thread["author_id"] and not me.get("is_admin"):
         raise HTTPException(403)
     return templates.TemplateResponse(
         request,
@@ -202,15 +202,16 @@ def edit_thread_submit(
         thread = get_thread(conn, thread_id)
         if not thread:
             raise HTTPException(404)
-        if me["id"] != thread["author_id"]:
+        if me["id"] != thread["author_id"] and not me.get("is_admin"):
             raise HTTPException(403)
         update_thread_meta(
             conn,
             thread_id=thread_id,
-            author_id=me["id"],
+            author_id=thread["author_id"],
             title=title.strip(),
             custom_css=custom_css,
             custom_html=custom_html,
+            is_admin=me.get("is_admin", False),
         )
     return RedirectResponse(url=f"/forum/{thread_id}", status_code=303)
 
@@ -224,7 +225,7 @@ def edit_post_form(request: Request, post_id: int):
         post = get_post(conn, post_id)
         if not post:
             raise HTTPException(404)
-        if me["id"] != post["author_id"]:
+        if me["id"] != post["author_id"] and not me.get("is_admin"):
             raise HTTPException(403)
         media_items = list_media_for_user(conn, me["id"])
     return templates.TemplateResponse(
@@ -248,9 +249,16 @@ def edit_post_submit(
         post = get_post(conn, post_id)
         if not post:
             raise HTTPException(404)
-        if me["id"] != post["author_id"]:
+        if me["id"] != post["author_id"] and not me.get("is_admin"):
             raise HTTPException(403)
-        update_post(conn, post_id, me["id"], content, content_format)
+        update_post(
+            conn,
+            post_id,
+            post["author_id"],
+            content,
+            content_format,
+            is_admin=me.get("is_admin", False),
+        )
     return RedirectResponse(url=f"/forum/{post['thread_id']}", status_code=303)
 
 

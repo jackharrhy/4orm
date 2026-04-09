@@ -33,6 +33,9 @@
         <button class="btn-sm">delete</button>
       </form>
     {% elif me and me.is_admin %}
+      <a href="/forum/posts/{{ post.id }}/edit"
+        ><button type="button" class="btn-sm">edit</button></a
+      >
       <form
         method="post"
         action="/forum/posts/{{ post.id }}/delete"
