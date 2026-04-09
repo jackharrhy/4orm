@@ -1,4 +1,6 @@
-"""Public page routes: profiles, pages, lineage, how-to, counter."""
+"""Public page routes: profiles, pages, lineage, how-to, counter, status, player."""
+
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -9,6 +11,7 @@ from app.export import build_export_zip
 from app.queries.counter import get_total_views, increment_counter
 from app.queries.pages import get_public_page, list_public_pages_for_user
 from app.queries.users import get_invite_tree, get_user_by_username
+from app.queries.widgets import get_playlist
 from app.rendering import build_raw_html, render_content
 
 router = APIRouter()
@@ -152,4 +155,50 @@ def export_site(request: Request, username: str):
         headers={
             "Content-Disposition": f'attachment; filename="{username}-export.zip"'
         },
+    )
+
+
+@router.get("/u/{username}/status", response_class=HTMLResponse)
+def status_widget(request: Request, username: str):
+    with get_engine(request).begin() as conn:
+        user = get_user_by_username(conn, username)
+        if not user:
+            raise HTTPException(404)
+
+    relative_time = ""
+    updated = user.get("status_updated_at")
+    if updated:
+        if updated.tzinfo is None:
+            from datetime import timezone
+
+            updated = updated.replace(tzinfo=timezone.utc)
+        delta = datetime.now(UTC) - updated
+        seconds = int(delta.total_seconds())
+        if seconds < 60:
+            relative_time = "just now"
+        elif seconds < 3600:
+            relative_time = f"{seconds // 60}m ago"
+        elif seconds < 86400:
+            relative_time = f"{seconds // 3600}h ago"
+        else:
+            relative_time = f"{seconds // 86400}d ago"
+
+    return templates.TemplateResponse(
+        request,
+        "status.html",
+        {"owner": user, "relative_time": relative_time},
+    )
+
+
+@router.get("/u/{username}/player", response_class=HTMLResponse)
+def player_widget(request: Request, username: str):
+    with get_engine(request).begin() as conn:
+        user = get_user_by_username(conn, username)
+        if not user:
+            raise HTTPException(404)
+        tracks = get_playlist(conn, user["id"])
+    return templates.TemplateResponse(
+        request,
+        "player.html",
+        {"owner": user, "tracks": tracks},
     )
