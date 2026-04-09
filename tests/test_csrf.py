@@ -38,22 +38,19 @@ def csrf_engine():
 
 
 @pytest.fixture()
-def csrf_client(csrf_engine):
-    """A TestClient with CSRF enforcement enabled."""
+def raw_client(csrf_engine):
+    """A raw TestClient WITHOUT auto CSRF token injection."""
     original_engine = app.state.engine
     original_lifespan = app.router.lifespan_context
-    original_csrf = app.state.csrf_enabled
 
     app.state.engine = csrf_engine
     app.router.lifespan_context = _noop_lifespan
-    app.state.csrf_enabled = True
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
 
     app.router.lifespan_context = original_lifespan
     app.state.engine = original_engine
-    app.state.csrf_enabled = original_csrf
 
 
 @pytest.fixture()
@@ -79,18 +76,16 @@ def csrf_seed_user(csrf_engine):
 
 
 def _extract_csrf_token(html: str) -> str:
-    match = re.search(r'name="_csrf_token" value="([^"]+)"', html)
+    match = re.search(r'X-CSRF-Token["\s:]+([^"}\s]+)', html)
     return match.group(1) if match else ""
 
 
 def _login(client, user):
     """Log in and return the CSRF token from the session."""
-    # Login is exempt, so this works without a token
     client.post(
         "/login",
         data={"username": user["username"], "password": user["password"]},
     )
-    # GET a page to obtain the CSRF token
     r = client.get("/settings")
     return _extract_csrf_token(r.text)
 
@@ -98,25 +93,26 @@ def _login(client, user):
 class TestCSRFBlocks:
     """POST without a valid CSRF token should be rejected."""
 
-    def test_post_without_token_returns_403(self, csrf_client, csrf_seed_user):
-        _login(csrf_client, csrf_seed_user)
-        r = csrf_client.post(
+    def test_post_without_token_returns_403(self, raw_client, csrf_seed_user):
+        _login(raw_client, csrf_seed_user)
+        r = raw_client.post(
             "/settings/profile",
             data={"display_name": "hacked"},
         )
         assert r.status_code == 403
 
-    def test_post_with_wrong_token_returns_403(self, csrf_client, csrf_seed_user):
-        _login(csrf_client, csrf_seed_user)
-        r = csrf_client.post(
+    def test_post_with_wrong_header_returns_403(self, raw_client, csrf_seed_user):
+        _login(raw_client, csrf_seed_user)
+        r = raw_client.post(
             "/settings/profile",
-            data={"display_name": "hacked", "_csrf_token": "wrong-token"},
+            data={"display_name": "hacked"},
+            headers={"X-CSRF-Token": "wrong-token"},
         )
         assert r.status_code == 403
 
-    def test_no_session_returns_403(self, csrf_client):
+    def test_no_session_returns_403(self, raw_client):
         """A POST with no session at all should be rejected."""
-        r = csrf_client.post(
+        r = raw_client.post(
             "/settings/profile",
             data={"display_name": "hacked"},
         )
@@ -124,21 +120,11 @@ class TestCSRFBlocks:
 
 
 class TestCSRFAllows:
-    """POST with a valid CSRF token should succeed."""
+    """POST with a valid CSRF token header should succeed."""
 
-    def test_form_with_header_allows_post(self, csrf_client, csrf_seed_user):
-        token = _login(csrf_client, csrf_seed_user)
-        r = csrf_client.post(
-            "/settings/profile",
-            data={"display_name": "Legit", "content": "hi"},
-            headers={"X-CSRF-Token": token},
-        )
-        # Should succeed (200 or 303 redirect)
-        assert r.status_code in (200, 303)
-
-    def test_header_token_allows_post(self, csrf_client, csrf_seed_user):
-        token = _login(csrf_client, csrf_seed_user)
-        r = csrf_client.post(
+    def test_header_token_allows_post(self, raw_client, csrf_seed_user):
+        token = _login(raw_client, csrf_seed_user)
+        r = raw_client.post(
             "/settings/profile",
             data={"display_name": "Legit", "content": "hi"},
             headers={"X-CSRF-Token": token},
@@ -147,21 +133,20 @@ class TestCSRFAllows:
 
 
 class TestCSRFExemptPaths:
-    """Login and register are exempt from CSRF checks."""
+    """Login is exempt from CSRF checks."""
 
-    def test_login_exempt(self, csrf_client, csrf_seed_user):
-        r = csrf_client.post(
+    def test_login_exempt(self, raw_client, csrf_seed_user):
+        r = raw_client.post(
             "/login",
             data={
                 "username": csrf_seed_user["username"],
                 "password": csrf_seed_user["password"],
             },
         )
-        # Should redirect on success, not 403
         assert r.status_code != 403
 
-    def test_register_requires_csrf(self, csrf_client):
-        r = csrf_client.post(
+    def test_register_requires_csrf(self, raw_client):
+        r = raw_client.post(
             "/register",
             data={
                 "invite_code": "nonexistent",
@@ -169,26 +154,22 @@ class TestCSRFExemptPaths:
                 "password": "pass123",
             },
         )
-        # /register is NOT exempt from CSRF — should be rejected without token
         assert r.status_code == 403
 
 
 class TestCSRFTokenInTemplates:
     """Verify that rendered pages include CSRF tokens."""
 
-    def test_login_page_has_csrf_input(self, csrf_client):
-        r = csrf_client.get("/login")
-        assert "_csrf_token" in r.text
-
-    def test_settings_page_has_csrf_input(self, csrf_client, csrf_seed_user):
-        _login(csrf_client, csrf_seed_user)
-        r = csrf_client.get("/settings")
-        assert "_csrf_token" in r.text
-        # Should have multiple CSRF inputs (one per form)
-        count = r.text.count('name="_csrf_token"')
-        assert count >= 5
-
-    def test_base_template_has_hx_headers(self, csrf_client, csrf_seed_user):
-        _login(csrf_client, csrf_seed_user)
-        r = csrf_client.get("/settings")
+    def test_login_page_has_csrf_token(self, raw_client):
+        r = raw_client.get("/login")
         assert "X-CSRF-Token" in r.text
+
+    def test_settings_page_has_csrf_token(self, raw_client, csrf_seed_user):
+        _login(raw_client, csrf_seed_user)
+        r = raw_client.get("/settings")
+        assert "X-CSRF-Token" in r.text
+
+    def test_base_template_has_hx_headers(self, raw_client, csrf_seed_user):
+        _login(raw_client, csrf_seed_user)
+        r = raw_client.get("/settings")
+        assert "hx-headers" in r.text

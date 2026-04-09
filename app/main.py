@@ -68,9 +68,6 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     """Reject state-changing requests that lack a valid CSRF token."""
 
     async def dispatch(self, request: Request, call_next):
-        if not app.state.csrf_enabled:
-            return await call_next(request)
-
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return await call_next(request)
 
@@ -91,7 +88,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 app = FastAPI(title="4orm", lifespan=lifespan)
 app.state.engine = default_engine
-app.state.csrf_enabled = True
+
 
 # Middleware order: last added = outermost = runs first on request.
 # SessionMiddleware must run before CSRFMiddleware so the session is
