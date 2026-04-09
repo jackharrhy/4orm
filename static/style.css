@@ -194,6 +194,18 @@ code {
   border: 1px solid #ddd;
   font-size: 0.9em;
 }
+h2 > a,
+h3 > a {
+  color: inherit;
+  text-decoration: none;
+}
+h2 > a:hover::after,
+h3 > a:hover::after {
+  content: " #";
+  color: #999;
+  font-size: 0.75em;
+}
+
 pre {
   background: #f4f4f4;
   border: 1px solid #ddd;

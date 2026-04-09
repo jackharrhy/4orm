@@ -3,8 +3,8 @@
 {% block content %}
   <h1>how-to</h1>
 
-  <section class="panel">
-    <h2>tutorials</h2>
+  <section class="panel" id="tutorials">
+    <h2><a href="#tutorials">tutorials</a></h2>
     <p>
       New to building web pages? These MDN tutorials walk you through the
       fundamentals:
@@ -16,7 +16,7 @@
           target="_blank"
           >Creating the content</a
         >
-        - learn HTML, the language for structuring your pages
+        -- learn HTML, the language for structuring your pages
       </li>
       <li>
         <a
@@ -24,7 +24,7 @@
           target="_blank"
           >Styling the content</a
         >
-        - learn CSS, the language for making things look good
+        -- learn CSS, the language for making things look good
       </li>
       <li>
         <a
@@ -32,7 +32,7 @@
           target="_blank"
           >Adding interactivity</a
         >
-        - learn JavaScript, the language for making things do stuff
+        -- learn JavaScript, the language for making things do stuff
       </li>
     </ul>
     <p>
@@ -42,8 +42,8 @@
     </p>
   </section>
 
-  <section class="panel">
-    <h2>markdown</h2>
+  <section class="panel" id="markdown">
+    <h2><a href="#markdown">markdown</a></h2>
     <p>
       Any content field (profile, pages, cards) can be switched to Markdown
       using the toggle above the editor. Markdown is a simpler alternative to
@@ -58,23 +58,23 @@
     </p>
   </section>
 
-  <section class="panel">
-    <h2>layouts</h2>
+  <section class="panel" id="layouts">
+    <h2><a href="#layouts">layouts</a></h2>
     <p>Each page and your profile can use one of four layouts:</p>
     <ul>
       <li>
-        <strong>default</strong> - the standard 4orm look with topbar, panels,
+        <strong>default</strong> -- the standard 4orm look with topbar, panels,
         and structure.
       </li>
       <li>
-        <strong>simple</strong> - just the topbar and your content, no panels
+        <strong>simple</strong> -- just the topbar and your content, no panels.
       </li>
       <li>
-        <strong>raw</strong> - you provide the <em>entire</em> HTML document. No
-        topbar, no wrapper, nothing. Full control.
+        <strong>raw</strong> -- you provide the <em>entire</em> HTML document.
+        No topbar, no wrapper, nothing. Full control.
       </li>
       <li>
-        <strong>cssonly</strong> - keeps the default topbar and CSS, but leaves
+        <strong>cssonly</strong> -- keeps the default topbar and CSS, but leaves
         the content area blank.
       </li>
     </ul>
@@ -94,24 +94,24 @@
 }</code></pre>
   </section>
 
-  <section class="panel">
-    <h2>custom CSS &amp; HTML</h2>
+  <section class="panel" id="css-html">
+    <h2><a href="#css-html">custom CSS &amp; HTML</a></h2>
     <p>In <a href="/settings">settings</a>, you can add:</p>
     <ul>
       <li>
-        <strong>CSS</strong> - applied to your profile and all your pages. Style
-        anything on the page.
+        <strong>CSS</strong> -- applied to your profile and all your pages.
+        Style anything on the page.
       </li>
       <li>
-        <strong>Custom HTML</strong> - injected into your profile and pages.
+        <strong>Custom HTML</strong> -- injected into your profile and pages.
         Supports <code>&lt;script&gt;</code> tags for interactivity (click
         sounds, animations, etc).
       </li>
     </ul>
   </section>
 
-  <section class="panel">
-    <h2>media</h2>
+  <section class="panel" id="media">
+    <h2><a href="#media">media</a></h2>
     <p>
       Upload images, videos, audio, and other files in the
       <a href="/settings/media">media library</a>. Each user gets
@@ -120,8 +120,8 @@
     </p>
   </section>
 
-  <section class="panel">
-    <h2>guestbook</h2>
+  <section class="panel" id="guestbook">
+    <h2><a href="#guestbook">guestbook</a></h2>
     <p>
       Every user has a guestbook that other logged-in users can sign. View yours
       at <code>/u/yourname/guestbook</code>.
@@ -138,8 +138,8 @@
     </p>
   </section>
 
-  <section class="panel">
-    <h2>profile cards</h2>
+  <section class="panel" id="profile-cards">
+    <h2><a href="#profile-cards">profile cards</a></h2>
     <p>
       Your profile card appears on the <a href="/">homepage</a>. It has a
       headline, freeform content (HTML or Markdown), and visual settings (accent
@@ -152,13 +152,14 @@
     </p>
   </section>
 
-  <section class="panel">
-    <h2>forum</h2>
+  <section class="panel" id="forum">
+    <h2><a href="#forum">forum</a></h2>
     <p>
       The <a href="/forum">forum</a> is a shared space for discussion. Create
       threads, reply to others, and customize your threads with CSS and HTML.
     </p>
-    <h3>BBCode</h3>
+
+    <h3 id="bbcode"><a href="#bbcode">BBCode</a></h3>
     <p>
       Forum posts support
       <a href="https://www.phpbb.com/community/help/bbcode" target="_blank"
@@ -178,7 +179,10 @@
 [code]code here[/code]
 [color=red]colored text[/color]
 [size=20]bigger text[/size]</code></pre>
-    <h3>posting images and gifs</h3>
+
+    <h3 id="images-and-gifs">
+      <a href="#images-and-gifs">posting images and gifs</a>
+    </h3>
     <p>To post an image or gif in the forum:</p>
     <ol>
       <li>Upload it to your <a href="/settings/media">media library</a></li>
@@ -193,21 +197,26 @@
     </ol>
     <p>
       The <code>[img]</code> tag works with any image format: .png, .jpg, .gif,
-      .webp, etc. You can also link to external images:
-      <code>[img]https://example.com/image.gif[/img]</code>
+      .webp, etc. You can also link to external images without uploading them
+      first: <code>[img]https://example.com/image.gif[/img]</code>
     </p>
-    <h3>quoting</h3>
+
+    <h3 id="quoting"><a href="#quoting">quoting</a></h3>
     <p>
       Click the "quote" button on any post to include it in your reply. The
-      quoted text is a snapshot — it won't change if the original is edited.
+      quoted text is a snapshot -- it won't change if the original is edited.
     </p>
-    <h3>thread customization</h3>
+
+    <h3 id="thread-customization">
+      <a href="#thread-customization">thread customization</a>
+    </h3>
     <p>
       Thread creators can add custom CSS and HTML to their threads, similar to
       personal pages. This lets you theme discussions with custom backgrounds,
       fonts, etc.
     </p>
-    <h3>forum signature</h3>
+
+    <h3 id="forum-signature"><a href="#forum-signature">forum signature</a></h3>
     <p>
       Set your signature in <a href="/settings">settings</a>. It uses
       <a href="https://www.phpbb.com/community/help/bbcode" target="_blank"
@@ -217,8 +226,8 @@
     </p>
   </section>
 
-  <section class="panel">
-    <h2>webring</h2>
+  <section class="panel" id="webring">
+    <h2><a href="#webring">webring</a></h2>
     <p>
       The 4orm webring connects members' sites. Join via
       <a href="/settings">settings</a> and embed the navigation bar on your
@@ -231,8 +240,8 @@
     </p>
   </section>
 
-  <section class="panel">
-    <h2>status / mood</h2>
+  <section class="panel" id="status">
+    <h2><a href="#status">status / mood</a></h2>
     <p>
       Set a status in <a href="/settings">settings</a> to show what you're up
       to. Embed the badge on your page:
@@ -241,8 +250,8 @@
     <p>Shows your emoji, text, and when it was last updated.</p>
   </section>
 
-  <section class="panel">
-    <h2>music player</h2>
+  <section class="panel" id="music-player">
+    <h2><a href="#music-player">music player</a></h2>
     <p>
       Build a playlist from your uploaded audio files in
       <a href="/settings">settings</a>. Embed the player on your page:
@@ -254,8 +263,8 @@
     </p>
   </section>
 
-  <section class="panel">
-    <h2>RSS</h2>
+  <section class="panel" id="rss">
+    <h2><a href="#rss">RSS</a></h2>
     <p>4orm has RSS feeds for staying up to date:</p>
     <ul>
       <li>
