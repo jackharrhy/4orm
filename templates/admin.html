@@ -51,6 +51,7 @@
           class="stack"
           style="margin-top: 10px"
         >
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
           <label
             >display name
             <input name="display_name" value="{{ u.display_name or '' }}"
@@ -120,6 +121,7 @@
             class="stack"
             style="margin-top: 10px"
           >
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
             <label
               >headline
               <input name="headline" value="{{ card.headline or '' }}"
@@ -196,6 +198,7 @@
           class="stack"
           style="margin-top: 10px"
         >
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
           <label
             >slug <input name="slug" value="{{ p.slug }}" required
           /></label>
@@ -249,6 +252,32 @@
       >
     </p>
   </details>
+  <details class="panel">
+    <summary><h2>backups</h2></summary>
+    <div id="backup-results">
+      <button
+        hx-get="/admin/backups"
+        hx-target="#backup-results"
+        hx-swap="innerHTML"
+      >
+        view backups
+      </button>
+    </div>
+    <form
+      method="post"
+      action="/admin/backups/run"
+      class="inline"
+      style="margin-top: 8px"
+      hx-post="/admin/backups/run"
+      hx-target="#backup-status"
+      hx-swap="innerHTML"
+    >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+      <button type="submit">run backup now</button>
+    </form>
+    <span id="backup-status"></span>
+  </details>
+
   <details class="panel">
     <summary><h2>storage health</h2></summary>
     <div id="orphan-results">

@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.backup import BackupScheduler
 from app.db import engine as default_engine
 from app.deps import BASE_DIR, current_user, get_engine, templates
 from app.queries.forum import recent_forum_posts
@@ -33,12 +35,67 @@ async def lifespan(application: FastAPI):
     else:
         command.upgrade(alembic_cfg, "head")
 
+    backup_dir = BASE_DIR / "backups"
+    backup_dir.mkdir(exist_ok=True)
+    scheduler = BackupScheduler(
+        db_path=BASE_DIR / "data" / "4orm.db",
+        uploads_dir=BASE_DIR / "uploads",
+        backup_dir=backup_dir,
+    )
+    application.state.backup_scheduler = scheduler
+    scheduler.start()
+
     yield
+
+    scheduler.stop()
+
+
+_CSRF_EXEMPT_PATHS = {"/login", "/register"}
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """Reject state-changing requests that lack a valid CSRF token."""
+
+    async def dispatch(self, request: Request, call_next):
+        if not request.app.state.csrf_enabled:
+            return await call_next(request)
+
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return await call_next(request)
+
+        path = request.url.path
+        if path in _CSRF_EXEMPT_PATHS or path.endswith("/feed.xml"):
+            return await call_next(request)
+
+        session_token = request.session.get("csrf_token")
+        if not session_token:
+            return PlainTextResponse("CSRF token missing", status_code=403)
+
+        # Check header first (htmx / fetch)
+        if request.headers.get("X-CSRF-Token") == session_token:
+            return await call_next(request)
+
+        # Check form body
+        content_type = request.headers.get("content-type", "")
+        if "form" in content_type or "multipart" in content_type:
+            form = await request.form()
+            if form.get("_csrf_token") == session_token:
+                return await call_next(request)
+
+        return PlainTextResponse("CSRF token mismatch", status_code=403)
 
 
 app = FastAPI(title="4orm", lifespan=lifespan)
 app.state.engine = default_engine
+app.state.csrf_enabled = True
+
+# Middleware order: last added = outermost = runs first on request.
+# SessionMiddleware must run before CSRFMiddleware so the session is
+# available when we check the token.  Adding CSRF first, then Session
+# means Session is outer and loads the session before CSRF executes.
+app.add_middleware(CSRFMiddleware)
 app.add_middleware(SessionMiddleware, secret_key="replace-this-dev-key")
+
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads")
 
