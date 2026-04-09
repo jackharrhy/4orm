@@ -359,6 +359,18 @@ details.panel[open] > summary > h2::before {
   background: #f9f9f0;
   font-size: 0.9rem;
 }
+.forum-quote a {
+  color: inherit;
+}
+.forum-quote-body.forum-quote-collapsed {
+  max-height: 80px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 50%, transparent);
+  mask-image: linear-gradient(#000 50%, transparent);
+}
+.forum-quote-toggle {
+  margin-top: 4px;
+}
 .forum-signature {
   border-top: 1px dashed #ccc;
   margin-top: 8px;

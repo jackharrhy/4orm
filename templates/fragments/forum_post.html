@@ -56,14 +56,32 @@
   </div>
 
   {% if post.quoted_content %}
-    <blockquote class="forum-quote">
+    {% set quote_long = post.quoted_content|length > 300 %}
+    <blockquote class="forum-quote" id="quote-{{ post.id }}">
       {% if post.quoted_author %}
-        <strong>{{ post.quoted_author }} wrote:</strong><br />
+        <strong
+          ><a href="#post-{{ post.quoted_post_id }}"
+            >{{ post.quoted_author }} wrote:</a
+          ></strong
+        ><br />
       {% endif %}
-      {% if post.rendered_quoted_content %}
-        {{ post.rendered_quoted_content|safe }}
-      {% else %}
-        {{ post.quoted_content }}
+      <div
+        class="forum-quote-body{% if quote_long %}forum-quote-collapsed{% endif %}"
+      >
+        {% if post.rendered_quoted_content %}
+          {{ post.rendered_quoted_content|safe }}
+        {% else %}
+          {{ post.quoted_content }}
+        {% endif %}
+      </div>
+      {% if quote_long %}
+        <button
+          type="button"
+          class="btn-sm forum-quote-toggle"
+          onclick="this.previousElementSibling.classList.toggle('forum-quote-collapsed');this.textContent=this.textContent==='show more'?'show less':'show more'"
+        >
+          show more
+        </button>
       {% endif %}
     </blockquote>
   {% endif %}
