@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @layer base {
+        * { box-sizing: border-box; margin: 0; }
+        body {
+          font-family: Verdana, Tahoma, sans-serif;
+          font-size: 12px;
+          background: #2b2b2b;
+          color: #eee;
+          padding: 8px;
+        }
+        .player-title {
+          font-size: 11px;
+          font-weight: 700;
+          margin-bottom: 6px;
+          color: #0f0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .track-list {
+          list-style: none;
+          padding: 0;
+          max-height: 100px;
+          overflow-y: auto;
+          margin-bottom: 6px;
+          border: 1px solid #555;
+          background: #1a1a1a;
+        }
+        .track-list li {
+          padding: 3px 6px;
+          cursor: pointer;
+          font-size: 11px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .track-list li:hover { background: #333; }
+        .track-list li.active { background: #004400; color: #0f0; }
+        .controls {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+        .controls button {
+          background: #444;
+          border: 1px solid #666;
+          color: #eee;
+          padding: 4px 10px;
+          cursor: pointer;
+          font-size: 14px;
+          width: auto;
+        }
+        .controls button:hover { background: #555; }
+        .empty { color: #666; font-style: italic; }
+      }
+      {{ owner.player_css|safe }}
+    </style>
+  </head>
+  <body>
+    {% if tracks %}
+      <div class="player-title" id="now-playing">▶ select a track</div>
+      <ul class="track-list" id="track-list">
+        {% for t in tracks %}
+          <li data-src="/uploads/{{ t.storage_path }}" data-idx="{{ loop.index0 }}" onclick="playTrack({{ loop.index0 }})">
+            {{ t.title or t.storage_path.split('/')[-1] }}
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="controls">
+        <button onclick="prevTrack()">⏮</button>
+        <button onclick="togglePlay()" id="play-btn">▶</button>
+        <button onclick="nextTrack()">⏭</button>
+      </div>
+      <audio id="audio"></audio>
+      <script>
+        var tracks = document.querySelectorAll('#track-list li');
+        var audio = document.getElementById('audio');
+        var playBtn = document.getElementById('play-btn');
+        var nowPlaying = document.getElementById('now-playing');
+        var currentIdx = -1;
+
+        function playTrack(idx) {
+          if (idx < 0 || idx >= tracks.length) return;
+          currentIdx = idx;
+          var li = tracks[idx];
+          audio.src = li.dataset.src;
+          audio.play();
+          playBtn.textContent = '⏸';
+          nowPlaying.textContent = '▶ ' + li.textContent.trim();
+          tracks.forEach(function(t) { t.classList.remove('active'); });
+          li.classList.add('active');
+        }
+
+        function togglePlay() {
+          if (currentIdx === -1) { playTrack(0); return; }
+          if (audio.paused) { audio.play(); playBtn.textContent = '⏸'; }
+          else { audio.pause(); playBtn.textContent = '▶'; }
+        }
+
+        function nextTrack() {
+          playTrack((currentIdx + 1) % tracks.length);
+        }
+
+        function prevTrack() {
+          playTrack((currentIdx - 1 + tracks.length) % tracks.length);
+        }
+
+        audio.addEventListener('ended', nextTrack);
+      </script>
+    {% else %}
+      <p class="empty">no tracks</p>
+    {% endif %}
+    {{ owner.player_html|safe }}
+  </body>
+</html>
