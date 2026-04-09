@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -50,7 +51,7 @@ async def lifespan(application: FastAPI):
     scheduler.stop()
 
 
-_CSRF_EXEMPT_PATHS = {"/login", "/register"}
+_CSRF_EXEMPT_PATHS = {"/login"}
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
@@ -94,7 +95,10 @@ app.state.csrf_enabled = True
 # available when we check the token.  Adding CSRF first, then Session
 # means Session is outer and loads the session before CSRF executes.
 app.add_middleware(CSRFMiddleware)
-app.add_middleware(SessionMiddleware, secret_key="replace-this-dev-key")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.environ.get("SECRET_KEY", "dev-key-change-in-production"),
+)
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads")

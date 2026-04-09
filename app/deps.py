@@ -6,6 +6,7 @@ multiple route files need.  It does NOT import from ``app.main``.
 
 import hashlib
 import re
+import secrets
 from datetime import UTC, datetime
 from email.utils import format_datetime
 from pathlib import Path
@@ -27,10 +28,35 @@ MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
 USERNAME_RE = re.compile(r"^[a-z0-9_-]{3,32}$")
 
 # ---------------------------------------------------------------------------
+# CSRF helpers
+# ---------------------------------------------------------------------------
+
+
+def ensure_csrf_token(request: Request) -> str:
+    """Get or create a CSRF token stored in the session."""
+    try:
+        session = request.session
+    except AssertionError:
+        return ""
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(32)
+    return session["csrf_token"]
+
+
+# ---------------------------------------------------------------------------
 # Templates
 # ---------------------------------------------------------------------------
 
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+def _csrf_context_processor(request: Request) -> dict:
+    """Inject csrf_token into every template context."""
+    return {"csrf_token": ensure_csrf_token(request)}
+
+
+templates = Jinja2Templates(
+    directory=str(BASE_DIR / "templates"),
+    context_processors=[_csrf_context_processor],
+)
 
 
 def clean_filename(name: str) -> str:
@@ -86,7 +112,12 @@ def current_user(request: Request):
     if not user_id:
         return None
     with get_engine(request).begin() as conn:
-        return get_user_by_id(conn, user_id)
+        user = get_user_by_id(conn, user_id)
+    if user and user.get("is_disabled"):
+        # Clear session for disabled users
+        request.session.clear()
+        return None
+    return user
 
 
 def require_admin(request: Request):

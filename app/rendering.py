@@ -78,7 +78,13 @@ _bbcode_parser.add_simple_formatter(
 def render_forum_post(source: str, content_format: str) -> str:
     """Render a forum post to safe HTML."""
     if content_format == "bbcode":
-        return _bbcode_parser.format(source)
+        raw_html = _bbcode_parser.format(source)
+        return bleach.clean(
+            raw_html,
+            tags=BLEACH_ALLOWED_TAGS,
+            attributes=BLEACH_ALLOWED_ATTRS,
+            strip=True,
+        )
     # Markdown — render then sanitize
     raw_html = markdown.markdown(
         source, extensions=["fenced_code", "tables", "attr_list"]
@@ -92,10 +98,16 @@ def render_forum_post(source: str, content_format: str) -> str:
 
 
 def render_signature(source: str) -> str:
-    """Render a forum signature (always BBCode)."""
+    """Render a forum signature (always BBCode, sanitized)."""
     if not source:
         return ""
-    return _bbcode_parser.format(source)
+    raw_html = _bbcode_parser.format(source)
+    return bleach.clean(
+        raw_html,
+        tags=BLEACH_ALLOWED_TAGS,
+        attributes=BLEACH_ALLOWED_ATTRS,
+        strip=True,
+    )
 
 
 def _inject_into_head(html: str, snippet: str) -> str:

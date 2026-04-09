@@ -47,7 +47,11 @@ def test_admin_can_edit_user_profile(authed_client, test_engine, seed_user):
     assert r.status_code == 303
 
     with test_engine.begin() as conn:
-        row = conn.execute(select(users).where(users.c.id == seed_user["id"])).mappings().first()
+        row = (
+            conn.execute(select(users).where(users.c.id == seed_user["id"]))
+            .mappings()
+            .first()
+        )
     assert row["display_name"] == "Updated Name"
     assert row["content"] == "profile cleanup"
     assert row["custom_css"] == "body { color: red; }"
@@ -71,9 +75,13 @@ def test_admin_can_edit_card(authed_client, test_engine, seed_user):
     assert r.status_code == 303
 
     with test_engine.begin() as conn:
-        card = conn.execute(
-            select(profile_cards).where(profile_cards.c.user_id == seed_user["id"])
-        ).mappings().first()
+        card = (
+            conn.execute(
+                select(profile_cards).where(profile_cards.c.user_id == seed_user["id"])
+            )
+            .mappings()
+            .first()
+        )
     assert card["headline"] == "new headline"
     assert card["content"] == "new card content"
     assert card["accent_color"] == "#123456"
@@ -107,7 +115,9 @@ def test_admin_can_edit_page(authed_client, test_engine, seed_user):
     assert r.status_code == 303
 
     with test_engine.begin() as conn:
-        page = conn.execute(select(pages).where(pages.c.id == page_id)).mappings().first()
+        page = (
+            conn.execute(select(pages).where(pages.c.id == page_id)).mappings().first()
+        )
     assert page["slug"] == "hello-updated"
     assert page["title"] == "Hello Updated"
     assert page["content"] == "clean content"
@@ -116,22 +126,44 @@ def test_admin_can_edit_page(authed_client, test_engine, seed_user):
 def test_admin_can_toggle_user_disabled(authed_client, test_engine, seed_user):
     _promote_admin(test_engine, seed_user["id"])
 
+    # Create a separate target user so the admin doesn't disable themselves
+    with test_engine.begin() as conn:
+        from app.security import hash_password
+
+        result = conn.execute(
+            insert(users).values(
+                username="targetuser",
+                password_hash=hash_password("pass"),
+                display_name="Target User",
+                content="",
+            )
+        )
+        target_id = result.inserted_primary_key[0]
+
     r = authed_client.post(
-        f"/admin/users/{seed_user['id']}/toggle-disabled",
+        f"/admin/users/{target_id}/toggle-disabled",
         follow_redirects=False,
     )
     assert r.status_code == 303
 
     with test_engine.begin() as conn:
-        user = conn.execute(select(users).where(users.c.id == seed_user["id"])).mappings().first()
+        user = (
+            conn.execute(select(users).where(users.c.id == target_id))
+            .mappings()
+            .first()
+        )
     assert user["is_disabled"] is True
 
     r = authed_client.post(
-        f"/admin/users/{seed_user['id']}/toggle-disabled",
+        f"/admin/users/{target_id}/toggle-disabled",
         follow_redirects=False,
     )
     assert r.status_code == 303
 
     with test_engine.begin() as conn:
-        user = conn.execute(select(users).where(users.c.id == seed_user["id"])).mappings().first()
+        user = (
+            conn.execute(select(users).where(users.c.id == target_id))
+            .mappings()
+            .first()
+        )
     assert user["is_disabled"] is False

@@ -1,6 +1,7 @@
 import io
 import re
 import zipfile
+from html import escape
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -118,13 +119,13 @@ def build_export_zip(
             if page_rows:
                 items = "".join(
                     f'<li><a href="pages/{p._mapping["slug"]}.html">'
-                    f"{p._mapping['title']}</a></li>"
+                    f"{escape(p._mapping['title'])}</a></li>"
                     for p in page_rows
                 )
                 page_links = f"<h2>pages</h2><ul>{items}</ul>"
             index_content = (
                 f'<section class="panel">'
-                f"<h1>{user['display_name']}</h1>"
+                f"<h1>{escape(user['display_name'])}</h1>"
                 f"{rendered_content}"
                 f"{page_links}"
                 f"</section>"
@@ -140,7 +141,7 @@ def build_export_zip(
 
         index_html = _render_export_page(
             env,
-            user["display_name"],
+            escape(user["display_name"]),
             index_content,
             user["custom_css"],
             user["custom_html"],
@@ -160,9 +161,9 @@ def build_export_zip(
             if page_layout == "default" or page_layout == "":
                 page_content = (
                     f'<article class="panel content-html">'
-                    f"<h1>{pm['title']}</h1>"
+                    f"<h1>{escape(pm['title'])}</h1>"
                     f'<p class="muted">by <a href="../index.html">'
-                    f"{user['display_name']}</a></p>"
+                    f"{escape(user['display_name'])}</a></p>"
                     f"<hr />"
                     f"{page_rendered}"
                     f"</article>"
@@ -178,7 +179,7 @@ def build_export_zip(
 
             page_html = _render_export_page(
                 env,
-                pm["title"],
+                escape(pm["title"]),
                 page_content,
                 user["custom_css"],
                 user["custom_html"],
@@ -224,8 +225,8 @@ def _render_forum_thread_html(
             quote_author = p.get("quoted_author") or "someone"
             quote_html = (
                 f'<blockquote class="forum-quote">'
-                f"<strong>{quote_author} wrote:</strong><br />"
-                f"{p['quoted_content']}"
+                f"<strong>{escape(quote_author)} wrote:</strong><br />"
+                f"{escape(p['quoted_content'])}"
                 f"</blockquote>"
             )
 
@@ -242,7 +243,7 @@ def _render_forum_thread_html(
             f'<div class="forum-post" id="post-{p["id"]}">'
             f'<div class="forum-post-meta">'
             f'<a href="../users/{p["author_username"]}/index.html">'
-            f"<strong>{p.get('author_display_name') or p['author_username']}</strong></a>"
+            f"<strong>{escape(p.get('author_display_name') or p['author_username'])}</strong></a>"
             f" · {created}{edited}"
             f"</div>"
             f"{quote_html}"
@@ -257,8 +258,10 @@ def _render_forum_thread_html(
     custom_css = thread.get("custom_css") or ""
     custom_html = thread.get("custom_html") or ""
 
-    title = thread["title"]
-    author = thread.get("author_display_name") or thread.get("author_username") or ""
+    title = escape(thread["title"])
+    author = escape(
+        thread.get("author_display_name") or thread.get("author_username") or ""
+    )
     created = (
         thread["created_at"].strftime("%Y-%m-%d %H:%M")
         if thread.get("created_at")
@@ -336,13 +339,13 @@ def build_full_site_export_zip(
                 if user_pages:
                     items = "".join(
                         f'<li><a href="pages/{p._mapping["slug"]}.html">'
-                        f"{p._mapping['title']}</a></li>"
+                        f"{escape(p._mapping['title'])}</a></li>"
                         for p in user_pages
                     )
                     page_links = f"<h2>pages</h2><ul>{items}</ul>"
                 index_content = (
                     f'<section class="panel">'
-                    f"<h1>{user['display_name']}</h1>"
+                    f"<h1>{escape(user['display_name'])}</h1>"
                     f"{rendered_content}"
                     f"{page_links}"
                     f"</section>"
@@ -357,7 +360,7 @@ def build_full_site_export_zip(
             # Uploads prefix for users/{username}/index.html -> ../../style.css
             index_html = _render_export_page(
                 env,
-                user["display_name"],
+                escape(user["display_name"]),
                 index_content,
                 user["custom_css"] or "",
                 user["custom_html"] or "",
@@ -379,9 +382,9 @@ def build_full_site_export_zip(
                 if page_layout in ("default", ""):
                     page_content = (
                         f'<article class="panel content-html">'
-                        f"<h1>{pm['title']}</h1>"
+                        f"<h1>{escape(pm['title'])}</h1>"
                         f'<p class="muted">by <a href="../index.html">'
-                        f"{user['display_name']}</a></p>"
+                        f"{escape(user['display_name'])}</a></p>"
                         f"<hr />"
                         f"{page_rendered}"
                         f"</article>"
@@ -395,7 +398,7 @@ def build_full_site_export_zip(
 
                 page_html = _render_export_page(
                     env,
-                    pm["title"],
+                    escape(pm["title"]),
                     page_content,
                     user["custom_css"] or "",
                     user["custom_html"] or "",
@@ -451,9 +454,9 @@ def build_full_site_export_zip(
                 )
                 thread_rows.append(
                     f"<tr>"
-                    f'<td>{pinned}{locked}<a href="{tm["id"]}.html">{tm["title"]}</a></td>'
+                    f'<td>{pinned}{locked}<a href="{tm["id"]}.html">{escape(tm["title"])}</a></td>'
                     f'<td><a href="../users/{tm["author_username"]}/index.html">'
-                    f"{tm.get('author_display_name') or tm['author_username']}</a></td>"
+                    f"{escape(tm.get('author_display_name') or tm['author_username'])}</a></td>"
                     f"<td>{tm.get('reply_count', 0)}</td>"
                     f"<td>{created}</td>"
                     f"</tr>"
