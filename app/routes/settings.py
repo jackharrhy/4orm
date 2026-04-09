@@ -409,6 +409,26 @@ def settings_notifications(
     return _saved_or_redirect(request)
 
 
+@router.post("/settings/notifications/test")
+def settings_notifications_test(request: Request):
+    from app.push import send_notification
+
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        send_notification(
+            conn,
+            me["id"],
+            "4orm test notification",
+            "if you see this, push notifications are working!",
+            "/settings",
+        )
+    if is_htmx(request):
+        return HTMLResponse('<span class="ok">sent!</span>')
+    return RedirectResponse(url="/settings", status_code=303)
+
+
 @router.post("/settings/signature")
 def settings_signature(request: Request, forum_signature: str = Form("")):
     me = current_user(request)

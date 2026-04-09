@@ -369,6 +369,18 @@
         <button>save</button>
         <span id="notif-status"></span>
       </form>
+      <form
+        method="post"
+        action="/settings/notifications/test"
+        class="inline"
+        style="margin-top: 8px"
+        hx-post="/settings/notifications/test"
+        hx-target="#notif-test-status"
+        hx-swap="innerHTML"
+      >
+        <button type="submit" class="btn-sm">send test notification</button>
+        <span id="notif-test-status"></span>
+      </form>
     </details>
     <details>
       <summary><strong>forum signature</strong></summary>
