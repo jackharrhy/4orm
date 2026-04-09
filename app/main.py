@@ -14,7 +14,17 @@ from app.deps import BASE_DIR, current_user, get_engine, templates
 from app.queries.forum import recent_forum_posts
 from app.queries.users import list_profile_cards
 from app.rendering import render_content, render_forum_post
-from app.routes import admin, auth, feeds, forum, guestbook, media, pages, settings
+from app.routes import (
+    admin,
+    auth,
+    feeds,
+    forum,
+    guestbook,
+    media,
+    pages,
+    settings,
+    webring,
+)
 from app.schema import create_all
 
 
@@ -112,6 +122,7 @@ app.include_router(admin.router)
 app.include_router(guestbook.router)
 app.include_router(feeds.router)
 app.include_router(forum.router)
+app.include_router(webring.router)
 
 
 ERROR_MESSAGES = {

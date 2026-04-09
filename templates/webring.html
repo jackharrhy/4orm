@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Verdana, Tahoma, sans-serif;
+        font-size: 12px;
+        background: transparent;
+      }
+      .webring {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 6px;
+        background: #f0f0f0;
+        border: 1px solid #ccc;
+      }
+      a {
+        color: #0000ee;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .label {
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="webring">
+      {% if prev %}
+        <a href="/u/{{ prev.username }}" target="_parent"
+          >← {{ prev.display_name }}</a
+        >
+      {% endif %}
+      <span class="label"
+        >🔗 <a href="/webring/random" target="_parent">4orm webring</a></span
+      >
+      {% if next %}
+        <a href="/u/{{ next.username }}" target="_parent"
+          >{{ next.display_name }} →</a
+        >
+      {% endif %}
+    </div>
+  </body>
+</html>
