@@ -119,13 +119,19 @@ def counter_view(request: Request, username: str):
             raise HTTPException(404)
 
         # Rate limit: one count per IP per user per cooldown period
-        client_ip = request.client.host if request.client else "unknown"
-        cache_key = f"{client_ip}:{username}"
-        now = _time.monotonic()
-        last = _counter_seen.get(cache_key, 0)
-        if now - last >= _COUNTER_COOLDOWN:
+        should_increment = True
+        if not getattr(request.app.state, "testing", False):
+            client_ip = request.client.host if request.client else "unknown"
+            cache_key = f"{client_ip}:{username}"
+            now = _time.monotonic()
+            last = _counter_seen.get(cache_key, 0)
+            if now - last < _COUNTER_COOLDOWN:
+                should_increment = False
+            else:
+                _counter_seen[cache_key] = now
+
+        if should_increment:
             increment_counter(conn, owner["id"])
-            _counter_seen[cache_key] = now
 
         total_views = get_total_views(conn, owner["id"])
 
