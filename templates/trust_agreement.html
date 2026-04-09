@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}welcome to 4orm{% endblock %}
+{% block content %}
+  <h1>welcome to 4orm</h1>
+  <section class="panel">
+    <h2>trust agreement</h2>
+    <p>
+      4orm is a community-driven platform where users can customize their
+      profiles and pages with <strong>custom HTML, CSS, and JavaScript</strong>.
+    </p>
+    <p>
+      This means the site operates on a foundation of <strong>trust</strong>. We
+      maintain regular backups so we can revert any damage, but we ask that you
+      respect the community:
+    </p>
+    <ul>
+      <li>
+        Don't insert malicious scripts that steal data or harm other users
+      </li>
+      <li>Don't intentionally break other users' experience</li>
+      <li>
+        Don't abuse shared spaces (forum, guestbooks) with spam or harmful
+        content
+      </li>
+    </ul>
+    <p>
+      <strong
+        >If you break this trust, your account will be removed from the
+        site.</strong
+      >
+    </p>
+    <form method="post" action="/trust-agreement" class="stack">
+      <label>
+        <input type="checkbox" name="accept" required />
+        I understand and agree to use 4orm responsibly
+      </label>
+      <button type="submit">continue to 4orm</button>
+    </form>
+  </section>
+{% endblock %}

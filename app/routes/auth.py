@@ -2,9 +2,11 @@
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import update
 
-from app.deps import USERNAME_RE, get_engine, templates
+from app.deps import USERNAME_RE, current_user, get_engine, templates
 from app.queries.users import create_user_with_invite, get_user_by_username
+from app.schema import users
 from app.security import verify_password
 
 router = APIRouter()
@@ -50,7 +52,7 @@ def register_post(
             status_code=400,
         )
     request.session["user_id"] = user["id"]
-    return RedirectResponse(url=f"/u/{user['username']}", status_code=303)
+    return RedirectResponse(url="/trust-agreement", status_code=303)
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -78,6 +80,28 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         )
     request.session["user_id"] = user["id"]
     return RedirectResponse(url=f"/u/{user['username']}", status_code=303)
+
+
+@router.get("/trust-agreement", response_class=HTMLResponse)
+def trust_agreement_get(request: Request):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    if me.get("has_accepted_trust"):
+        return RedirectResponse(url=f"/u/{me['username']}", status_code=303)
+    return templates.TemplateResponse(request, "trust_agreement.html", {"me": me})
+
+
+@router.post("/trust-agreement")
+def trust_agreement_post(request: Request, accept: str = Form(...)):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        conn.execute(
+            update(users).where(users.c.id == me["id"]).values(has_accepted_trust=True)
+        )
+    return RedirectResponse(url=f"/u/{me['username']}", status_code=303)
 
 
 @router.post("/logout")
