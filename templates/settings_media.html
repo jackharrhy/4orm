@@ -24,36 +24,35 @@
     </p>
   {% endif %}
   <section class="panel">
-    <h2>upload files</h2>
+    <h2>upload</h2>
     <form
       method="post"
       action="/settings/media/upload"
       enctype="multipart/form-data"
-      class="stack"
+      class="inline"
+      style="flex-wrap: wrap"
       hx-post="/settings/media/upload"
-      hx-target="#media-grid"
+      hx-target="#media-list"
       hx-swap="beforeend"
       hx-encoding="multipart/form-data"
     >
       <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
-      <label>
-        file
-        <input type="file" name="file" required />
-      </label>
-      <label>
-        filename (optional)
-        <input name="filename" placeholder="my-cool-image" />
-      </label>
+      <input type="file" name="file" required />
+      <input
+        name="filename"
+        placeholder="filename (optional)"
+        style="width: 180px"
+      />
       <button type="submit">upload</button>
     </form>
   </section>
   <section class="panel">
-    <h2>your uploads</h2>
-    <div id="media-grid" class="cards">
+    <h2>your uploads ({{ items|length }})</h2>
+    <div id="media-list" class="stack">
       {% for item in items %}
         {% include 'fragments/media_card.html' %}
       {% else %}
-        <p>no media yet.</p>
+        <p class="muted">no media yet.</p>
       {% endfor %}
     </div>
   </section>

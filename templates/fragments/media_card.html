@@ -1,69 +1,78 @@
-<article
-  id="media-{{ item.id }}"
-  class="card"
-  style="background: #fff; border-style: solid"
->
-  {% if item.mime_type.startswith('image/') %}
-    <img
-      src="/uploads/{{ item.storage_path }}"
-      alt="{{ item.alt_text }}"
-      style="max-width: 100%; border: 1px solid #000"
-    />
-  {% elif item.mime_type.startswith('video/') %}
-    <video
-      controls
-      src="/uploads/{{ item.storage_path }}"
-      style="max-width: 100%; border: 1px solid #000"
-    ></video>
-  {% else %}
-    <p><a href="/uploads/{{ item.storage_path }}">download file</a></p>
-  {% endif %}
-  <p class="muted">{{ item.mime_type }} · {{ item.size_bytes|human_bytes }}</p>
-  <p><code>/uploads/{{ item.storage_path }}</code></p>
-  <form
-    method="post"
-    action="/settings/media/{{ item.id }}/rename"
-    class="stack"
-    hx-post="/settings/media/{{ item.id }}/rename"
-    hx-target="#media-{{ item.id }}"
-    hx-swap="outerHTML"
-  >
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
-    <label>
-      filename
-      <input
-        name="filename"
-        value="{{ item.storage_path.split('/')[-1] }}"
-        required
+<details id="media-{{ item.id }}" class="media-item">
+  <summary>
+    <code>{{ item.storage_path.split('/')[-1] }}</code>
+    <span class="muted"
+      >· {{ item.mime_type }} · {{ item.size_bytes|human_bytes }}</span
+    >
+  </summary>
+  <div class="media-item-body">
+    {% if item.mime_type.startswith('image/') %}
+      <img
+        src="/uploads/{{ item.storage_path }}"
+        alt="{{ item.alt_text }}"
+        style="max-width: 100%; max-height: 300px; border: 1px solid #ddd"
       />
-    </label>
-    <button type="submit">rename file</button>
-  </form>
-  <form
-    method="post"
-    action="/settings/media/{{ item.id }}/alt"
-    class="stack"
-    hx-post="/settings/media/{{ item.id }}/alt"
-    hx-target="#media-{{ item.id }}"
-    hx-swap="outerHTML"
-  >
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
-    <label>
-      alt text
-      <input name="alt_text" value="{{ item.alt_text }}" />
-    </label>
-    <button type="submit">save alt</button>
-  </form>
-  <form
-    method="post"
-    action="/settings/media/{{ item.id }}/delete"
-    class="inline"
-    hx-post="/settings/media/{{ item.id }}/delete"
-    hx-target="#media-{{ item.id }}"
-    hx-swap="outerHTML"
-    hx-confirm="Delete this media?"
-  >
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
-    <button type="submit">delete</button>
-  </form>
-</article>
+    {% elif item.mime_type.startswith('video/') %}
+      <video
+        controls
+        src="/uploads/{{ item.storage_path }}"
+        style="max-width: 100%; max-height: 300px; border: 1px solid #ddd"
+      ></video>
+    {% elif item.mime_type.startswith('audio/') %}
+      <audio controls src="/uploads/{{ item.storage_path }}"></audio>
+    {% else %}
+      <p><a href="/uploads/{{ item.storage_path }}">download file</a></p>
+    {% endif %}
+    <p class="muted" style="margin-top: 4px">
+      <code>/uploads/{{ item.storage_path }}</code>
+    </p>
+    <div class="stack" style="margin-top: 6px; gap: 6px">
+      <form
+        method="post"
+        action="/settings/media/{{ item.id }}/rename"
+        class="inline"
+        hx-post="/settings/media/{{ item.id }}/rename"
+        hx-target="#media-{{ item.id }}"
+        hx-swap="outerHTML"
+      >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+        <input
+          name="filename"
+          value="{{ item.storage_path.split('/')[-1] }}"
+          required
+          style="width: 200px"
+        />
+        <button type="submit" class="btn-sm">rename</button>
+      </form>
+      <form
+        method="post"
+        action="/settings/media/{{ item.id }}/alt"
+        class="inline"
+        hx-post="/settings/media/{{ item.id }}/alt"
+        hx-target="#media-{{ item.id }}"
+        hx-swap="outerHTML"
+      >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+        <input
+          name="alt_text"
+          value="{{ item.alt_text }}"
+          placeholder="alt text"
+          style="width: 200px"
+        />
+        <button type="submit" class="btn-sm">save alt</button>
+      </form>
+      <form
+        method="post"
+        action="/settings/media/{{ item.id }}/delete"
+        class="inline"
+        hx-post="/settings/media/{{ item.id }}/delete"
+        hx-target="#media-{{ item.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Delete this media?"
+      >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+        <button type="submit" class="btn-sm">delete</button>
+      </form>
+    </div>
+  </div>
+</details>

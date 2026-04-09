@@ -253,6 +253,31 @@ details.panel[open] > summary > h2::before {
   content: "\25bc  ";
   font-size: 0.7em;
 }
+.media-item {
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+}
+.media-item > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.media-item > summary::-webkit-details-marker {
+  display: none;
+}
+.media-item > summary::before {
+  content: "\25b8 ";
+  font-size: 0.7em;
+  color: #999;
+}
+.media-item[open] > summary::before {
+  content: "\25be ";
+}
+.media-item-body {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+
 .panel > details {
   border-top: 1px solid #ddd;
   padding: 8px 0;
