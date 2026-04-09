@@ -337,6 +337,26 @@ def settings_player(
     return _saved_or_redirect(request)
 
 
+def _playlist_fragment(request, me):
+    with get_engine(request).begin() as conn:
+        playlist = get_playlist(conn, me["id"])
+        audio_items = (
+            conn.execute(
+                select(media).where(
+                    media.c.user_id == me["id"],
+                    media.c.mime_type.like("audio%"),
+                )
+            )
+            .mappings()
+            .all()
+        )
+    return templates.TemplateResponse(
+        request,
+        "fragments/playlist.html",
+        {"playlist": playlist, "audio_items": audio_items},
+    )
+
+
 @router.post("/settings/player/add")
 def settings_player_add(request: Request, media_id: int = Form(...)):
     me = current_user(request)
@@ -344,6 +364,8 @@ def settings_player_add(request: Request, media_id: int = Form(...)):
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
         add_to_playlist(conn, me["id"], media_id)
+    if is_htmx(request):
+        return _playlist_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -354,6 +376,8 @@ def settings_player_remove(request: Request, item_id: int):
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
         remove_from_playlist(conn, item_id, me["id"])
+    if is_htmx(request):
+        return _playlist_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -364,6 +388,8 @@ def settings_player_move(request: Request, item_id: int, direction: str = Form(.
         return RedirectResponse(url="/login", status_code=303)
     with get_engine(request).begin() as conn:
         move_playlist_item(conn, item_id, me["id"], direction)
+    if is_htmx(request):
+        return _playlist_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
 
 

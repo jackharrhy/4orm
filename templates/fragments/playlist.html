@@ -1,0 +1,66 @@
+{% if playlist %}
+  <h3>current playlist</h3>
+  <div class="stack">
+    {% for t in playlist %}
+      <div class="inline" style="flex-wrap: wrap; gap: 4px">
+        <span>{{ t.title or t.storage_path.split('/')[-1] }}</span>
+        <form
+          method="post"
+          action="/settings/player/{{ t.id }}/move"
+          class="inline"
+          hx-post="/settings/player/{{ t.id }}/move"
+          hx-target="#playlist-section"
+          hx-swap="innerHTML"
+        >
+          <input type="hidden" name="direction" value="up" />
+          <button type="submit" class="btn-sm">↑</button>
+        </form>
+        <form
+          method="post"
+          action="/settings/player/{{ t.id }}/move"
+          class="inline"
+          hx-post="/settings/player/{{ t.id }}/move"
+          hx-target="#playlist-section"
+          hx-swap="innerHTML"
+        >
+          <input type="hidden" name="direction" value="down" />
+          <button type="submit" class="btn-sm">↓</button>
+        </form>
+        <form
+          method="post"
+          action="/settings/player/{{ t.id }}/remove"
+          class="inline"
+          hx-post="/settings/player/{{ t.id }}/remove"
+          hx-target="#playlist-section"
+          hx-swap="innerHTML"
+        >
+          <button type="submit" class="btn-sm">remove</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="muted">no tracks yet.</p>
+{% endif %}
+{% if audio_items %}
+  <h3>add track</h3>
+  <form
+    method="post"
+    action="/settings/player/add"
+    class="inline"
+    hx-post="/settings/player/add"
+    hx-target="#playlist-section"
+    hx-swap="innerHTML"
+  >
+    <select name="media_id">
+      {% for a in audio_items %}
+        <option value="{{ a.id }}">{{ a.storage_path.split('/')[-1] }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">add to playlist</button>
+  </form>
+{% else %}
+  <p class="muted">
+    upload audio files in the <a href="/settings/media">media library</a> first.
+  </p>
+{% endif %}
