@@ -5,7 +5,7 @@ import math
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.deps import current_user, get_engine, require_admin, templates
+from app.deps import current_user, get_engine, is_htmx, require_admin, templates
 from app.queries.forum import (
     create_reply,
     create_thread,
@@ -166,6 +166,10 @@ def thread_reply(
         _, total = list_posts(conn, thread_id, page=1, per_page=POSTS_PER_PAGE)
 
     last_page = max(1, math.ceil(total / POSTS_PER_PAGE))
+    if is_htmx(request):
+        response = HTMLResponse("")
+        response.headers["HX-Redirect"] = f"/forum/{thread_id}?page={last_page}"
+        return response
     return RedirectResponse(url=f"/forum/{thread_id}?page={last_page}", status_code=303)
 
 
@@ -276,6 +280,8 @@ def delete_post_route(request: Request, post_id: int):
         )
         if not deleted:
             raise HTTPException(403)
+    if is_htmx(request):
+        return HTMLResponse("")
     return RedirectResponse(url=f"/forum/{post['thread_id']}", status_code=303)
 
 
@@ -290,6 +296,10 @@ def delete_thread_route(request: Request, thread_id: int):
         )
         if not deleted:
             raise HTTPException(404)
+    if is_htmx(request):
+        response = HTMLResponse("")
+        response.headers["HX-Redirect"] = "/forum"
+        return response
     return RedirectResponse(url="/forum", status_code=303)
 
 
@@ -298,6 +308,10 @@ def pin_thread(request: Request, thread_id: int):
     require_admin(request)
     with get_engine(request).begin() as conn:
         toggle_pin(conn, thread_id)
+    if is_htmx(request):
+        response = HTMLResponse("")
+        response.headers["HX-Refresh"] = "true"
+        return response
     return RedirectResponse(url="/forum", status_code=303)
 
 
@@ -306,4 +320,8 @@ def lock_thread(request: Request, thread_id: int):
     require_admin(request)
     with get_engine(request).begin() as conn:
         toggle_lock(conn, thread_id)
+    if is_htmx(request):
+        response = HTMLResponse("")
+        response.headers["HX-Refresh"] = "true"
+        return response
     return RedirectResponse(url=f"/forum/{thread_id}", status_code=303)

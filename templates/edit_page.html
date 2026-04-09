@@ -9,7 +9,14 @@
 %}
   <h1>edit page</h1>
   <section class="panel">
-    <form method="post" class="stack">
+    <form
+      method="post"
+      hx-post
+      hx-target="#edit-status"
+      hx-swap="innerHTML"
+      class="stack"
+    >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <label>
         slug
         <input name="new_slug" value="{{ page.slug }}" required />
@@ -34,7 +41,10 @@
       <label>content</label>
       {{ content_editor('content', 'edit_content', value=page.content, format=page.content_format, rows=16) }}
       {{ layout_select(page.layout) }}
-      <button type="submit">save changes</button>
+      <div class="inline" style="align-items: center; gap: 8px">
+        <button type="submit">save changes</button>
+        <span id="edit-status"></span>
+      </div>
     </form>
   </section>
   {% if media_items %}

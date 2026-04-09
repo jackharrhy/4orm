@@ -22,8 +22,12 @@
     action="/admin/cleanup/files"
     class="inline"
     style="margin-top: 10px"
-    onsubmit="return confirm('Delete {{ orphaned_files|length }} orphaned file(s) from disk?');"
+    hx-post="/admin/cleanup/files"
+    hx-target="#orphan-results"
+    hx-swap="innerHTML"
+    hx-confirm="Delete {{ orphaned_files|length }} orphaned file(s) from disk?"
   >
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
     <button type="submit">
       delete {{ orphaned_files|length }} orphaned file(s)
     </button>
@@ -44,8 +48,12 @@
     action="/admin/cleanup/records"
     class="inline"
     style="margin-top: 10px"
-    onsubmit="return confirm('Delete {{ orphaned_records|length }} orphaned record(s) from database?');"
+    hx-post="/admin/cleanup/records"
+    hx-target="#orphan-results"
+    hx-swap="innerHTML"
+    hx-confirm="Delete {{ orphaned_records|length }} orphaned record(s) from database?"
   >
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
     <button type="submit">
       delete {{ orphaned_records|length }} orphaned record(s)
     </button>

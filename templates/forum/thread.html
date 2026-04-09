@@ -23,15 +23,18 @@
       <a href="/forum/{{ thread.id }}/edit"><button type="button" class="btn-sm">edit thread</button></a>
     {% endif %}
     {% if is_author or (me and me.is_admin) %}
-      <form method="post" action="/forum/{{ thread.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this thread and all its posts?')">
+      <form method="post" action="/forum/{{ thread.id }}/delete" style="display:inline" hx-post="/forum/{{ thread.id }}/delete" hx-confirm="Delete this thread and all its posts?">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button class="btn-sm">delete thread</button>
       </form>
     {% endif %}
     {% if me and me.is_admin %}
-      <form method="post" action="/forum/{{ thread.id }}/pin" style="display:inline">
+      <form method="post" action="/forum/{{ thread.id }}/pin" style="display:inline" hx-post="/forum/{{ thread.id }}/pin">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button class="btn-sm">{{ 'unpin' if thread.is_pinned else 'pin' }}</button>
       </form>
-      <form method="post" action="/forum/{{ thread.id }}/lock" style="display:inline">
+      <form method="post" action="/forum/{{ thread.id }}/lock" style="display:inline" hx-post="/forum/{{ thread.id }}/lock">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button class="btn-sm">{{ 'unlock' if thread.is_locked else 'lock' }}</button>
       </form>
     {% endif %}
@@ -52,7 +55,8 @@
   {% if me and not thread.is_locked %}
     <details class="panel" style="margin-top: 16px" id="reply-details">
       <summary><h2>reply</h2></summary>
-      <form method="post" action="/forum/{{ thread.id }}/reply" class="stack">
+      <form method="post" action="/forum/{{ thread.id }}/reply" hx-post="/forum/{{ thread.id }}/reply" class="stack">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <input type="hidden" name="quoted_post_id" id="quoted_post_id" value="">
         <input type="hidden" name="quoted_content" id="quoted_content" value="">
         <input type="hidden" name="quoted_author" id="quoted_author" value="">

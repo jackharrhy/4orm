@@ -595,6 +595,8 @@ def settings_pages_edit_post(
             is_public=is_public == "on",
         )
 
+    if is_htmx(request):
+        return templates.TemplateResponse(request, "fragments/saved.html")
     return RedirectResponse(
         url=f"/u/{me['username']}/page/{cleaned_slug}", status_code=303
     )

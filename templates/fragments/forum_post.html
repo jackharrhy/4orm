@@ -28,8 +28,12 @@
         method="post"
         action="/forum/posts/{{ post.id }}/delete"
         style="display:inline"
-        onsubmit="return confirm('Delete this post?')"
+        hx-post="/forum/posts/{{ post.id }}/delete"
+        hx-target="#post-{{ post.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Delete this post?"
       >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button class="btn-sm">delete</button>
       </form>
     {% elif me and me.is_admin %}
@@ -40,8 +44,12 @@
         method="post"
         action="/forum/posts/{{ post.id }}/delete"
         style="display:inline"
-        onsubmit="return confirm('Delete this post?')"
+        hx-post="/forum/posts/{{ post.id }}/delete"
+        hx-target="#post-{{ post.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Delete this post?"
       >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button class="btn-sm">delete</button>
       </form>
     {% endif %}

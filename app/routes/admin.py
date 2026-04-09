@@ -246,6 +246,8 @@ def admin_cleanup_files(request: Request):
                     if rel not in db_paths:
                         f.unlink()
                         removed += 1
+    if is_htmx(request):
+        return HTMLResponse(f'<p class="ok">deleted {removed} orphaned file(s).</p>')
     return RedirectResponse(url=f"/admin?cleaned_files={removed}", status_code=303)
 
 
@@ -260,6 +262,8 @@ def admin_cleanup_records(request: Request):
             if not (deps.UPLOADS_DIR / path).exists():
                 conn.execute(media.delete().where(media.c.id == media_id))
                 removed += 1
+    if is_htmx(request):
+        return HTMLResponse(f'<p class="ok">deleted {removed} orphaned record(s).</p>')
     return RedirectResponse(url=f"/admin?cleaned_records={removed}", status_code=303)
 
 
