@@ -30,7 +30,7 @@ USERNAME_RE = re.compile(r"^[a-z0-9_-]{3,32}$")
 
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
-VAPID_EMAIL = os.environ.get("VAPID_EMAIL", "mailto:admin@4orm.harrhy.xyz")
+VAPID_EMAIL = os.environ.get("VAPID_EMAIL", "mailto:me@jackharrhy.dev")
 
 # ---------------------------------------------------------------------------
 # CSRF helpers
