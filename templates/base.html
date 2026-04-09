@@ -9,7 +9,14 @@
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📒</text></svg>"
     />
     <link rel="stylesheet" href="/static/style.css?v={{ css_hash }}" />
+    <link rel="manifest" href="/static/manifest.json" />
+    <meta name="theme-color" content="#00ccff" />
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/static/sw.js");
+      }
+    </script>
   </head>
   <body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
     <header class="topbar">
