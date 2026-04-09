@@ -1,11 +1,14 @@
 """Forum routes: threads, posts, replies."""
 
 import math
+from datetime import UTC, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import select
 
 from app.deps import current_user, get_engine, is_htmx, require_admin, templates
+from app.schema import forum_posts
 from app.queries.forum import (
     create_reply,
     create_thread,
@@ -27,6 +30,25 @@ router = APIRouter(prefix="/forum", tags=["forum"])
 
 THREADS_PER_PAGE = 25
 POSTS_PER_PAGE = 50
+
+
+def _check_rate_limit(request: Request, conn, user_id: int):
+    """Rate limit: max 1 post per 10 seconds."""
+    if getattr(request.app.state, "testing", False):
+        return
+
+    last_post = conn.execute(
+        select(forum_posts.c.created_at)
+        .where(forum_posts.c.author_id == user_id)
+        .order_by(forum_posts.c.created_at.desc())
+        .limit(1)
+    ).scalar()
+
+    if last_post:
+        if last_post.tzinfo is None:
+            last_post = last_post.replace(tzinfo=timezone.utc)
+        if (datetime.now(UTC) - last_post).total_seconds() < 10:
+            raise HTTPException(429, detail="Please wait before posting again")
 
 
 @router.get("", response_class=HTMLResponse)
@@ -74,7 +96,10 @@ def new_thread_submit(
     me = current_user(request)
     if not me:
         return RedirectResponse(url="/login", status_code=303)
+
     with get_engine(request).begin() as conn:
+        _check_rate_limit(request, conn, me["id"])
+
         thread_id = create_thread(
             conn,
             author_id=me["id"],
@@ -147,6 +172,8 @@ def thread_reply(
         return RedirectResponse(url="/login", status_code=303)
 
     with get_engine(request).begin() as conn:
+        _check_rate_limit(request, conn, me["id"])
+
         thread = get_thread(conn, thread_id)
         if not thread:
             raise HTTPException(404)

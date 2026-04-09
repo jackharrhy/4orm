@@ -90,6 +90,7 @@ def client(test_engine):
     original_lifespan = app.router.lifespan_context
 
     app.state.engine = test_engine
+    app.state.testing = True
     app.router.lifespan_context = _noop_lifespan
 
     with TestClient(app, raise_server_exceptions=True) as c:
@@ -97,6 +98,7 @@ def client(test_engine):
 
     app.router.lifespan_context = original_lifespan
     app.state.engine = original_engine
+    app.state.testing = False
 
 
 @pytest.fixture()
