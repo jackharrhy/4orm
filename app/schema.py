@@ -44,6 +44,7 @@ users = Table(
     Column("is_admin", Boolean, nullable=False, server_default="0"),
     Column("has_accepted_trust", Boolean, nullable=False, server_default="0"),
     Column("notifications_enabled", Boolean, nullable=False, server_default="1"),
+    Column("watch_all_threads", Boolean, nullable=False, server_default="0"),
     Column("is_disabled", Boolean, nullable=False, server_default="0"),
     Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
     Column("invite_id", Integer, ForeignKey("invites.id", ondelete="SET NULL")),
@@ -258,6 +259,25 @@ push_subscriptions = Table(
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
+)
+
+thread_watchers = Table(
+    "thread_watchers",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column(
+        "thread_id",
+        Integer,
+        ForeignKey("forum_threads.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+    UniqueConstraint("user_id", "thread_id", name="uq_thread_watchers"),
 )
 
 profile_cards = Table(

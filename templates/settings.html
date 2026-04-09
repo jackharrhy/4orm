@@ -366,6 +366,14 @@
           />
           enable push notifications
         </label>
+        <label>
+          <input
+            type="checkbox"
+            name="watch_all_threads"
+            {% if me.watch_all_threads %}checked{% endif %}
+          />
+          auto-watch all forum threads
+        </label>
         <button>save</button>
         <span id="notif-status"></span>
       </form>

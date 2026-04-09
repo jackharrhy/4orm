@@ -38,6 +38,13 @@
         <button class="btn-sm">{{ 'unlock' if thread.is_locked else 'lock' }}</button>
       </form>
     {% endif %}
+    {% if me %}
+      <form method="post" action="/forum/{{ thread.id }}/watch" class="inline"
+            hx-post="/forum/{{ thread.id }}/watch">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+        <button class="btn-sm">{{ '👁 unwatch' if watching else '👁 watch' }}</button>
+      </form>
+    {% endif %}
   </div>
 
   {% if thread.custom_html %}

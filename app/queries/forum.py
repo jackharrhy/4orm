@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import and_, delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 
-from app.schema import forum_posts, forum_threads, users
+from app.schema import forum_posts, forum_threads, thread_watchers, users
 
 
 def recent_forum_posts(conn: Connection, hours: int = 2, limit: int = 5):
@@ -151,6 +151,7 @@ def create_thread(
             content_format=content_format,
         )
     )
+    watch_thread(conn, author_id, thread_id)
     return thread_id
 
 
@@ -298,3 +299,51 @@ def toggle_lock(conn: Connection, thread_id: int):
         .where(forum_threads.c.id == thread_id)
         .values(is_locked=not thread)
     )
+
+
+def is_watching(conn: Connection, user_id: int, thread_id: int) -> bool:
+    return (
+        conn.execute(
+            select(thread_watchers.c.id).where(
+                thread_watchers.c.user_id == user_id,
+                thread_watchers.c.thread_id == thread_id,
+            )
+        ).first()
+        is not None
+    )
+
+
+def watch_thread(conn: Connection, user_id: int, thread_id: int):
+    """Add a watch. Ignores if already watching."""
+    if not is_watching(conn, user_id, thread_id):
+        conn.execute(
+            insert(thread_watchers).values(user_id=user_id, thread_id=thread_id)
+        )
+
+
+def unwatch_thread(conn: Connection, user_id: int, thread_id: int):
+    conn.execute(
+        delete(thread_watchers).where(
+            thread_watchers.c.user_id == user_id,
+            thread_watchers.c.thread_id == thread_id,
+        )
+    )
+
+
+def get_watchers(conn: Connection, thread_id: int) -> list[int]:
+    """Get all user IDs watching a thread (explicit watchers + watch_all_threads users)."""
+    explicit = set(
+        row[0]
+        for row in conn.execute(
+            select(thread_watchers.c.user_id).where(
+                thread_watchers.c.thread_id == thread_id
+            )
+        ).fetchall()
+    )
+    watch_all = set(
+        row[0]
+        for row in conn.execute(
+            select(users.c.id).where(users.c.watch_all_threads == True)
+        ).fetchall()
+    )
+    return list(explicit | watch_all)

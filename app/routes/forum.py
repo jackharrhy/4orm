@@ -16,12 +16,16 @@ from app.queries.forum import (
     delete_thread,
     get_post,
     get_thread,
+    get_watchers,
+    is_watching,
     list_posts,
     list_threads,
     toggle_lock,
     toggle_pin,
+    unwatch_thread,
     update_post,
     update_thread_meta,
+    watch_thread,
 )
 from app.queries.media import list_media_for_user
 from app.rendering import render_forum_post, render_signature
@@ -143,6 +147,7 @@ def thread_view(request: Request, thread_id: int, page: int = 1):
             raise HTTPException(404)
         posts, total = list_posts(conn, thread_id, page=page, per_page=POSTS_PER_PAGE)
         media_items = list_media_for_user(conn, me["id"]) if me else []
+        watching = is_watching(conn, me["id"], thread_id) if me else False
 
     total_pages = max(1, math.ceil(total / POSTS_PER_PAGE))
 
@@ -179,6 +184,7 @@ def thread_view(request: Request, thread_id: int, page: int = 1):
             "me": me,
             "is_author": is_author,
             "media_items": media_items,
+            "watching": watching,
         },
     )
 
@@ -226,23 +232,25 @@ def thread_reply(
             quoted_author=quoted_author or None,
         )
 
-        # Notify thread author (if different from replier)
-        if thread["author_id"] != me["id"]:
-            send_notification(
-                conn,
-                thread["author_id"],
-                f"New reply in {thread['title']}",
-                f"{me['display_name']} replied to your thread",
-                f"/forum/{thread_id}#post-{post_id}",
-            )
+        # Notify all watchers (except the replier)
+        watcher_ids = get_watchers(conn, thread_id)
+        for watcher_id in watcher_ids:
+            if watcher_id != me["id"]:
+                send_notification(
+                    conn,
+                    watcher_id,
+                    f"New reply in {thread['title']}",
+                    f"{me['display_name']} replied",
+                    f"/forum/{thread_id}#post-{post_id}",
+                )
 
-        # Notify quoted post author (if different from replier and thread author)
+        # Still notify quoted post author separately (if not already a watcher)
         if quoted_post_id:
             qp_notif = get_post(conn, quoted_post_id)
             if (
                 qp_notif
                 and qp_notif["author_id"] != me["id"]
-                and qp_notif["author_id"] != thread["author_id"]
+                and qp_notif["author_id"] not in watcher_ids
             ):
                 send_notification(
                     conn,
@@ -410,6 +418,26 @@ def lock_thread(request: Request, thread_id: int):
     require_admin(request)
     with get_engine(request).begin() as conn:
         toggle_lock(conn, thread_id)
+    if is_htmx(request):
+        response = HTMLResponse("")
+        response.headers["HX-Refresh"] = "true"
+        return response
+    return RedirectResponse(url=f"/forum/{thread_id}", status_code=303)
+
+
+@router.post("/{thread_id}/watch")
+def toggle_watch(request: Request, thread_id: int):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        thread = get_thread(conn, thread_id)
+        if not thread:
+            raise HTTPException(404)
+        if is_watching(conn, me["id"], thread_id):
+            unwatch_thread(conn, me["id"], thread_id)
+        else:
+            watch_thread(conn, me["id"], thread_id)
     if is_htmx(request):
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"

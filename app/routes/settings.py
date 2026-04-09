@@ -395,7 +395,9 @@ def settings_player_move(request: Request, item_id: int, direction: str = Form(.
 
 @router.post("/settings/notifications")
 def settings_notifications(
-    request: Request, notifications_enabled: str | None = Form(None)
+    request: Request,
+    notifications_enabled: str | None = Form(None),
+    watch_all_threads: str | None = Form(None),
 ):
     me = current_user(request)
     if not me:
@@ -404,7 +406,10 @@ def settings_notifications(
         conn.execute(
             update(users)
             .where(users.c.id == me["id"])
-            .values(notifications_enabled=notifications_enabled == "on")
+            .values(
+                notifications_enabled=notifications_enabled == "on",
+                watch_all_threads=watch_all_threads == "on",
+            )
         )
     return _saved_or_redirect(request)
 
