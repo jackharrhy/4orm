@@ -42,6 +42,7 @@ users = Table(
     Column("player_html", Text, nullable=False, server_default=""),
     Column("forum_signature", Text, nullable=False, server_default=""),
     Column("is_admin", Boolean, nullable=False, server_default="0"),
+    Column("has_accepted_trust", Boolean, nullable=False, server_default="0"),
     Column("is_disabled", Boolean, nullable=False, server_default="0"),
     Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
     Column("invite_id", Integer, ForeignKey("invites.id", ondelete="SET NULL")),

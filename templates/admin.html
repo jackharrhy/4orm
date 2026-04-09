@@ -241,6 +241,93 @@
   </details>
 
   <details class="panel">
+    <summary><h2>forum threads ({{ all_threads|length }})</h2></summary>
+    {% for t in all_threads %}
+      <div class="panel" style="margin: 0 0 6px">
+        <div class="inline" style="flex-wrap: wrap; gap: 4px">
+          <strong>{{ t.title }}</strong>
+          <span class="muted"
+            >by @{{ t.author_username }} · {{ t.reply_count }} replies</span
+          >
+          {% if t.is_pinned %}📌{% endif %}
+          {% if t.is_locked %}🔒{% endif %}
+          <a href="/forum/{{ t.id }}/edit"
+            ><button type="button" class="btn-sm">edit</button></a
+          >
+          <form
+            method="post"
+            action="/forum/{{ t.id }}/delete"
+            class="inline"
+            hx-post="/forum/{{ t.id }}/delete"
+            hx-confirm="Delete this thread and all its posts?"
+          >
+            <button class="btn-sm">delete</button>
+          </form>
+          <form
+            method="post"
+            action="/forum/{{ t.id }}/pin"
+            class="inline"
+            hx-post="/forum/{{ t.id }}/pin"
+          >
+            <button class="btn-sm">
+              {{ 'unpin' if t.is_pinned else 'pin' }}
+            </button>
+          </form>
+          <form
+            method="post"
+            action="/forum/{{ t.id }}/lock"
+            class="inline"
+            hx-post="/forum/{{ t.id }}/lock"
+          >
+            <button class="btn-sm">
+              {{ 'unlock' if t.is_locked else 'lock' }}
+            </button>
+          </form>
+        </div>
+      </div>
+    {% else %}
+      <p>no threads.</p>
+    {% endfor %}
+  </details>
+  <details class="panel">
+    <summary><h2>recent forum posts ({{ recent_posts|length }})</h2></summary>
+    {% for p in recent_posts %}
+      <div class="panel" style="margin: 0 0 6px">
+        <div class="forum-post-meta">
+          <strong>@{{ p.author_username }}</strong> in
+          <a href="/forum/{{ p.thread_id }}#post-{{ p.id }}"
+            >{{ p.thread_title }}</a
+          >
+          ·
+          {{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '' }}
+          {% if p.is_edited %}· <em>(edited)</em>{% endif %}
+        </div>
+        <p style="font-size: 0.9rem; margin: 4px 0">
+          {{ p.content[:200] }}{% if p.content|length > 200 %}...{% endif %}
+        </p>
+        <div class="inline" style="gap: 4px">
+          <a href="/forum/posts/{{ p.id }}/edit"
+            ><button type="button" class="btn-sm">edit</button></a
+          >
+          <form
+            method="post"
+            action="/forum/posts/{{ p.id }}/delete"
+            class="inline"
+            hx-post="/forum/posts/{{ p.id }}/delete"
+            hx-target="closest .panel"
+            hx-swap="outerHTML"
+            hx-confirm="Delete this post?"
+          >
+            <button class="btn-sm">delete</button>
+          </form>
+        </div>
+      </div>
+    {% else %}
+      <p>no posts.</p>
+    {% endfor %}
+  </details>
+
+  <details class="panel">
     <summary><h2>full site export</h2></summary>
     <p class="muted">
       download a complete snapshot of the entire 4orm site — all users, pages,

@@ -16,7 +16,7 @@ from app.deps import (
 )
 from app.queries.admin import delete_user_prune, delete_user_reparent
 from app.queries.users import get_user_by_id
-from app.schema import media, pages, profile_cards, users
+from app.schema import forum_posts, forum_threads, media, pages, profile_cards, users
 
 router = APIRouter()
 
@@ -83,6 +83,50 @@ def admin_dashboard(request: Request):
             .all()
         )
 
+        all_threads = (
+            conn.execute(
+                select(
+                    forum_threads.c.id,
+                    forum_threads.c.title,
+                    forum_threads.c.is_pinned,
+                    forum_threads.c.is_locked,
+                    forum_threads.c.reply_count,
+                    forum_threads.c.created_at,
+                    users.c.username.label("author_username"),
+                )
+                .select_from(
+                    forum_threads.join(users, forum_threads.c.author_id == users.c.id)
+                )
+                .order_by(forum_threads.c.created_at.desc())
+            )
+            .mappings()
+            .all()
+        )
+
+        recent_posts = (
+            conn.execute(
+                select(
+                    forum_posts.c.id,
+                    forum_posts.c.thread_id,
+                    forum_posts.c.content,
+                    forum_posts.c.content_format,
+                    forum_posts.c.created_at,
+                    forum_posts.c.is_edited,
+                    users.c.username.label("author_username"),
+                    forum_threads.c.title.label("thread_title"),
+                )
+                .select_from(
+                    forum_posts.join(users, forum_posts.c.author_id == users.c.id).join(
+                        forum_threads, forum_posts.c.thread_id == forum_threads.c.id
+                    )
+                )
+                .order_by(forum_posts.c.created_at.desc())
+                .limit(100)
+            )
+            .mappings()
+            .all()
+        )
+
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -92,6 +136,8 @@ def admin_dashboard(request: Request):
             "storage_by_user": storage_by_user,
             "cards_by_user": cards_by_user,
             "all_pages": all_pages,
+            "all_threads": all_threads,
+            "recent_posts": recent_posts,
         },
     )
 
