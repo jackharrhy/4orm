@@ -6,3 +6,4 @@ uploads/*
 !.gitkeep
 docs/
 node_modules/
+backups

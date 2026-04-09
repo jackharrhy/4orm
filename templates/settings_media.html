@@ -35,6 +35,7 @@
       hx-swap="beforeend"
       hx-encoding="multipart/form-data"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <label>
         file
         <input type="file" name="file" required />

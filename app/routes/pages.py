@@ -169,9 +169,7 @@ def status_widget(request: Request, username: str):
     updated = user.get("status_updated_at")
     if updated:
         if updated.tzinfo is None:
-            from datetime import timezone
-
-            updated = updated.replace(tzinfo=timezone.utc)
+            updated = updated.replace(tzinfo=UTC)
         delta = datetime.now(UTC) - updated
         seconds = int(delta.total_seconds())
         if seconds < 60:

@@ -14,6 +14,7 @@
         hx-swap="innerHTML"
         hx-confirm="Delete page '{{ p.title }}'?"
       >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button
           type="submit"
           style="padding: 0; border: none; background: none; color: #0000ee; text-decoration: underline; font: inherit; cursor: pointer"

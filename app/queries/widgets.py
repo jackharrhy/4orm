@@ -3,7 +3,6 @@ from sqlalchemy.engine import Connection
 
 from app.schema import media, playlist_items, users
 
-
 # --- Webring ---
 
 

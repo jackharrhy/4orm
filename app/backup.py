@@ -5,7 +5,6 @@ import os
 import shutil
 import sqlite3
 import threading
-import time
 from datetime import UTC, datetime
 from pathlib import Path
 

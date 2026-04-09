@@ -39,10 +39,11 @@
       {{ owner.guestbook_css|safe }}
     </style>
   </head>
-  <body>
+  <body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
     <h2>{{ owner.display_name }}'s guestbook</h2>
     {% if me %}
       <form class="gb-form" method="post" action="/u/{{ owner.username }}/guestbook" hx-post="/u/{{ owner.username }}/guestbook" hx-target="#gb-entries" hx-swap="innerHTML">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <textarea name="message" rows="3" maxlength="500" placeholder="sign the guestbook..." required></textarea>
         <button type="submit">sign</button>
       </form>

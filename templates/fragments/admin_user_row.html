@@ -20,6 +20,7 @@
           hx-target="#user-row-{{ u.id }}"
           hx-swap="outerHTML"
         >
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
           <input
             name="new_username"
             value="{{ u.username }}"
@@ -47,6 +48,7 @@
             hx-swap="outerHTML"
             hx-confirm="Make {{ u.username }} an admin?"
           >
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
             <button type="submit">make admin</button>
           </form>
         {% endif %}
@@ -59,6 +61,7 @@
           hx-swap="outerHTML"
           hx-confirm="{% if u.is_disabled %}Re-enable{% else %}Disable{% endif %} {{ u.username }}?"
         >
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
           <button type="submit">
             {% if u.is_disabled %}re-enable{% else %}disable{% endif %}
           </button>
@@ -76,6 +79,7 @@
             hx-swap="outerHTML"
             hx-confirm="Delete {{ u.username }}? Their invitees will be reparented."
           >
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
             <input type="hidden" name="mode" value="reparent" />
             <button type="submit">delete</button>
           </form>
@@ -88,6 +92,7 @@
             hx-swap="outerHTML"
             hx-confirm="Delete {{ u.username }} AND everyone they invited? This is irreversible!"
           >
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
             <input type="hidden" name="mode" value="prune" />
             <button type="submit">prune tree</button>
           </form>

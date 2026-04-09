@@ -6,6 +6,7 @@
   hx-target="#invites-section"
   hx-swap="innerHTML"
 >
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
   <label>
     max uses
     <input type="number" name="max_uses" value="1" min="1" max="50" />
@@ -42,6 +43,7 @@
             hx-swap="innerHTML"
             hx-confirm="Delete this unused invite?"
           >
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
             <button type="submit">delete</button>
           </form>
         {% elif inv.status == 'active' or inv.status == 'exhausted' %}
@@ -54,6 +56,7 @@
             hx-swap="innerHTML"
             hx-confirm="Disable this invite code?"
           >
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
             <button type="submit">disable</button>
           </form>
         {% endif %}
