@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📒</text></svg>" />
+    <link rel="stylesheet" href="{{ css_path }}" />
+    {% if custom_css %}<style>{{ custom_css }}</style>{% endif %}
+  </head>
+  <body>
+    <header class="topbar">
+      <a href="{{ site_url }}" class="logo">4orm</a>
+    </header>
+    <main class="wrap">
+      {{ content }}
+    </main>
+    {% if custom_html %}{{ custom_html }}{% endif %}
+  </body>
+</html>
