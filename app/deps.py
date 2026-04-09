@@ -5,6 +5,7 @@ multiple route files need.  It does NOT import from ``app.main``.
 """
 
 import hashlib
+import os
 import re
 import secrets
 from datetime import UTC, datetime
@@ -26,6 +27,10 @@ UPLOADS_DIR = BASE_DIR / "uploads"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
 USERNAME_RE = re.compile(r"^[a-z0-9_-]{3,32}$")
+
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_EMAIL = os.environ.get("VAPID_EMAIL", "mailto:admin@4orm.harrhy.xyz")
 
 # ---------------------------------------------------------------------------
 # CSRF helpers
@@ -93,6 +98,7 @@ _cm_hash = (
 )
 templates.env.globals["css_hash"] = _css_hash
 templates.env.globals["cm_hash"] = _cm_hash
+templates.env.globals["vapid_public_key"] = VAPID_PUBLIC_KEY
 
 # ---------------------------------------------------------------------------
 # Request helpers
