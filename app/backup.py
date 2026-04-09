@@ -111,7 +111,7 @@ def run_backup(
         result["pruned"] = prune_old_backups(backup_dir, max_backups)
 
         logger.info(
-            "Backup complete: %s (db=%s, files=%d, pruned=%d)",
+            "Backup complete: {} (db={}, files={}, pruned={})",
             timestamp,
             result["db_backed_up"],
             result["files_linked"],
@@ -119,7 +119,7 @@ def run_backup(
         )
     except Exception as e:
         result["error"] = str(e)
-        logger.error("Backup failed: %s", e, exc_info=True)
+        logger.exception("Backup failed: {}", e)
         # Clean up failed snapshot
         if snapshot_dir.exists():
             shutil.rmtree(snapshot_dir, ignore_errors=True)
@@ -154,7 +154,7 @@ class BackupScheduler:
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
-        logger.info("Backup scheduler started (interval=%ds)", self.interval)
+        logger.info("Backup scheduler started (interval={}s)", self.interval)
 
     def stop(self):
         """Stop the backup scheduler."""

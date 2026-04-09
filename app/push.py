@@ -20,7 +20,7 @@ def send_notification(
         select(users.c.notifications_enabled).where(users.c.id == user_id)
     ).scalar()
     if not enabled:
-        logger.info("Push skipped for user %d: notifications disabled", user_id)
+        logger.info("Push skipped for user {}: notifications disabled", user_id)
         return
 
     if not VAPID_PRIVATE_KEY:
@@ -35,7 +35,7 @@ def send_notification(
         .all()
     )
 
-    logger.info("Sending push to user %d (%d subs): %s", user_id, len(subs), title)
+    logger.info("Sending push to user {} ({} subs): {}", user_id, len(subs), title)
     payload = json.dumps({"title": title, "body": body, "url": url})
 
     for sub in subs:
@@ -54,7 +54,7 @@ def send_notification(
                 vapid_claims={"sub": VAPID_EMAIL},
             )
             logger.info(
-                "Push sent to %s (status %s)",
+                "Push sent to {} (status {})",
                 sub["endpoint"][:50],
                 resp.status_code if resp else "no response",
             )
@@ -66,8 +66,8 @@ def send_notification(
                         push_subscriptions.c.id == sub["id"]
                     )
                 )
-                logger.info("Removed expired subscription %s", sub["endpoint"][:50])
+                logger.info("Removed expired subscription {}", sub["endpoint"][:50])
             else:
-                logger.error("Push failed for %s: %s", sub["endpoint"][:50], e)
+                logger.error("Push failed for {}: {}", sub["endpoint"][:50], e)
         except Exception as e:
-            logger.error("Push failed for %s: %s", sub["endpoint"][:50], e)
+            logger.error("Push failed for {}: {}", sub["endpoint"][:50], e)
