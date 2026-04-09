@@ -14,7 +14,37 @@
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/static/sw.js");
+        navigator.serviceWorker.register("/static/sw.js"){% if me %}.then(function(reg) {
+          var vapidKey = "{{ vapid_public_key }}";
+          if (!vapidKey || !("PushManager" in window)) return;
+          reg.pushManager.getSubscription().then(function(sub) {
+            if (sub) return;
+            Notification.requestPermission().then(function(perm) {
+              if (perm !== "granted") return;
+              reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidKey)
+              }).then(function(sub) {
+                fetch("/api/push/subscribe", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": "{{ csrf_token }}"
+                  },
+                  body: JSON.stringify(sub.toJSON())
+                });
+              });
+            });
+          });
+        }){% endif %};
+      }
+      function urlBase64ToUint8Array(base64String) {
+        var padding = "=".repeat((4 - base64String.length % 4) % 4);
+        var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        var rawData = atob(base64);
+        var arr = new Uint8Array(rawData.length);
+        for (var i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+        return arr;
       }
     </script>
   </head>
