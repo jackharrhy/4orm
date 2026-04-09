@@ -22,6 +22,7 @@ from app.routes import (
     guestbook,
     media,
     pages,
+    push,
     settings,
     webring,
 )
@@ -113,6 +114,7 @@ app.include_router(guestbook.router)
 app.include_router(feeds.router)
 app.include_router(forum.router)
 app.include_router(webring.router)
+app.include_router(push.router)
 
 
 ERROR_MESSAGES = {
