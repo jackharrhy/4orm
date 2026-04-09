@@ -16,6 +16,7 @@ dependencies = [
   "bbcode==1.1.0",
   "bleach==6.3.0",
   "pywebpush==2.3.0",
+  "loguru>=0.7.3",
 ]
 
 [dependency-groups]

@@ -1,6 +1,5 @@
 """Automated backup system with SQLite backup and hardlink deduplication."""
 
-import logging
 import os
 import shutil
 import sqlite3
@@ -8,7 +7,7 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
-logger = logging.getLogger("4orm.backup")
+from loguru import logger
 
 BACKUP_INTERVAL_SECONDS = 3600  # 1 hour
 MAX_BACKUPS = 48  # Keep 48 hourly backups (2 days)

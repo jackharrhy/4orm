@@ -5,9 +5,11 @@ multiple route files need.  It does NOT import from ``app.main``.
 """
 
 import hashlib
+import logging
 import os
 import re
 import secrets
+import sys
 from datetime import UTC, datetime
 from email.utils import format_datetime
 from pathlib import Path
@@ -15,6 +17,36 @@ from pathlib import Path
 from fastapi import HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
+from loguru import logger
+
+# --- Loguru setup: intercept all stdlib logging ---
+
+
+class _InterceptHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        frame, depth = logging.currentframe(), 2
+        while frame and frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
+
+
+def setup_logging():
+    """Replace stdlib logging with loguru for consistent output."""
+    logger.remove()
+    logger.add(sys.stderr, level="INFO")
+    logging.basicConfig(handlers=[_InterceptHandler()], level=0, force=True)
+    for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+        logging.getLogger(name).handlers = []
+
+
+setup_logging()
 
 from app.queries.users import get_user_by_id
 

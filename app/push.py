@@ -1,16 +1,14 @@
 """Web Push notification sending."""
 
 import json
-import logging
 
+from loguru import logger
 from pywebpush import WebPushException, webpush
 from sqlalchemy import delete, select
 from sqlalchemy.engine import Connection
 
 from app.deps import VAPID_EMAIL, VAPID_PRIVATE_KEY
 from app.schema import push_subscriptions, users
-
-logger = logging.getLogger("4orm.push")
 
 
 def send_notification(
