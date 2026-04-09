@@ -28,7 +28,7 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
 USERNAME_RE = re.compile(r"^[a-z0-9_-]{3,32}$")
 
-VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_EMAIL = os.environ.get("VAPID_EMAIL", "mailto:me@jackharrhy.dev")
 
