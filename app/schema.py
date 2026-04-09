@@ -32,6 +32,14 @@ users = Table(
     Column("guestbook_html", Text, nullable=False, server_default=""),
     Column("counter_css", Text, nullable=False, server_default=""),
     Column("counter_html", Text, nullable=False, server_default=""),
+    Column("in_webring", Boolean, nullable=False, server_default="0"),
+    Column("status_emoji", String(10), nullable=False, server_default=""),
+    Column("status_text", String(140), nullable=False, server_default=""),
+    Column("status_updated_at", DateTime(timezone=True)),
+    Column("status_css", Text, nullable=False, server_default=""),
+    Column("status_html", Text, nullable=False, server_default=""),
+    Column("player_css", Text, nullable=False, server_default=""),
+    Column("player_html", Text, nullable=False, server_default=""),
     Column("forum_signature", Text, nullable=False, server_default=""),
     Column("is_admin", Boolean, nullable=False, server_default="0"),
     Column("is_disabled", Boolean, nullable=False, server_default="0"),
@@ -218,6 +226,20 @@ forum_posts = Table(
     Column(
         "updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
+)
+
+playlist_items = Table(
+    "playlist_items",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column(
+        "media_id", Integer, ForeignKey("media.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("position", Integer, nullable=False, server_default="0"),
+    Column("title", String(200)),
 )
 
 profile_cards = Table(
