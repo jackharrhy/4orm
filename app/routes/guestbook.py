@@ -4,6 +4,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.deps import current_user, get_engine, is_htmx, templates
+from app.push import send_notification
 from app.queries.guestbook import (
     create_guestbook_entry,
     delete_guestbook_entry,
@@ -45,6 +46,17 @@ def guestbook_post(request: Request, username: str, message: str = Form(...)):
         if not owner:
             raise HTTPException(404)
         create_guestbook_entry(conn, owner["id"], me["id"], message)
+
+        # Notify guestbook owner (if different from poster)
+        if owner["id"] != me["id"]:
+            send_notification(
+                conn,
+                owner["id"],
+                "New guestbook entry",
+                f"{me['display_name']} signed your guestbook",
+                f"/u/{username}/guestbook",
+            )
+
         entries = list_guestbook_entries(conn, owner["id"])
     is_owner = me["id"] == owner["id"]
     if is_htmx(request):

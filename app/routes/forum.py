@@ -1,14 +1,14 @@
 """Forum routes: threads, posts, replies."""
 
 import math
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 
 from app.deps import current_user, get_engine, is_htmx, require_admin, templates
-from app.schema import forum_posts
+from app.push import send_notification
 from app.queries.forum import (
     create_reply,
     create_thread,
@@ -25,6 +25,7 @@ from app.queries.forum import (
 )
 from app.queries.media import list_media_for_user
 from app.rendering import render_forum_post, render_signature
+from app.schema import forum_posts
 
 router = APIRouter(prefix="/forum", tags=["forum"])
 
@@ -49,7 +50,7 @@ def _check_rate_limit(request: Request, conn, user_id: int):
 
     if last_post:
         if last_post.tzinfo is None:
-            last_post = last_post.replace(tzinfo=timezone.utc)
+            last_post = last_post.replace(tzinfo=UTC)
         elapsed = (datetime.now(UTC) - last_post).total_seconds()
         if elapsed < RATE_LIMIT_SECONDS:
             return int(RATE_LIMIT_SECONDS - elapsed)
@@ -213,7 +214,7 @@ def thread_reply(
             if qp:
                 quoted_content_format = qp["content_format"]
 
-        create_reply(
+        post_id = create_reply(
             conn,
             thread_id=thread_id,
             author_id=me["id"],
@@ -224,6 +225,33 @@ def thread_reply(
             quoted_content_format=quoted_content_format,
             quoted_author=quoted_author or None,
         )
+
+        # Notify thread author (if different from replier)
+        if thread["author_id"] != me["id"]:
+            send_notification(
+                conn,
+                thread["author_id"],
+                f"New reply in {thread['title']}",
+                f"{me['display_name']} replied to your thread",
+                f"/forum/{thread_id}#post-{post_id}",
+            )
+
+        # Notify quoted post author (if different from replier and thread author)
+        if quoted_post_id:
+            qp_notif = get_post(conn, quoted_post_id)
+            if (
+                qp_notif
+                and qp_notif["author_id"] != me["id"]
+                and qp_notif["author_id"] != thread["author_id"]
+            ):
+                send_notification(
+                    conn,
+                    qp_notif["author_id"],
+                    f"You were quoted in {thread['title']}",
+                    f"{me['display_name']} quoted your post",
+                    f"/forum/{thread_id}#post-{post_id}",
+                )
+
         # Calculate last page after adding the reply
         _, total = list_posts(conn, thread_id, page=1, per_page=POSTS_PER_PAGE)
 
