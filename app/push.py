@@ -22,6 +22,7 @@ def send_notification(
         select(users.c.notifications_enabled).where(users.c.id == user_id)
     ).scalar()
     if not enabled:
+        logger.info("Push skipped for user %d: notifications disabled", user_id)
         return
 
     if not VAPID_PRIVATE_KEY:
@@ -36,6 +37,7 @@ def send_notification(
         .all()
     )
 
+    logger.info("Sending push to user %d (%d subs): %s", user_id, len(subs), title)
     payload = json.dumps({"title": title, "body": body, "url": url})
 
     for sub in subs:
@@ -47,11 +49,16 @@ def send_notification(
             },
         }
         try:
-            webpush(
+            resp = webpush(
                 subscription_info=subscription_info,
                 data=payload,
                 vapid_private_key=VAPID_PRIVATE_KEY,
                 vapid_claims={"sub": VAPID_EMAIL},
+            )
+            logger.info(
+                "Push sent to %s (status %s)",
+                sub["endpoint"][:50],
+                resp.status_code if resp else "no response",
             )
         except WebPushException as e:
             if e.response and e.response.status_code == 410:
