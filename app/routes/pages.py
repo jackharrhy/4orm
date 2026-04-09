@@ -105,13 +105,28 @@ def page_view(request: Request, username: str, slug: str):
     )
 
 
+import time as _time
+
+_counter_seen: dict[str, float] = {}  # "ip:username" -> last_seen timestamp
+_COUNTER_COOLDOWN = 60  # seconds per IP per user
+
+
 @router.get("/u/{username}/counter", response_class=HTMLResponse)
 def counter_view(request: Request, username: str):
     with get_engine(request).begin() as conn:
         owner = get_user_by_username(conn, username)
         if not owner:
             raise HTTPException(404)
-        increment_counter(conn, owner["id"])
+
+        # Rate limit: one count per IP per user per cooldown period
+        client_ip = request.client.host if request.client else "unknown"
+        cache_key = f"{client_ip}:{username}"
+        now = _time.monotonic()
+        last = _counter_seen.get(cache_key, 0)
+        if now - last >= _COUNTER_COOLDOWN:
+            increment_counter(conn, owner["id"])
+            _counter_seen[cache_key] = now
+
         total_views = get_total_views(conn, owner["id"])
 
     return templates.TemplateResponse(
