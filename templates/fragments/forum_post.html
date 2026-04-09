@@ -12,7 +12,10 @@
       <button
         type="button"
         class="btn-sm"
-        onclick="quotePost({{ post.id }}, '{{ post.author_username }}', {{ post.content|tojson }})"
+        data-post-id="{{ post.id }}"
+        data-author="{{ post.author_username }}"
+        data-content="{{ post.content|e }}"
+        onclick="quotePost(this.dataset.postId, this.dataset.author, this.dataset.content)"
       >
         quote
       </button>
