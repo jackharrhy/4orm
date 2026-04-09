@@ -28,7 +28,11 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
 USERNAME_RE = re.compile(r"^[a-z0-9_-]{3,32}$")
 
-VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
+_raw_vapid_key = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
+# pywebpush expects DER base64, not PEM. Strip headers and join lines.
+VAPID_PRIVATE_KEY = "".join(
+    line for line in _raw_vapid_key.strip().splitlines() if not line.startswith("-----")
+)
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_EMAIL = os.environ.get("VAPID_EMAIL", "mailto:me@jackharrhy.dev")
 
