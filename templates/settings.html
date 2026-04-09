@@ -15,6 +15,11 @@
       a page with that slug already exists. try a different one.
     </p>
   {% endif %}
+  <p>
+    <a href="/settings/media">manage media library →</a>
+    · <a href="/how-to">how-to guide →</a> ·
+    <a href="/u/{{ me.username }}/export">export my site →</a>
+  </p>
 
   {# ── Profile & Appearance ── #}
   <section class="panel">
@@ -365,11 +370,6 @@
     </details>
   </section>
 
-  <p>
-    <a href="/settings/media">manage media library →</a>
-    · <a href="/how-to">how-to guide →</a> ·
-    <a href="/u/{{ me.username }}/export">export my site →</a>
-  </p>
   <script src="/static/snippet-insert.js?v={{ cm_hash }}"></script>
   <script
     type="module"
