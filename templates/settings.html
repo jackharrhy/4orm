@@ -251,10 +251,8 @@
       <button>save</button>
       <span id="webring-status"></span>
     </form>
-    {% if me.in_webring %}
-      <p class="muted" style="margin-top: 8px">embed on your page:</p>
-      <pre><code>&lt;iframe src="/webring/{{ me.username }}" style="width:100%;height:32px;border:none;"&gt;&lt;/iframe&gt;</code></pre>
-    {% endif %}
+    <p class="muted" style="margin-top: 8px">embed on your page:</p>
+    <pre><code>&lt;iframe src="/webring/{{ me.username }}" style="width:100%;height:32px;border:none;"&gt;&lt;/iframe&gt;</code></pre>
   </details>
   <details class="panel">
     <summary><h2>status / mood</h2></summary>
