@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/static/style.css?v={{ css_hash }}" />
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
   </head>
-  <body>
+  <body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
     <header class="topbar">
       <a href="/" class="logo">4orm</a>
       <nav>
@@ -23,6 +23,7 @@
             <a href="/admin">admin</a>
           {% endif %}
           <form method="post" action="/logout" class="inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
             <button>logout</button>
           </form>
         {% else %}
@@ -32,5 +33,33 @@
       </nav>
     </header>
     <main class="wrap">{% block content %}{% endblock %}</main>
+    <script>
+      // Intercept all form POSTs and add the CSRF header via fetch
+      document.addEventListener("submit", function (e) {
+        var form = e.target;
+        if (form.method && form.method.toLowerCase() !== "post") return;
+        // Skip htmx-handled forms (htmx adds the header itself)
+        if (form.hasAttribute("hx-post")) return;
+        e.preventDefault();
+        var formData = new FormData(form);
+        fetch(form.action || window.location.href, {
+          method: "POST",
+          headers: { "X-CSRF-Token": "{{ csrf_token }}" },
+          body: formData,
+        }).then(function (resp) {
+          if (resp.redirected) {
+            window.location.href = resp.url;
+          } else if (resp.ok) {
+            window.location.reload();
+          } else {
+            resp.text().then(function (t) {
+              document.open();
+              document.write(t);
+              document.close();
+            });
+          }
+        });
+      });
+    </script>
   </body>
 </html>

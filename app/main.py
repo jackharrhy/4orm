@@ -86,13 +86,6 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.headers.get("X-CSRF-Token") == session_token:
             return await call_next(request)
 
-        # Check form body
-        content_type = request.headers.get("content-type", "")
-        if "form" in content_type or "multipart" in content_type:
-            form = await request.form()
-            if form.get("_csrf_token") == session_token:
-                return await call_next(request)
-
         return PlainTextResponse("CSRF token mismatch", status_code=403)
 
 

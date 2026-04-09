@@ -126,11 +126,12 @@ class TestCSRFBlocks:
 class TestCSRFAllows:
     """POST with a valid CSRF token should succeed."""
 
-    def test_form_token_allows_post(self, csrf_client, csrf_seed_user):
+    def test_form_with_header_allows_post(self, csrf_client, csrf_seed_user):
         token = _login(csrf_client, csrf_seed_user)
         r = csrf_client.post(
             "/settings/profile",
-            data={"display_name": "Legit", "content": "hi", "_csrf_token": token},
+            data={"display_name": "Legit", "content": "hi"},
+            headers={"X-CSRF-Token": token},
         )
         # Should succeed (200 or 303 redirect)
         assert r.status_code in (200, 303)
