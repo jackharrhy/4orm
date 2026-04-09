@@ -233,6 +233,33 @@ details.panel[open] > summary > h2::before {
   content: "\25bc  ";
   font-size: 0.7em;
 }
+.panel > details {
+  border-top: 1px solid #ddd;
+  padding: 8px 0;
+}
+.panel > details:first-of-type {
+  border-top: none;
+}
+.panel > details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.panel > details > summary::-webkit-details-marker {
+  display: none;
+}
+.panel > details > summary > strong::before {
+  content: "\25b8 ";
+  font-size: 0.7em;
+  color: #999;
+}
+.panel > details[open] > summary > strong::before {
+  content: "\25be ";
+  font-size: 0.7em;
+  color: #999;
+}
+.panel > details > summary ~ * {
+  margin-top: 8px;
+}
 
 .tree {
   list-style: none;
