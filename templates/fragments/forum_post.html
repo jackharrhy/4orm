@@ -60,7 +60,11 @@
       {% if post.quoted_author %}
         <strong>{{ post.quoted_author }} wrote:</strong><br />
       {% endif %}
-      {{ post.quoted_content }}
+      {% if post.rendered_quoted_content %}
+        {{ post.rendered_quoted_content|safe }}
+      {% else %}
+        {{ post.quoted_content }}
+      {% endif %}
     </blockquote>
   {% endif %}
 

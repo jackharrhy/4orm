@@ -219,6 +219,7 @@ forum_posts = Table(
     Column("content_format", String(20), nullable=False, server_default="bbcode"),
     Column("quoted_post_id", Integer),
     Column("quoted_content", Text),
+    Column("quoted_content_format", String(20)),
     Column("quoted_author", String(80)),
     Column("is_edited", Boolean, nullable=False, server_default="0"),
     Column(

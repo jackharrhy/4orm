@@ -162,6 +162,7 @@ def create_reply(
     content_format: str = "bbcode",
     quoted_post_id: int | None = None,
     quoted_content: str | None = None,
+    quoted_content_format: str | None = None,
     quoted_author: str | None = None,
 ) -> int:
     """Create a reply and bump the thread. Returns the post ID."""
@@ -173,6 +174,7 @@ def create_reply(
             content_format=content_format,
             quoted_post_id=quoted_post_id,
             quoted_content=quoted_content,
+            quoted_content_format=quoted_content_format,
             quoted_author=quoted_author,
         )
     )

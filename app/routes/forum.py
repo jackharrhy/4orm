@@ -147,12 +147,17 @@ def thread_view(request: Request, thread_id: int, page: int = 1):
 
     rendered_posts = []
     for post in posts:
+        rendered_quoted = ""
+        if post.get("quoted_content"):
+            qfmt = post.get("quoted_content_format") or "bbcode"
+            rendered_quoted = render_forum_post(post["quoted_content"], qfmt)
         rendered_posts.append(
             {
                 **post,
                 "rendered_content": render_forum_post(
                     post["content"], post["content_format"]
                 ),
+                "rendered_quoted_content": rendered_quoted,
                 "rendered_signature": render_signature(
                     post.get("author_signature") or ""
                 ),
@@ -201,6 +206,13 @@ def thread_reply(
             raise HTTPException(404)
         if thread["is_locked"]:
             raise HTTPException(403, detail="Thread is locked")
+        # Look up the quoted post's content_format
+        quoted_content_format = None
+        if quoted_post_id:
+            qp = get_post(conn, quoted_post_id)
+            if qp:
+                quoted_content_format = qp["content_format"]
+
         create_reply(
             conn,
             thread_id=thread_id,
@@ -209,6 +221,7 @@ def thread_reply(
             content_format=content_format,
             quoted_post_id=quoted_post_id,
             quoted_content=quoted_content or None,
+            quoted_content_format=quoted_content_format,
             quoted_author=quoted_author or None,
         )
         # Calculate last page after adding the reply
