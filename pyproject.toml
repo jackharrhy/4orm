@@ -15,6 +15,7 @@ dependencies = [
   "markdown>=3.7",
   "bbcode==1.1.0",
   "bleach==6.3.0",
+  "pywebpush==2.3.0",
 ]
 
 [dependency-groups]

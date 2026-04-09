@@ -43,6 +43,7 @@ users = Table(
     Column("forum_signature", Text, nullable=False, server_default=""),
     Column("is_admin", Boolean, nullable=False, server_default="0"),
     Column("has_accepted_trust", Boolean, nullable=False, server_default="0"),
+    Column("notifications_enabled", Boolean, nullable=False, server_default="1"),
     Column("is_disabled", Boolean, nullable=False, server_default="0"),
     Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
     Column("invite_id", Integer, ForeignKey("invites.id", ondelete="SET NULL")),
@@ -242,6 +243,21 @@ playlist_items = Table(
     ),
     Column("position", Integer, nullable=False, server_default="0"),
     Column("title", String(200)),
+)
+
+push_subscriptions = Table(
+    "push_subscriptions",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("endpoint", Text, nullable=False, unique=True),
+    Column("p256dh_key", Text, nullable=False),
+    Column("auth_key", Text, nullable=False),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
 )
 
 profile_cards = Table(
