@@ -20,7 +20,7 @@ def webring_random(request: Request):
     return RedirectResponse(url=f"/u/{member['username']}", status_code=302)
 
 
-@router.get("/webring/{username}", response_class=HTMLResponse)
+@router.get("/u/{username}/webring", response_class=HTMLResponse)
 def webring_widget(request: Request, username: str):
     with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username)

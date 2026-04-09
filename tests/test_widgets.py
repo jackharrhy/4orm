@@ -47,7 +47,7 @@ def _create_audio_media(test_engine, user_id, filename="song.mp3"):
 
 def test_webring_widget_renders(client, seed_user, test_engine):
     _join_webring(test_engine, seed_user["id"])
-    resp = client.get("/webring/testuser")
+    resp = client.get("/u/testuser/webring")
     assert resp.status_code == 200
     assert "4orm webring" in resp.text
 
@@ -58,7 +58,7 @@ def test_webring_prev_next(client, seed_user, test_engine):
     bob_id = _create_user(test_engine, "bob", in_webring=True)
     _create_user(test_engine, "charlie", in_webring=True)
 
-    resp = client.get("/webring/bob")
+    resp = client.get("/u/bob/webring")
     assert resp.status_code == 200
     assert "alice" in resp.text
     assert "charlie" in resp.text
@@ -78,7 +78,7 @@ def test_webring_random_404_when_empty(client, seed_user, test_engine):
 
 def test_webring_non_member(client, seed_user, test_engine):
     # testuser is NOT in webring — widget should render but no prev/next links
-    resp = client.get("/webring/testuser")
+    resp = client.get("/u/testuser/webring")
     assert resp.status_code == 200
     # The prev/next links use target="_parent" with user profile URLs
     # A non-member should have no neighbor links
