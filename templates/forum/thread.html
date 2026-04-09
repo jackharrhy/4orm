@@ -71,7 +71,7 @@
 
         <label>
           format (<a href="https://www.phpbb.com/community/help/bbcode" target="_blank">BBCode?</a>):
-          <select name="content_format">
+          <select name="content_format" onchange="if(window._mediaFormat)window._mediaFormat['reply-content']=this.value">
             <option value="bbcode" selected>BBCode</option>
             <option value="markdown">Markdown</option>
           </select>

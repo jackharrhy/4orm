@@ -7,6 +7,7 @@
   <h1>new thread</h1>
 
   <form method="post" action="/forum/new" class="stack">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
     <label>
       title
       <input
@@ -24,7 +25,10 @@
         target="_blank"
         >BBCode?</a
       >):
-      <select name="content_format">
+      <select
+        name="content_format"
+        onchange="if(window._mediaFormat)window._mediaFormat['thread-content']=this.value"
+      >
         <option value="bbcode" selected>BBCode</option>
         <option value="markdown">Markdown</option>
       </select>
