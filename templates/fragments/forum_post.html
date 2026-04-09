@@ -65,9 +65,8 @@
           ></strong
         ><br />
       {% endif %}
-      <div
-        class="forum-quote-body{% if quote_long %}forum-quote-collapsed{% endif %}"
-      >
+      {%- set quote_classes = "forum-quote-body" ~ (" forum-quote-collapsed" if quote_long else "") -%}
+      <div class="{{ quote_classes }}">
         {% if post.rendered_quoted_content %}
           {{ post.rendered_quoted_content|safe }}
         {% else %}
