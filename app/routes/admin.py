@@ -3,7 +3,7 @@
 import contextlib
 
 from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func, select, update
 
 import app.deps as deps
@@ -432,6 +432,27 @@ def admin_rename_user(
 
     with get_engine(request).begin() as conn:
         return _admin_user_row_response(request, conn, user_id)
+
+
+@router.get("/admin/export")
+def admin_full_export(request: Request):
+    """Export the entire 4orm site as a zip."""
+    require_admin(request)
+    from app.export import build_full_site_export_zip
+
+    with get_engine(request).begin() as conn:
+        zip_bytes = build_full_site_export_zip(
+            conn=conn,
+            uploads_dir=deps.UPLOADS_DIR,
+            style_css_path=deps.BASE_DIR / "static" / "style.css",
+            site_url="https://4orm.harrhy.xyz",
+            templates_dir=deps.BASE_DIR / "templates",
+        )
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="4orm-export.zip"'},
+    )
 
 
 @router.post("/admin/users/{user_id}/delete")

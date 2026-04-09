@@ -4,6 +4,7 @@ import zipfile
 from sqlalchemy import insert, update
 
 import app.deps as deps
+from app.queries.forum import create_reply, create_thread
 from app.schema import media, pages, profile_cards, users
 from app.security import hash_password
 
@@ -332,3 +333,120 @@ def test_export_page_list_links(authed_client, test_engine, seed_user):
     index = zf.read("testuser-export/index.html").decode()
     assert "pages/page1.html" in index
     assert "pages/page2.html" in index
+
+
+# ===========================================================================
+# Full site export tests (/admin/export)
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# 15. test_full_export_requires_admin
+# ---------------------------------------------------------------------------
+def test_full_export_requires_admin(authed_client):
+    r = authed_client.get("/admin/export")
+    assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 16. test_full_export_contains_all_users
+# ---------------------------------------------------------------------------
+def test_full_export_contains_all_users(authed_client, test_engine, seed_user):
+    _make_admin(test_engine, seed_user["id"])
+    _create_second_user(test_engine)
+    r = authed_client.get("/admin/export")
+    zf = _extract_zip(r)
+    names = zf.namelist()
+    assert "4orm-export/users/testuser/index.html" in names
+    assert "4orm-export/users/other/index.html" in names
+    assert "4orm-export/style.css" in names
+
+
+# ---------------------------------------------------------------------------
+# 17. test_full_export_contains_pages
+# ---------------------------------------------------------------------------
+def test_full_export_contains_pages(authed_client, test_engine, seed_user):
+    _make_admin(test_engine, seed_user["id"])
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(pages).values(
+                user_id=seed_user["id"],
+                slug="mypage",
+                title="My Page",
+                content="page content",
+                content_format="html",
+            )
+        )
+    r = authed_client.get("/admin/export")
+    zf = _extract_zip(r)
+    assert "4orm-export/users/testuser/pages/mypage.html" in zf.namelist()
+    page_html = zf.read("4orm-export/users/testuser/pages/mypage.html").decode()
+    assert "page content" in page_html
+    assert "My Page" in page_html
+
+
+# ---------------------------------------------------------------------------
+# 18. test_full_export_contains_forum
+# ---------------------------------------------------------------------------
+def test_full_export_contains_forum(authed_client, test_engine, seed_user):
+    _make_admin(test_engine, seed_user["id"])
+    with test_engine.begin() as conn:
+        thread_id = create_thread(conn, seed_user["id"], "Test Thread", "thread body")
+        create_reply(conn, thread_id, seed_user["id"], "a reply")
+    r = authed_client.get("/admin/export")
+    zf = _extract_zip(r)
+    names = zf.namelist()
+    assert "4orm-export/forum/index.html" in names
+    assert f"4orm-export/forum/{thread_id}.html" in names
+    # Check thread page content
+    thread_html = zf.read(f"4orm-export/forum/{thread_id}.html").decode()
+    assert "Test Thread" in thread_html
+    assert "thread body" in thread_html
+    assert "a reply" in thread_html
+    # Check forum index
+    forum_idx = zf.read("4orm-export/forum/index.html").decode()
+    assert "Test Thread" in forum_idx
+
+
+# ---------------------------------------------------------------------------
+# 19. test_full_export_contains_media
+# ---------------------------------------------------------------------------
+def test_full_export_contains_media(authed_client, test_engine, seed_user, tmp_path):
+    _make_admin(test_engine, seed_user["id"])
+    user_dir = tmp_path / "testuser"
+    user_dir.mkdir()
+    (user_dir / "pic.png").write_bytes(b"fake image data")
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(media).values(
+                user_id=seed_user["id"],
+                storage_path="testuser/pic.png",
+                mime_type="image/png",
+                size_bytes=15,
+            )
+        )
+    original = deps.UPLOADS_DIR
+    deps.UPLOADS_DIR = tmp_path
+    try:
+        r = authed_client.get("/admin/export")
+        zf = _extract_zip(r)
+        assert "4orm-export/users/testuser/uploads/pic.png" in zf.namelist()
+        assert (
+            zf.read("4orm-export/users/testuser/uploads/pic.png") == b"fake image data"
+        )
+    finally:
+        deps.UPLOADS_DIR = original
+
+
+# ---------------------------------------------------------------------------
+# 20. test_full_export_empty_site
+# ---------------------------------------------------------------------------
+def test_full_export_empty_site(authed_client, test_engine, seed_user):
+    _make_admin(test_engine, seed_user["id"])
+    r = authed_client.get("/admin/export")
+    zf = _extract_zip(r)
+    names = zf.namelist()
+    assert "4orm-export/style.css" in names
+    assert "4orm-export/users/testuser/index.html" in names
+    # No forum directory since no threads
+    assert not any("forum/" in n for n in names)
