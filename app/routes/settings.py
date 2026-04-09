@@ -29,6 +29,12 @@ from app.queries.users import (
     disable_invite,
     get_invites_for_user,
 )
+from app.queries.widgets import (
+    add_to_playlist,
+    get_playlist,
+    move_playlist_item,
+    remove_from_playlist,
+)
 from app.schema import media, profile_cards, users
 
 router = APIRouter()
@@ -50,6 +56,19 @@ def settings_get(request: Request):
         )
         media_items = list_media_for_user(conn, me["id"])
         my_invites = get_invites_for_user(conn, me["id"])
+        playlist = get_playlist(conn, me["id"])
+        audio_items = (
+            conn.execute(
+                select(media)
+                .where(
+                    media.c.user_id == me["id"],
+                    media.c.mime_type.like("audio%"),
+                )
+                .order_by(media.c.created_at.desc())
+            )
+            .mappings()
+            .all()
+        )
     return templates.TemplateResponse(
         request,
         "settings.html",
@@ -60,6 +79,8 @@ def settings_get(request: Request):
             "card_settings": card_settings,
             "media_items": media_items,
             "my_invites": my_invites,
+            "playlist": playlist,
+            "audio_items": audio_items,
             "error": None,
         },
     )
@@ -253,6 +274,97 @@ def settings_counter(
             )
         )
     return _saved_or_redirect(request)
+
+
+@router.post("/settings/webring")
+def settings_webring(request: Request, in_webring: str | None = Form(None)):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        conn.execute(
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(in_webring=in_webring == "on", updated_at=func.now())
+        )
+    return _saved_or_redirect(request)
+
+
+@router.post("/settings/status")
+def settings_status(
+    request: Request,
+    status_emoji: str = Form(""),
+    status_text: str = Form(""),
+    status_css: str = Form(""),
+    status_html: str = Form(""),
+):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        conn.execute(
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(
+                status_emoji=status_emoji[:10],
+                status_text=status_text[:140],
+                status_css=status_css,
+                status_html=status_html,
+                status_updated_at=func.now(),
+                updated_at=func.now(),
+            )
+        )
+    return _saved_or_redirect(request)
+
+
+@router.post("/settings/player")
+def settings_player(
+    request: Request,
+    player_css: str = Form(""),
+    player_html: str = Form(""),
+):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        conn.execute(
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(
+                player_css=player_css, player_html=player_html, updated_at=func.now()
+            )
+        )
+    return _saved_or_redirect(request)
+
+
+@router.post("/settings/player/add")
+def settings_player_add(request: Request, media_id: int = Form(...)):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        add_to_playlist(conn, me["id"], media_id)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/player/{item_id}/remove")
+def settings_player_remove(request: Request, item_id: int):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        remove_from_playlist(conn, item_id, me["id"])
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/player/{item_id}/move")
+def settings_player_move(request: Request, item_id: int, direction: str = Form(...)):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        move_playlist_item(conn, item_id, me["id"], direction)
+    return RedirectResponse(url="/settings", status_code=303)
 
 
 @router.post("/settings/signature")

@@ -25,6 +25,7 @@
       hx-target="#profile-status"
       hx-swap="innerHTML"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <label>
         display name
         <input name="display_name" value="{{ me.display_name }}" />
@@ -45,6 +46,7 @@
       hx-swap="innerHTML"
       style="margin-top: 10px"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <label>
         username
         <input name="username" value="{{ me.username }}" required />
@@ -63,6 +65,7 @@
       hx-target="#css-status"
       hx-swap="innerHTML"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <textarea name="custom_css" rows="10" data-codemirror="css">
 {{ me.custom_css }}</textarea
       >
@@ -81,6 +84,7 @@
       hx-target="#html-status"
       hx-swap="innerHTML"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <textarea name="custom_html" rows="10" data-codemirror="html">
 {{ me.custom_html }}</textarea
       >
@@ -98,6 +102,7 @@
       hx-target="#card-status"
       hx-swap="innerHTML"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <label>
         headline
         <input
@@ -145,6 +150,7 @@
   <details class="panel">
     <summary><h2>create page</h2></summary>
     <form method="post" action="/settings/pages" class="stack">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <label>
         slug
         <input name="slug" placeholder="about" />
@@ -177,6 +183,7 @@
       hx-target="#guestbook-status"
       hx-swap="innerHTML"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <label>guestbook css</label>
       <textarea name="guestbook_css" rows="6" data-codemirror="css">
 {{ me.guestbook_css }}</textarea
@@ -206,6 +213,7 @@
       hx-target="#counter-status"
       hx-swap="innerHTML"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <label>counter css</label>
       <textarea name="counter_css" rows="6" data-codemirror="css">
 {{ me.counter_css }}</textarea
@@ -217,6 +225,173 @@
       <button>save counter</button>
       <span id="counter-status"></span>
     </form>
+  </details>
+  <details class="panel">
+    <summary><h2>webring</h2></summary>
+    <p class="muted">
+      join the 4orm webring to be discoverable by other members.
+    </p>
+    <form
+      method="post"
+      action="/settings/webring"
+      class="stack"
+      hx-post="/settings/webring"
+      hx-target="#webring-status"
+      hx-swap="innerHTML"
+    >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+      <label>
+        <input
+          type="checkbox"
+          name="in_webring"
+          {% if me.in_webring %}checked{% endif %}
+        />
+        join the webring
+      </label>
+      <button>save</button>
+      <span id="webring-status"></span>
+    </form>
+    {% if me.in_webring %}
+      <p class="muted" style="margin-top: 8px">embed on your page:</p>
+      <pre><code>&lt;iframe src="/webring/{{ me.username }}" style="width:100%;height:32px;border:none;"&gt;&lt;/iframe&gt;</code></pre>
+    {% endif %}
+  </details>
+  <details class="panel">
+    <summary><h2>status / mood</h2></summary>
+    <p class="muted">set your current status. visible via embeddable badge.</p>
+    <form
+      method="post"
+      action="/settings/status"
+      class="stack"
+      hx-post="/settings/status"
+      hx-target="#status-status"
+      hx-swap="innerHTML"
+    >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+      <label>
+        emoji (max 10 chars)
+        <input
+          name="status_emoji"
+          value="{{ me.status_emoji }}"
+          maxlength="10"
+          style="width: 80px"
+        />
+      </label>
+      <label>
+        status text (max 140 chars)
+        <input
+          name="status_text"
+          value="{{ me.status_text }}"
+          maxlength="140"
+        />
+      </label>
+      <label>status css</label>
+      <textarea name="status_css" rows="4" data-codemirror="css">
+{{ me.status_css }}</textarea
+      >
+      <label>status html</label>
+      <textarea name="status_html" rows="4" data-codemirror="html">
+{{ me.status_html }}</textarea
+      >
+      <button>save status</button>
+      <span id="status-status"></span>
+    </form>
+    <p class="muted" style="margin-top: 8px">embed on your page:</p>
+    <pre><code>&lt;iframe src="/u/{{ me.username }}/status" style="width:300px;height:32px;border:none;"&gt;&lt;/iframe&gt;</code></pre>
+  </details>
+  <details class="panel">
+    <summary><h2>music player</h2></summary>
+    <p class="muted">create a playlist from your audio uploads.</p>
+    {% if playlist %}
+      <h3>current playlist</h3>
+      <div class="stack">
+        {% for t in playlist %}
+          <div class="inline" style="flex-wrap: wrap; gap: 4px">
+            <span>{{ t.title or t.storage_path.split('/')[-1] }}</span>
+            <form
+              method="post"
+              action="/settings/player/{{ t.id }}/move"
+              class="inline"
+            >
+              <input
+                type="hidden"
+                name="_csrf_token"
+                value="{{ csrf_token }}"
+              />
+              <input type="hidden" name="direction" value="up" />
+              <button type="submit" class="btn-sm">↑</button>
+            </form>
+            <form
+              method="post"
+              action="/settings/player/{{ t.id }}/move"
+              class="inline"
+            >
+              <input
+                type="hidden"
+                name="_csrf_token"
+                value="{{ csrf_token }}"
+              />
+              <input type="hidden" name="direction" value="down" />
+              <button type="submit" class="btn-sm">↓</button>
+            </form>
+            <form
+              method="post"
+              action="/settings/player/{{ t.id }}/remove"
+              class="inline"
+            >
+              <input
+                type="hidden"
+                name="_csrf_token"
+                value="{{ csrf_token }}"
+              />
+              <button type="submit" class="btn-sm">remove</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% if audio_items %}
+      <h3>add track</h3>
+      <form method="post" action="/settings/player/add" class="inline">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+        <select name="media_id">
+          {% for a in audio_items %}
+            <option value="{{ a.id }}">
+              {{ a.storage_path.split('/')[-1] }}
+            </option>
+          {% endfor %}
+        </select>
+        <button type="submit">add to playlist</button>
+      </form>
+    {% else %}
+      <p class="muted">
+        upload audio files in the
+        <a href="/settings/media">media library</a> first.
+      </p>
+    {% endif %}
+    <form
+      method="post"
+      action="/settings/player"
+      class="stack"
+      style="margin-top: 10px"
+      hx-post="/settings/player"
+      hx-target="#player-status"
+      hx-swap="innerHTML"
+    >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+      <label>player css</label>
+      <textarea name="player_css" rows="4" data-codemirror="css">
+{{ me.player_css }}</textarea
+      >
+      <label>player html</label>
+      <textarea name="player_html" rows="4" data-codemirror="html">
+{{ me.player_html }}</textarea
+      >
+      <button>save player styling</button>
+      <span id="player-status"></span>
+    </form>
+    <p class="muted" style="margin-top: 8px">embed on your page:</p>
+    <pre><code>&lt;iframe src="/u/{{ me.username }}/player" style="width:300px;height:200px;border:2px inset #ccc;"&gt;&lt;/iframe&gt;</code></pre>
   </details>
   <details class="panel">
     <summary><h2>forum signature</h2></summary>
@@ -234,6 +409,7 @@
       hx-target="#sig-status"
       hx-swap="innerHTML"
     >
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <textarea name="forum_signature" rows="3" maxlength="200">
 {{ me.forum_signature }}</textarea
       >
