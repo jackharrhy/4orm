@@ -63,6 +63,9 @@
             {% if u.is_disabled %}re-enable{% else %}disable{% endif %}
           </button>
         </form>
+        <a href="/u/{{ u.username }}/export"
+          ><button type="button" class="btn-sm">export</button></a
+        >
         {% if not u.is_admin %}
           <form
             method="post"

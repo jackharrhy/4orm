@@ -1,9 +1,11 @@
 """Public page routes: profiles, pages, lineage, how-to, counter."""
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
+import app.deps as deps
 from app.deps import current_user, get_engine, templates
+from app.export import build_export_zip
 from app.queries.counter import get_total_views, increment_counter
 from app.queries.pages import get_public_page, list_public_pages_for_user
 from app.queries.users import get_invite_tree, get_user_by_username
@@ -124,4 +126,30 @@ def lineage(request: Request):
         request,
         "lineage.html",
         {"tree": tree, "me": current_user(request)},
+    )
+
+
+@router.get("/u/{username}/export")
+def export_site(request: Request, username: str):
+    me = current_user(request)
+    with get_engine(request).begin() as conn:
+        user = get_user_by_username(conn, username)
+        if not user:
+            raise HTTPException(404)
+        if not me or (me["id"] != user["id"] and not me.get("is_admin")):
+            raise HTTPException(403)
+        zip_bytes = build_export_zip(
+            conn=conn,
+            username=username,
+            uploads_dir=deps.UPLOADS_DIR,
+            style_css_path=deps.BASE_DIR / "static" / "style.css",
+            site_url="https://4orm.harrhy.xyz",
+            templates_dir=deps.BASE_DIR / "templates",
+        )
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{username}-export.zip"'
+        },
     )
