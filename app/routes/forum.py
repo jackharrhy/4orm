@@ -32,10 +32,13 @@ THREADS_PER_PAGE = 25
 POSTS_PER_PAGE = 50
 
 
+RATE_LIMIT_SECONDS = 10
+
+
 def _check_rate_limit(request: Request, conn, user_id: int):
-    """Rate limit: max 1 post per 10 seconds."""
+    """Rate limit: max 1 post per RATE_LIMIT_SECONDS. Returns wait time or 0."""
     if getattr(request.app.state, "testing", False):
-        return
+        return 0
 
     last_post = conn.execute(
         select(forum_posts.c.created_at)
@@ -47,8 +50,23 @@ def _check_rate_limit(request: Request, conn, user_id: int):
     if last_post:
         if last_post.tzinfo is None:
             last_post = last_post.replace(tzinfo=timezone.utc)
-        if (datetime.now(UTC) - last_post).total_seconds() < 10:
-            raise HTTPException(429, detail="Please wait before posting again")
+        elapsed = (datetime.now(UTC) - last_post).total_seconds()
+        if elapsed < RATE_LIMIT_SECONDS:
+            return int(RATE_LIMIT_SECONDS - elapsed)
+    return 0
+
+
+def _enforce_rate_limit(request: Request, conn, user_id: int):
+    """Check rate limit and raise/return error if exceeded."""
+    wait = _check_rate_limit(request, conn, user_id)
+    if wait > 0:
+        if is_htmx(request):
+            return HTMLResponse(
+                f'<p class="error">please wait {wait} seconds before posting again</p>',
+                status_code=429,
+            )
+        raise HTTPException(429, detail="Please wait before posting again")
+    return None
 
 
 @router.get("", response_class=HTMLResponse)
@@ -98,7 +116,9 @@ def new_thread_submit(
         return RedirectResponse(url="/login", status_code=303)
 
     with get_engine(request).begin() as conn:
-        _check_rate_limit(request, conn, me["id"])
+        rate_error = _enforce_rate_limit(request, conn, me["id"])
+        if rate_error:
+            return rate_error
 
         thread_id = create_thread(
             conn,
@@ -172,7 +192,9 @@ def thread_reply(
         return RedirectResponse(url="/login", status_code=303)
 
     with get_engine(request).begin() as conn:
-        _check_rate_limit(request, conn, me["id"])
+        rate_error = _enforce_rate_limit(request, conn, me["id"])
+        if rate_error:
+            return rate_error
 
         thread = get_thread(conn, thread_id)
         if not thread:

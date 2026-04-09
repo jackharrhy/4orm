@@ -34,6 +34,25 @@
     </header>
     <main class="wrap">{% block content %}{% endblock %}</main>
     <script>
+      // Show htmx error responses (rate limits, validation errors, etc.)
+      document.addEventListener("htmx:responseError", function (e) {
+        var target = e.detail.target || e.detail.elt;
+        if (e.detail.xhr && e.detail.xhr.responseText) {
+          // Find or create an error container near the trigger element
+          var form = e.detail.elt.closest("form") || e.detail.elt;
+          var existing = form.querySelector(".htmx-error");
+          if (existing) existing.remove();
+          var div = document.createElement("div");
+          div.className = "htmx-error";
+          div.innerHTML = e.detail.xhr.responseText;
+          form.appendChild(div);
+          // Auto-remove after 5 seconds
+          setTimeout(function () {
+            div.remove();
+          }, 5000);
+        }
+      });
+
       // Intercept all form POSTs and add the CSRF header via fetch
       document.addEventListener("submit", function (e) {
         var form = e.target;

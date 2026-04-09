@@ -194,6 +194,14 @@ code {
   border: 1px solid #ddd;
   font-size: 0.9em;
 }
+.htmx-error {
+  color: #cc0000;
+  background: #fff0f0;
+  border: 1px solid #cc0000;
+  padding: 6px 10px;
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
 h2 > a,
 h3 > a {
   color: inherit;
