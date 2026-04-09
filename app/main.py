@@ -68,7 +68,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     """Reject state-changing requests that lack a valid CSRF token."""
 
     async def dispatch(self, request: Request, call_next):
-        if not request.app.state.csrf_enabled:
+        if not app.state.csrf_enabled:
             return await call_next(request)
 
         if request.method in ("GET", "HEAD", "OPTIONS"):
