@@ -3,5 +3,16 @@
 {% block title %}{{ page.title }}{% endblock %}
 {% block content %}
   {{ inject_custom_assets(page) }}
-  {{ rendered_content|safe }}
+  <article class="h-entry">
+    <span class="p-name" hidden>{{ page.title }}</span>
+    <a class="p-author h-card" href="/u/{{ page.username }}" hidden
+      >{{ page.display_name }}</a
+    >
+    <a
+      class="u-url"
+      href="/u/{{ page.username }}/page/{{ page.slug }}"
+      hidden
+    ></a>
+    <div class="e-content">{{ rendered_content|safe }}</div>
+  </article>
 {% endblock %}

@@ -4,20 +4,23 @@
   {{ profile.display_name }}
 {% endblock %}
 {% block content %}
-  <section class="panel">
-    <h1>{{ profile.display_name }}</h1>
-    {{ rendered_content|safe }}
+  <section class="panel h-card">
+    <h1 class="p-name">{{ profile.display_name }}</h1>
+    <a class="u-url" href="/u/{{ profile.username }}" rel="me" hidden></a>
+    <div class="e-note">{{ rendered_content|safe }}</div>
     <p>
       <a href="/lineage#user-{{ profile.username }}">view lineage</a>
     </p>
   </section>
   {{ inject_custom_assets(profile) }}
-  <section class="panel">
+  <section class="h-feed">
     <h2>pages</h2>
     <ul>
       {% for p in pages %}
-        <li>
-          <a href="/u/{{ profile.username }}/page/{{ p.slug }}"
+        <li class="h-entry">
+          <a
+            class="u-url p-name"
+            href="/u/{{ profile.username }}/page/{{ p.slug }}"
             >{{ p.title }}</a
           >
         </li>

@@ -3,5 +3,9 @@
 {% block title %}{{ profile.display_name }}{% endblock %}
 {% block content %}
   {{ inject_custom_assets(profile) }}
-  {{ rendered_content|safe }}
+  <div class="h-card">
+    <a class="u-url" href="/u/{{ profile.username }}" rel="me" hidden></a>
+    <span class="p-name" hidden>{{ profile.display_name }}</span>
+    <div class="e-note">{{ rendered_content|safe }}</div>
+  </div>
 {% endblock %}
