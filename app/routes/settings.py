@@ -393,6 +393,22 @@ def settings_player_move(request: Request, item_id: int, direction: str = Form(.
     return RedirectResponse(url="/settings", status_code=303)
 
 
+@router.post("/settings/notifications")
+def settings_notifications(
+    request: Request, notifications_enabled: str | None = Form(None)
+):
+    me = current_user(request)
+    if not me:
+        return RedirectResponse(url="/login", status_code=303)
+    with get_engine(request).begin() as conn:
+        conn.execute(
+            update(users)
+            .where(users.c.id == me["id"])
+            .values(notifications_enabled=notifications_enabled == "on")
+        )
+    return _saved_or_redirect(request)
+
+
 @router.post("/settings/signature")
 def settings_signature(request: Request, forum_signature: str = Form("")):
     me = current_user(request)

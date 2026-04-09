@@ -345,6 +345,32 @@
       <div id="invites-section">{% include 'fragments/invites.html' %}</div>
     </details>
     <details>
+      <summary><strong>notifications</strong></summary>
+      <p class="muted">
+        push notifications for thread replies, quotes, and guestbook entries.
+      </p>
+      <form
+        method="post"
+        action="/settings/notifications"
+        class="stack"
+        hx-post="/settings/notifications"
+        hx-target="#notif-status"
+        hx-swap="innerHTML"
+      >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+        <label>
+          <input
+            type="checkbox"
+            name="notifications_enabled"
+            {% if me.notifications_enabled %}checked{% endif %}
+          />
+          enable push notifications
+        </label>
+        <button>save</button>
+        <span id="notif-status"></span>
+      </form>
+    </details>
+    <details>
       <summary><strong>forum signature</strong></summary>
       <p class="muted">
         <a href="https://www.phpbb.com/community/help/bbcode" target="_blank"
