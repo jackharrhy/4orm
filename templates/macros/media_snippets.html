@@ -1,6 +1,6 @@
 {% macro media_snippet_picker(media_items, textarea_id, format="html") %}
-  {% if media_items %}
-    <div class="media-picker">
+  <div class="media-picker" id="media-picker-{{ textarea_id }}">
+    {% if media_items %}
       <label>
         media
         <select
@@ -23,135 +23,105 @@
         style="flex-wrap: wrap; margin-top: 4px"
         id="media-buttons-{{ textarea_id }}"
       >
-        <button
-          type="button"
-          class="btn-sm media-btn-img"
-          onclick="insertMediaSnippet('{{ textarea_id }}', 'img')"
-        >
-          img
-        </button>
-        <button
-          type="button"
-          class="btn-sm media-btn-linked-img"
-          onclick="insertMediaSnippet('{{ textarea_id }}', 'linked-img')"
-        >
-          linked img
-        </button>
-        <button
-          type="button"
-          class="btn-sm media-btn-video"
-          onclick="insertMediaSnippet('{{ textarea_id }}', 'video')"
-        >
-          video
-        </button>
-        <button
-          type="button"
-          class="btn-sm media-btn-audio"
-          onclick="insertMediaSnippet('{{ textarea_id }}', 'audio')"
-        >
-          audio
-        </button>
-        <button
-          type="button"
-          class="btn-sm"
-          onclick="insertMediaSnippet('{{ textarea_id }}', 'link')"
-        >
-          link
-        </button>
+        <button type="button" class="btn-sm media-btn-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'img')">img</button>
+        <button type="button" class="btn-sm media-btn-linked-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'linked-img')">linked img</button>
+        <button type="button" class="btn-sm media-btn-video" onclick="insertMediaSnippet('{{ textarea_id }}', 'video')">video</button>
+        <button type="button" class="btn-sm media-btn-audio" onclick="insertMediaSnippet('{{ textarea_id }}', 'audio')">audio</button>
+        <button type="button" class="btn-sm" onclick="insertMediaSnippet('{{ textarea_id }}', 'link')">link</button>
       </div>
-    </div>
-    <script>
-      (function () {
-        var format = "{{ format }}";
-        window._mediaFormat = window._mediaFormat || {};
-        window._mediaFormat["{{ textarea_id }}"] = format;
+    {% else %}
+      <p class="muted">no media yet.</p>
+    {% endif %}
+    <details style="margin-top: 6px">
+      <summary class="btn-sm" style="display: inline-block; cursor: pointer">upload media</summary>
+      <form
+        method="post"
+        action="/api/media/quick-upload"
+        enctype="multipart/form-data"
+        class="inline"
+        style="margin-top: 4px; flex-wrap: wrap"
+        hx-post="/api/media/quick-upload"
+        hx-target="#media-picker-{{ textarea_id }}"
+        hx-swap="outerHTML"
+        hx-encoding="multipart/form-data"
+      >
+        <input type="hidden" name="picker_textarea_id" value="{{ textarea_id }}" />
+        <input type="hidden" name="picker_format" value="{{ format }}" />
+        <input type="file" name="file" required />
+        <button type="submit" class="btn-sm">upload</button>
+      </form>
+    </details>
+  </div>
+  <script>
+    (function () {
+      var format = "{{ format }}";
+      window._mediaFormat = window._mediaFormat || {};
+      window._mediaFormat["{{ textarea_id }}"] = format;
 
-        window.updateMediaButtons =
-          window.updateMediaButtons ||
-          function (textareaId) {
-            var sel = document.getElementById("media-select-" + textareaId);
-            var opt = sel.options[sel.selectedIndex];
-            var mime = opt.dataset.mime || "";
-            var wrap = document.getElementById("media-buttons-" + textareaId);
-            var isImg = mime.startsWith("image/");
-            var isVid = mime.startsWith("video/");
-            var isAud = mime.startsWith("audio/");
-            wrap.querySelector(".media-btn-img").style.display = isImg
-              ? ""
-              : "none";
-            wrap.querySelector(".media-btn-linked-img").style.display = isImg
-              ? ""
-              : "none";
-            wrap.querySelector(".media-btn-video").style.display = isVid
-              ? ""
-              : "none";
-            wrap.querySelector(".media-btn-audio").style.display = isAud
-              ? ""
-              : "none";
-          };
+      window.updateMediaButtons =
+        window.updateMediaButtons ||
+        function (textareaId) {
+          var sel = document.getElementById("media-select-" + textareaId);
+          if (!sel) return;
+          var opt = sel.options[sel.selectedIndex];
+          var mime = opt.dataset.mime || "";
+          var wrap = document.getElementById("media-buttons-" + textareaId);
+          if (!wrap) return;
+          var isImg = mime.startsWith("image/");
+          var isVid = mime.startsWith("video/");
+          var isAud = mime.startsWith("audio/");
+          wrap.querySelector(".media-btn-img").style.display = isImg ? "" : "none";
+          wrap.querySelector(".media-btn-linked-img").style.display = isImg ? "" : "none";
+          wrap.querySelector(".media-btn-video").style.display = isVid ? "" : "none";
+          wrap.querySelector(".media-btn-audio").style.display = isAud ? "" : "none";
+        };
 
-        window.insertMediaSnippet =
-          window.insertMediaSnippet ||
-          function (textareaId, type) {
-            var sel = document.getElementById("media-select-" + textareaId);
-            var path = "/uploads/" + sel.value;
-            var alt = sel.options[sel.selectedIndex].dataset.alt || "";
-            var fmt = window._mediaFormat[textareaId] || "html";
-            var snippet = "";
-            if (fmt === "bbcode") {
-              if (type === "img") snippet = "[img]" + path + "[/img]";
-              else if (type === "linked-img")
-                snippet = "[url=" + path + "][img]" + path + "[/img][/url]";
-              else if (type === "video")
-                snippet = "[video]" + path + "[/video]";
-              else if (type === "audio")
-                snippet = "[audio]" + path + "[/audio]";
-              else
-                snippet =
-                  "[url=" +
-                  path +
-                  "]" +
-                  sel.options[sel.selectedIndex].text +
-                  "[/url]";
-            } else {
-              if (type === "img")
-                snippet = '<img src="' + path + '" alt="' + alt + '" />';
-              else if (type === "linked-img")
-                snippet =
-                  '<a href="' +
-                  path +
-                  '"><img src="' +
-                  path +
-                  '" alt="' +
-                  alt +
-                  '" /></a>';
-              else if (type === "video")
-                snippet = '<video controls src="' + path + '"></video>';
-              else if (type === "audio")
-                snippet = '<audio controls src="' + path + '"></audio>';
-              else snippet = '<a href="' + path + '">download</a>';
-            }
-            // Insert at cursor — use CM editor if available, else textarea
-            var cm = window._cmEditors && window._cmEditors[textareaId];
-            if (cm) {
-              var pos = cm.state.selection.main.head;
-              cm.dispatch({ changes: { from: pos, insert: snippet } });
-              cm.focus();
-              return;
-            }
-            var ta = document.getElementById(textareaId);
-            if (!ta) return;
-            var start = ta.selectionStart || 0;
-            var end = ta.selectionEnd || 0;
-            ta.value =
-              ta.value.substring(0, start) + snippet + ta.value.substring(end);
-            ta.selectionStart = ta.selectionEnd = start + snippet.length;
-            ta.focus();
-          };
+      window.insertMediaSnippet =
+        window.insertMediaSnippet ||
+        function (textareaId, type) {
+          var sel = document.getElementById("media-select-" + textareaId);
+          var path = "/uploads/" + sel.value;
+          var alt = sel.options[sel.selectedIndex].dataset.alt || "";
+          var fmt = window._mediaFormat[textareaId] || "html";
+          var snippet = "";
+          if (fmt === "bbcode") {
+            if (type === "img") snippet = "[img]" + path + "[/img]";
+            else if (type === "linked-img")
+              snippet = "[url=" + path + "][img]" + path + "[/img][/url]";
+            else if (type === "video") snippet = "[video]" + path + "[/video]";
+            else if (type === "audio") snippet = "[audio]" + path + "[/audio]";
+            else
+              snippet = "[url=" + path + "]" + sel.options[sel.selectedIndex].text + "[/url]";
+          } else {
+            if (type === "img")
+              snippet = '<img src="' + path + '" alt="' + alt + '" />';
+            else if (type === "linked-img")
+              snippet = '<a href="' + path + '"><img src="' + path + '" alt="' + alt + '" /></a>';
+            else if (type === "video")
+              snippet = '<video controls src="' + path + '"></video>';
+            else if (type === "audio")
+              snippet = '<audio controls src="' + path + '"></audio>';
+            else snippet = '<a href="' + path + '">download</a>';
+          }
+          var cm = window._cmEditors && window._cmEditors[textareaId];
+          if (cm) {
+            var pos = cm.state.selection.main.head;
+            cm.dispatch({ changes: { from: pos, insert: snippet } });
+            cm.focus();
+            return;
+          }
+          var ta = document.getElementById(textareaId);
+          if (!ta) return;
+          var start = ta.selectionStart || 0;
+          var end = ta.selectionEnd || 0;
+          ta.value = ta.value.substring(0, start) + snippet + ta.value.substring(end);
+          ta.selectionStart = ta.selectionEnd = start + snippet.length;
+          ta.focus();
+        };
 
-        // Init button visibility for first item
+      {% if media_items %}
         updateMediaButtons("{{ textarea_id }}");
-      })();
-    </script>
-  {% endif %}
+      {% endif %}
+    })();
+  </script>
 {% endmacro %}

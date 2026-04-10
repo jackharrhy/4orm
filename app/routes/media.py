@@ -207,3 +207,82 @@ def settings_media_rename(request: Request, media_id: int, filename: str = Form(
         update_media_storage_path(conn, me["id"], media_id, rel_path)
 
     return _media_card_response(request, me, media_id)
+
+
+@router.post("/api/media/quick-upload")
+async def quick_media_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    picker_textarea_id: str = Form(""),
+    picker_format: str = Form("html"),
+):
+    """Upload a file and return the updated media picker fragment."""
+    me = current_user(request)
+    if not me:
+        raise HTTPException(401)
+
+    username = me["username"]
+    user_upload_dir = deps.UPLOADS_DIR / username
+    user_upload_dir.mkdir(parents=True, exist_ok=True)
+
+    final_name = clean_filename(file.filename or "file")
+    original_ext = Path(file.filename or "").suffix.lower()
+    if original_ext and Path(final_name).suffix.lower() != original_ext:
+        final_name = f"{Path(final_name).stem}{original_ext}"
+
+    rel_path = f"{username}/{final_name}"
+    disk_path = deps.UPLOADS_DIR / rel_path
+
+    if disk_path.exists():
+        base = Path(final_name).stem
+        ext = Path(final_name).suffix
+        i = 2
+        while True:
+            candidate = f"{base}-{i}{ext}"
+            if not (user_upload_dir / candidate).exists():
+                final_name = candidate
+                rel_path = f"{username}/{final_name}"
+                disk_path = user_upload_dir / candidate
+                break
+            i += 1
+
+    content = await file.read()
+    if len(content) > deps.MAX_UPLOAD_BYTES:
+        return HTMLResponse(
+            '<p class="error">file too big (max 10 MB)</p>',
+            status_code=400,
+        )
+
+    with get_engine(request).begin() as conn:
+        current_usage = conn.execute(
+            select(func.coalesce(func.sum(media.c.size_bytes), 0)).where(
+                media.c.user_id == me["id"]
+            )
+        ).scalar()
+    if current_usage + len(content) > deps.MAX_STORAGE_PER_USER:
+        return HTMLResponse(
+            '<p class="error">storage limit reached</p>',
+            status_code=400,
+        )
+
+    disk_path.write_bytes(content)
+
+    with get_engine(request).begin() as conn:
+        create_media(
+            conn,
+            user_id=me["id"],
+            storage_path=rel_path,
+            mime_type=file.content_type or "application/octet-stream",
+            size_bytes=len(content),
+        )
+        media_items = list_media_for_user(conn, me["id"])
+
+    return templates.TemplateResponse(
+        request,
+        "fragments/media_picker.html",
+        {
+            "media_items": media_items,
+            "textarea_id": picker_textarea_id,
+            "format": picker_format,
+        },
+    )
