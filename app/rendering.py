@@ -87,7 +87,7 @@ def render_forum_post(source: str, content_format: str) -> str:
             attributes=BLEACH_ALLOWED_ATTRS,
             strip=True,
         )
-    # Markdown — render then sanitize
+    # Markdown: render then sanitize
     raw_html = markdown.markdown(
         source, extensions=["fenced_code", "tables", "attr_list"]
     )

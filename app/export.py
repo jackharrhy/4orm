@@ -281,7 +281,7 @@ def _render_forum_thread_html(
 
     tmpl = env.get_template("export_base.html")
     return tmpl.render(
-        title=f"{title} — 4orm forum",
+        title=f"4orm · {title}",
         content=f"{header}{content}",
         custom_css=custom_css,
         custom_html=custom_html,
@@ -479,7 +479,7 @@ def build_full_site_export_zip(
 
             tmpl = env.get_template("export_base.html")
             forum_index_html = tmpl.render(
-                title="forum — 4orm",
+                title="4orm · forum",
                 content=forum_index_content,
                 custom_css="",
                 custom_html="",

@@ -3,7 +3,7 @@
     <li id="page-{{ p.slug }}">
       <a href="/u/{{ username }}/page/{{ p.slug }}">{{ p.title }}</a>
       <span class="muted">({{ 'public' if p.is_public else 'private' }})</span>
-      — <a href="/settings/pages/{{ p.slug }}/edit">edit</a> —
+      · <a href="/settings/pages/{{ p.slug }}/edit">edit</a> ·
       <form
         method="post"
         action="/settings/pages/{{ p.slug }}/delete"
