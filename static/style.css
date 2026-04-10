@@ -253,6 +253,38 @@ details.panel[open] > summary > h2::before {
   content: "\25bc  ";
   font-size: 0.7em;
 }
+.media-picker {
+  border: 1px solid #ddd;
+  padding: 8px;
+  margin-top: 6px;
+  background: #fafafa;
+}
+.media-picker-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.media-picker-select {
+  flex: 1;
+  min-width: 0;
+}
+.media-picker-upload {
+  border-left: 1px solid #ddd;
+  padding-left: 12px;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .media-picker-row {
+    flex-direction: column;
+  }
+  .media-picker-upload {
+    border-left: none;
+    border-top: 1px solid #ddd;
+    padding-left: 0;
+    padding-top: 8px;
+  }
+}
+
 .media-item {
   border: 1px solid #ddd;
   padding: 6px 10px;

@@ -1,56 +1,49 @@
-{% macro media_snippet_picker(media_items, textarea_id, format="html") %}
+{% macro media_snippet_picker(media_items, textarea_id, format="html", selected_path="") %}
   <div class="media-picker" id="media-picker-{{ textarea_id }}">
-    {% if media_items %}
-      <label>
-        media
-        <select
-          id="media-select-{{ textarea_id }}"
-          onchange="updateMediaButtons('{{ textarea_id }}')"
-        >
-          {% for item in media_items %}
-            <option
-              value="{{ item.storage_path }}"
-              data-mime="{{ item.mime_type or '' }}"
-              data-alt="{{ item.alt_text or '' }}"
-            >
-              {{ item.storage_path.split('/')[-1] }}
-            </option>
-          {% endfor %}
-        </select>
-      </label>
-      <div
-        class="inline"
-        style="flex-wrap: wrap; margin-top: 4px"
-        id="media-buttons-{{ textarea_id }}"
-      >
-        <button type="button" class="btn-sm media-btn-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'img')">img</button>
-        <button type="button" class="btn-sm media-btn-linked-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'linked-img')">linked img</button>
-        <button type="button" class="btn-sm media-btn-video" onclick="insertMediaSnippet('{{ textarea_id }}', 'video')">video</button>
-        <button type="button" class="btn-sm media-btn-audio" onclick="insertMediaSnippet('{{ textarea_id }}', 'audio')">audio</button>
-        <button type="button" class="btn-sm" onclick="insertMediaSnippet('{{ textarea_id }}', 'link')">link</button>
+    <div class="media-picker-row">
+      <div class="media-picker-select">
+        {% if media_items %}
+          <select id="media-select-{{ textarea_id }}" onchange="updateMediaButtons('{{ textarea_id }}')">
+            {% for item in media_items %}
+              <option
+                value="{{ item.storage_path }}"
+                data-mime="{{ item.mime_type or '' }}"
+                data-alt="{{ item.alt_text or '' }}"
+              {% if selected_path and item.storage_path == selected_path %}selected{% endif %}
+              >{{ item.storage_path.split('/')[-1] }}</option>
+            {% endfor %}
+          </select>
+          <div class="inline" style="flex-wrap: wrap; gap: 2px; margin-top: 4px" id="media-buttons-{{ textarea_id }}">
+            <button type="button" class="btn-sm media-btn-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'img')">img</button>
+            <button type="button" class="btn-sm media-btn-linked-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'linked-img')">linked img</button>
+            <button type="button" class="btn-sm media-btn-video" onclick="insertMediaSnippet('{{ textarea_id }}', 'video')">video</button>
+            <button type="button" class="btn-sm media-btn-audio" onclick="insertMediaSnippet('{{ textarea_id }}', 'audio')">audio</button>
+            <button type="button" class="btn-sm" onclick="insertMediaSnippet('{{ textarea_id }}', 'link')">link</button>
+          </div>
+        {% else %}
+          <p class="muted" style="margin: 0; font-size: 0.85rem">no media yet — upload one →</p>
+        {% endif %}
       </div>
-    {% else %}
-      <p class="muted">no media yet.</p>
-    {% endif %}
-    <details style="margin-top: 6px">
-      <summary class="btn-sm" style="display: inline-block; cursor: pointer">upload media</summary>
-      <form
-        method="post"
-        action="/api/media/quick-upload"
-        enctype="multipart/form-data"
-        class="inline"
-        style="margin-top: 4px; flex-wrap: wrap"
-        hx-post="/api/media/quick-upload"
-        hx-target="#media-picker-{{ textarea_id }}"
-        hx-swap="outerHTML"
-        hx-encoding="multipart/form-data"
-      >
-        <input type="hidden" name="picker_textarea_id" value="{{ textarea_id }}" />
-        <input type="hidden" name="picker_format" value="{{ format }}" />
-        <input type="file" name="file" required />
-        <button type="submit" class="btn-sm">upload</button>
-      </form>
-    </details>
+      <div class="media-picker-upload">
+        <form
+          method="post"
+          action="/api/media/quick-upload"
+          enctype="multipart/form-data"
+          hx-post="/api/media/quick-upload"
+          hx-target="#media-picker-{{ textarea_id }}"
+          hx-swap="outerHTML"
+          hx-encoding="multipart/form-data"
+        >
+          <input type="hidden" name="picker_textarea_id" value="{{ textarea_id }}" />
+          <input type="hidden" name="picker_format" value="{{ format }}" />
+          {% if media_items %}
+            <input type="hidden" name="picker_select_file" value="" id="picker-select-file-{{ textarea_id }}" />
+          {% endif %}
+          <input type="file" name="file" required style="font-size: 0.8rem; max-width: 160px" />
+          <button type="submit" class="btn-sm" style="margin-top: 4px">upload</button>
+        </form>
+      </div>
+    </div>
   </div>
   <script>
     (function () {
@@ -86,21 +79,15 @@
           var snippet = "";
           if (fmt === "bbcode") {
             if (type === "img") snippet = "[img]" + path + "[/img]";
-            else if (type === "linked-img")
-              snippet = "[url=" + path + "][img]" + path + "[/img][/url]";
+            else if (type === "linked-img") snippet = "[url=" + path + "][img]" + path + "[/img][/url]";
             else if (type === "video") snippet = "[video]" + path + "[/video]";
             else if (type === "audio") snippet = "[audio]" + path + "[/audio]";
-            else
-              snippet = "[url=" + path + "]" + sel.options[sel.selectedIndex].text + "[/url]";
+            else snippet = "[url=" + path + "]" + sel.options[sel.selectedIndex].text + "[/url]";
           } else {
-            if (type === "img")
-              snippet = '<img src="' + path + '" alt="' + alt + '" />';
-            else if (type === "linked-img")
-              snippet = '<a href="' + path + '"><img src="' + path + '" alt="' + alt + '" /></a>';
-            else if (type === "video")
-              snippet = '<video controls src="' + path + '"></video>';
-            else if (type === "audio")
-              snippet = '<audio controls src="' + path + '"></audio>';
+            if (type === "img") snippet = '<img src="' + path + '" alt="' + alt + '" />';
+            else if (type === "linked-img") snippet = '<a href="' + path + '"><img src="' + path + '" alt="' + alt + '" /></a>';
+            else if (type === "video") snippet = '<video controls src="' + path + '"></video>';
+            else if (type === "audio") snippet = '<audio controls src="' + path + '"></audio>';
             else snippet = '<a href="' + path + '">download</a>';
           }
           var cm = window._cmEditors && window._cmEditors[textareaId];

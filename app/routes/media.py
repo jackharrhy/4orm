@@ -282,6 +282,7 @@ async def quick_media_upload(
         "fragments/media_picker.html",
         {
             "media_items": media_items,
+            "selected_path": rel_path,
             "textarea_id": picker_textarea_id,
             "format": picker_format,
         },
