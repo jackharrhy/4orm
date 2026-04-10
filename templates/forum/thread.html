@@ -39,7 +39,7 @@
       </form>
     {% endif %}
     {% if me %}
-      <form method="post" action="/forum/{{ thread.id }}/watch" class="inline"
+      <form method="post" action="/forum/{{ thread.id }}/watch" style="display:inline"
             hx-post="/forum/{{ thread.id }}/watch">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button class="btn-sm">{{ '👁 unwatch' if watching else '👁 watch' }}</button>
