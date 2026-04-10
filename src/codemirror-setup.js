@@ -1,8 +1,10 @@
 import { EditorView, basicSetup } from "codemirror";
+import { indentWithTab } from "@codemirror/commands";
 import { css } from "@codemirror/lang-css";
 import { html } from "@codemirror/lang-html";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorState, Compartment } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 
 const theme = EditorView.theme({
   "&": {
@@ -14,6 +16,7 @@ const theme = EditorView.theme({
   ".cm-content": {
     padding: "8px 4px",
     caretColor: "#111",
+    fontFamily: "monospace",
   },
   ".cm-gutters": {
     backgroundColor: "#f5f5f5",
@@ -25,6 +28,15 @@ const theme = EditorView.theme({
   ".cm-activeLineGutter": { backgroundColor: "#f0f4ff" },
   "&.cm-focused": { outline: "2px solid #00ccff" },
   ".cm-scroller": { padding: "4px 0" },
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+    backgroundColor: "#b4d7ff !important",
+  },
+  ".cm-cursor": { borderLeftColor: "#111", borderLeftWidth: "2px" },
+  ".cm-matchingBracket": {
+    backgroundColor: "#c8e6c9",
+    outline: "1px solid #4caf50",
+  },
+  ".cm-selectionMatch": { backgroundColor: "#e0e0e0" },
 });
 
 function langExtension(lang) {
@@ -45,6 +57,8 @@ function createEditor(textarea, lang) {
       extensions: [
         basicSetup,
         langCompartment.of(langExtension(lang)),
+        keymap.of([indentWithTab]),
+        EditorView.lineWrapping,
         theme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
