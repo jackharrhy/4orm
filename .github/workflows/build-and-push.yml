@@ -23,8 +23,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
-      - name: Run tests
-        run: uv run --group dev pytest tests/ -v
+      - name: Check formatting
+        run: uv run --group dev ruff format --check app/ tests/
+
+      - name: Lint
+        run: uv run --group dev ruff check app/ tests/
+
+      - name: Run tests (zero warnings)
+        run: uv run --group dev pytest tests/ -v -W error
 
       - name: Log in to the Container registry
         uses: docker/login-action@v4
