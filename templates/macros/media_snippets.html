@@ -9,7 +9,7 @@
                 value="{{ item.storage_path }}"
                 data-mime="{{ item.mime_type or '' }}"
                 data-alt="{{ item.alt_text or '' }}"
-              {% if selected_path and item.storage_path == selected_path %}selected{% endif %}
+                {% if selected_path and item.storage_path == selected_path %}selected{% endif %}
               >{{ item.storage_path.split('/')[-1] }}</option>
             {% endfor %}
           </select>
@@ -25,23 +25,8 @@
         {% endif %}
       </div>
       <div class="media-picker-upload">
-        <form
-          method="post"
-          action="/api/media/quick-upload"
-          enctype="multipart/form-data"
-          hx-post="/api/media/quick-upload"
-          hx-target="#media-picker-{{ textarea_id }}"
-          hx-swap="outerHTML"
-          hx-encoding="multipart/form-data"
-        >
-          <input type="hidden" name="picker_textarea_id" value="{{ textarea_id }}" />
-          <input type="hidden" name="picker_format" value="{{ format }}" />
-          {% if media_items %}
-            <input type="hidden" name="picker_select_file" value="" id="picker-select-file-{{ textarea_id }}" />
-          {% endif %}
-          <input type="file" name="file" required style="font-size: 0.8rem; max-width: 160px" />
-          <button type="submit" class="btn-sm" style="margin-top: 4px">upload</button>
-        </form>
+        <input type="file" id="media-upload-file-{{ textarea_id }}" style="font-size: 0.8rem; max-width: 160px" />
+        <button type="button" class="btn-sm" style="margin-top: 4px" onclick="quickUploadMedia('{{ textarea_id }}', '{{ format }}')">upload</button>
       </div>
     </div>
   </div>
@@ -50,6 +35,45 @@
       var format = "{{ format }}";
       window._mediaFormat = window._mediaFormat || {};
       window._mediaFormat["{{ textarea_id }}"] = format;
+
+      window.quickUploadMedia =
+        window.quickUploadMedia ||
+        function (textareaId, fmt) {
+          var fileInput = document.getElementById("media-upload-file-" + textareaId);
+          if (!fileInput || !fileInput.files.length) {
+            alert("Please select a file first");
+            return;
+          }
+          var formData = new FormData();
+          formData.append("file", fileInput.files[0]);
+          formData.append("picker_textarea_id", textareaId);
+          formData.append("picker_format", fmt);
+          var csrfMeta = document.querySelector("body[hx-headers]");
+          var csrfToken = "";
+          if (csrfMeta) {
+            try {
+              csrfToken = JSON.parse(csrfMeta.getAttribute("hx-headers"))["X-CSRF-Token"] || "";
+            } catch (e) {}
+          }
+          fetch("/api/media/quick-upload", {
+            method: "POST",
+            headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {},
+            body: formData,
+          })
+            .then(function (resp) {
+              if (!resp.ok) throw new Error("Upload failed");
+              return resp.text();
+            })
+            .then(function (html) {
+              var picker = document.getElementById("media-picker-" + textareaId);
+              if (picker) {
+                picker.outerHTML = html;
+              }
+            })
+            .catch(function (err) {
+              alert(err.message || "Upload failed");
+            });
+        };
 
       window.updateMediaButtons =
         window.updateMediaButtons ||
