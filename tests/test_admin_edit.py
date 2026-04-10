@@ -33,7 +33,7 @@ def _login(client, username):
 
 
 def _setup_user_with_data(conn, username, admin_id):
-    """Create a user with CSS, HTML, layout, guestbook settings, pages, and card styling."""
+    """Create a user with CSS, HTML, layout, pages, and card styling."""
     uid = _make_user(conn, username, invited_by=admin_id)
     conn.execute(
         update(users)
@@ -166,7 +166,7 @@ def test_admin_rename_preserves_pages(client, test_engine):
 
 
 def test_admin_profile_edit_preserves_all_fields(client, test_engine):
-    """Editing profile via admin should save all fields including custom_html and layout."""
+    """Admin profile edit preserves all fields (custom_html, layout)."""
     with test_engine.begin() as conn:
         admin_id = _make_admin(conn, "admin")
         uid = _setup_user_with_data(conn, "target", admin_id)

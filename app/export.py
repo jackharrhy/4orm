@@ -48,10 +48,7 @@ def _render_export_page(
 ) -> str:
     """Render a single export page, rewriting media paths."""
     # Determine uploads prefix from css_path
-    if css_path == "style.css":
-        uploads_prefix = "uploads"
-    else:
-        uploads_prefix = "../uploads"
+    uploads_prefix = "uploads" if css_path == "style.css" else "../uploads"
 
     content_html = _rewrite_media_paths(content_html, username, uploads_prefix)
     custom_css = _rewrite_media_paths(custom_css, username, uploads_prefix)
@@ -243,7 +240,9 @@ def _render_forum_thread_html(
             f'<div class="forum-post" id="post-{p["id"]}">'
             f'<div class="forum-post-meta">'
             f'<a href="../users/{p["author_username"]}/index.html">'
-            f"<strong>{escape(p.get('author_display_name') or p['author_username'])}</strong></a>"
+            f"<strong>"
+            f"{escape(p.get('author_display_name') or p['author_username'])}"
+            f"</strong></a>"
             f" · {created}{edited}"
             f"</div>"
             f"{quote_html}"
@@ -454,9 +453,13 @@ def build_full_site_export_zip(
                 )
                 thread_rows.append(
                     f"<tr>"
-                    f'<td>{pinned}{locked}<a href="{tm["id"]}.html">{escape(tm["title"])}</a></td>'
-                    f'<td><a href="../users/{tm["author_username"]}/index.html">'
-                    f"{escape(tm.get('author_display_name') or tm['author_username'])}</a></td>"
+                    f"<td>{pinned}{locked}"
+                    f'<a href="{tm["id"]}.html">'
+                    f"{escape(tm['title'])}</a></td>"
+                    f'<td><a href="../users/'
+                    f'{tm["author_username"]}/index.html">'
+                    f"{escape(tm.get('author_display_name') or tm['author_username'])}"
+                    f"</a></td>"
                     f"<td>{tm.get('reply_count', 0)}</td>"
                     f"<td>{created}</td>"
                     f"</tr>"

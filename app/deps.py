@@ -48,7 +48,7 @@ def setup_logging():
 
 setup_logging()
 
-from app.queries.users import get_user_by_id
+from app.queries.users import get_user_by_id  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Paths & constants

@@ -1,7 +1,5 @@
 """Tests for admin user deletion (reparent and prune modes)."""
 
-from pathlib import Path
-
 from sqlalchemy import insert, select, update
 
 from app.schema import guestbook_entries, media, pages, profile_cards, users
@@ -74,7 +72,7 @@ def test_reparent_basic(client, test_engine):
 def test_reparent_root_user(client, test_engine):
     """Deleting a user with no parent reparents children to NULL."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        _make_admin(conn, "admin")
         target_id = _make_user(conn, "target")  # no parent
         child_id = _make_user(conn, "child", invited_by=target_id)
 
@@ -92,7 +90,7 @@ def test_reparent_root_user(client, test_engine):
 def test_reparent_cleans_up_pages(client, test_engine):
     """Deleting a user removes their pages."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        _make_admin(conn, "admin")
         target_id = _make_user(conn, "target")
         conn.execute(
             insert(pages).values(
@@ -123,7 +121,7 @@ def test_reparent_cleans_up_media_files(client, test_engine, tmp_path):
     (user_dir / "test.png").write_bytes(b"fake image")
 
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        _make_admin(conn, "admin")
         target_id = _make_user(conn, "target")
         conn.execute(
             insert(media).values(
@@ -299,7 +297,7 @@ def test_admin_rename_user(client, test_engine):
 def test_admin_rename_display_name_only(client, test_engine):
     """Admin can change just the display name without renaming the user."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        _make_admin(conn, "admin")
         target_id = _make_user(conn, "target")
 
     _login(client, "admin")
@@ -322,7 +320,7 @@ def test_admin_rename_display_name_only(client, test_engine):
 def test_admin_rename_taken(client, test_engine):
     """Admin cannot rename to an existing username."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        _make_admin(conn, "admin")
         _make_user(conn, "existing")
         target_id = _make_user(conn, "target")
 
@@ -340,7 +338,7 @@ def test_admin_rename_taken(client, test_engine):
 def test_admin_rename_invalid(client, test_engine):
     """Admin cannot rename to an invalid username."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        _make_admin(conn, "admin")
         target_id = _make_user(conn, "target")
 
     _login(client, "admin")

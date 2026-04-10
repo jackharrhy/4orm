@@ -1,8 +1,7 @@
 from sqlalchemy import insert, select, update
 
-from app.schema import media, playlist_items, users, profile_cards
+from app.schema import media, playlist_items, profile_cards, users
 from app.security import hash_password
-
 
 # --- Helpers ---
 
@@ -55,7 +54,7 @@ def test_webring_widget_renders(client, seed_user, test_engine):
 def test_webring_prev_next(client, seed_user, test_engine):
     # Create 3 users in webring order: alice, bob, charlie
     _create_user(test_engine, "alice", in_webring=True)
-    bob_id = _create_user(test_engine, "bob", in_webring=True)
+    _create_user(test_engine, "bob", in_webring=True)
     _create_user(test_engine, "charlie", in_webring=True)
 
     resp = client.get("/u/bob/webring")

@@ -5,7 +5,6 @@ from sqlalchemy import insert, select, update
 from app.schema import forum_posts, forum_threads, profile_cards, users
 from app.security import hash_password
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

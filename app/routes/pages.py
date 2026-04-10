@@ -105,7 +105,7 @@ def page_view(request: Request, username: str, slug: str):
     )
 
 
-import time as _time
+import time as _time  # noqa: E402
 
 _counter_seen: dict[str, float] = {}  # "ip:username" -> last_seen timestamp
 _COUNTER_COOLDOWN = 60  # seconds per IP per user

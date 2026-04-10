@@ -331,7 +331,7 @@ def unwatch_thread(conn: Connection, user_id: int, thread_id: int):
 
 
 def get_watchers(conn: Connection, thread_id: int) -> list[int]:
-    """Get all user IDs watching a thread (explicit watchers + watch_all_threads users)."""
+    """Get all user IDs watching a thread (watchers + watch_all)."""
     explicit = set(
         row[0]
         for row in conn.execute(
@@ -343,7 +343,7 @@ def get_watchers(conn: Connection, thread_id: int) -> list[int]:
     watch_all = set(
         row[0]
         for row in conn.execute(
-            select(users.c.id).where(users.c.watch_all_threads == True)
+            select(users.c.id).where(users.c.watch_all_threads == True)  # noqa: E712
         ).fetchall()
     )
     return list(explicit | watch_all)

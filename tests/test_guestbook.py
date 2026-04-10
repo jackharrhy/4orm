@@ -143,6 +143,7 @@ def test_guestbook_owner_can_delete(client, test_engine, seed_user):
 
     # Get the entry ID
     from sqlalchemy import select
+
     from app.schema import guestbook_entries
 
     with test_engine.begin() as conn:
@@ -176,6 +177,7 @@ def test_guestbook_non_owner_cannot_delete(client, test_engine, seed_user):
     )
 
     from sqlalchemy import select
+
     from app.schema import guestbook_entries
 
     with test_engine.begin() as conn:

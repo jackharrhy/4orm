@@ -33,7 +33,10 @@ def register_post(
             "register.html",
             {
                 "invite": invite_code,
-                "error": "Username must be 3-32 characters, lowercase letters, numbers, hyphens, or underscores",
+                "error": (
+                    "Username must be 3-32 characters, lowercase"
+                    " letters, numbers, hyphens, or underscores"
+                ),
             },
             status_code=400,
         )

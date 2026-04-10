@@ -1,3 +1,4 @@
+import contextlib
 import os
 from contextlib import asynccontextmanager
 
@@ -140,10 +141,8 @@ ERROR_MESSAGES = {
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     me = None
-    try:
+    with contextlib.suppress(Exception):
         me = current_user(request)
-    except Exception:
-        pass
     message = ERROR_MESSAGES.get(exc.status_code, exc.detail)
     return templates.TemplateResponse(
         request,
@@ -156,10 +155,8 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc: Exception):
     me = None
-    try:
+    with contextlib.suppress(Exception):
         me = current_user(request)
-    except Exception:
-        pass
     return templates.TemplateResponse(
         request,
         "error.html",

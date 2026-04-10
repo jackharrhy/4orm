@@ -11,7 +11,7 @@ def get_webring_members(conn: Connection):
     return (
         conn.execute(
             select(users.c.id, users.c.username, users.c.display_name)
-            .where(users.c.in_webring == True, users.c.is_disabled == False)
+            .where(users.c.in_webring == True, users.c.is_disabled == False)  # noqa: E712
             .order_by(users.c.created_at)
         )
         .mappings()

@@ -1,3 +1,12 @@
+from datetime import datetime
+
+from sqlalchemy import insert, select
+from sqlalchemy import update as sql_update
+
+from app import deps
+from app.schema import media, profile_cards, users
+
+
 def test_settings_requires_login(client):
     r = client.get("/settings", follow_redirects=False)
     assert r.status_code == 303
@@ -106,10 +115,9 @@ def test_create_invite(authed_client):
 
 
 def test_disable_invite(authed_client, test_engine, seed_user):
-    from app.queries.users import create_invite, create_user_with_invite
-
     from sqlalchemy import select
 
+    from app.queries.users import create_invite, create_user_with_invite
     from app.schema import invites
 
     # Create invite and use it so it can't be deleted
@@ -129,10 +137,9 @@ def test_disable_invite(authed_client, test_engine, seed_user):
 
 
 def test_delete_unused_invite(authed_client, test_engine, seed_user):
-    from app.queries.users import create_invite
-
     from sqlalchemy import select
 
+    from app.queries.users import create_invite
     from app.schema import invites
 
     with test_engine.begin() as conn:
@@ -328,13 +335,6 @@ def test_settings_username_change_rejects_invalid(
         )
     assert user["username"] == seed_user["username"]
 
-
-from datetime import datetime
-
-from sqlalchemy import insert, select, update as sql_update
-
-from app import deps
-from app.schema import media, profile_cards, users
 
 # Set a known past time to test updated_at changes (SQLite has 1s precision)
 _PAST = datetime(2020, 1, 1)

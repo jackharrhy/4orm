@@ -1,8 +1,5 @@
-from sqlalchemy import insert
 
 from app.queries.users import create_invite
-from app.schema import profile_cards, users
-from app.security import hash_password
 
 
 def test_login_page_renders(client):

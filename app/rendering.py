@@ -55,7 +55,7 @@ BLEACH_ALLOWED_ATTRS = {
     "a": ["href", "title", "target"],
     "img": ["src", "alt", "width", "height"],
     "video": ["src", "controls"],
-    "iframe": ["src", "width", "height", "frameborder", "allowfullscreen", "style"],
+    "iframe": ["src", "width", "height", "frameborder", "allowfullscreen"],
     "audio": ["src", "controls"],
     "td": ["colspan", "rowspan"],
     "th": ["colspan", "rowspan"],
