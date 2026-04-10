@@ -49,11 +49,13 @@ BLEACH_ALLOWED_TAGS = [
     "ul",
     "video",
     "audio",
+    "iframe",
 ]
 BLEACH_ALLOWED_ATTRS = {
     "a": ["href", "title", "target"],
     "img": ["src", "alt", "width", "height"],
     "video": ["src", "controls"],
+    "iframe": ["src", "width", "height", "frameborder", "allowfullscreen", "style"],
     "audio": ["src", "controls"],
     "td": ["colspan", "rowspan"],
     "th": ["colspan", "rowspan"],
