@@ -245,11 +245,16 @@ _css_path = BASE_DIR / "static" / "style.css"
 _css_hash = (
     hashlib.md5(_css_path.read_bytes()).hexdigest()[:8] if _css_path.exists() else "0"
 )
-_cm_path = BASE_DIR / "static" / "codemirror-setup.js"
+_app_path = BASE_DIR / "static" / "app.js"
+_app_hash = (
+    hashlib.md5(_app_path.read_bytes()).hexdigest()[:8] if _app_path.exists() else "0"
+)
+_cm_path = BASE_DIR / "static" / "codemirror.js"
 _cm_hash = (
     hashlib.md5(_cm_path.read_bytes()).hexdigest()[:8] if _cm_path.exists() else "0"
 )
 templates.env.globals["css_hash"] = _css_hash
+templates.env.globals["app_hash"] = _app_hash
 templates.env.globals["cm_hash"] = _cm_hash
 templates.env.globals["vapid_public_key"] = VAPID_PUBLIC_KEY
 

@@ -12,43 +12,13 @@
     <link rel="manifest" href="/static/manifest.json" />
     <meta name="theme-color" content="#00ccff" />
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
-    <script>
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js"){% if me %}.then(function(reg) {
-          var vapidKey = "{{ vapid_public_key }}";
-          if (!vapidKey || !("PushManager" in window)) return;
-          reg.pushManager.getSubscription().then(function(sub) {
-            if (sub) return;
-            Notification.requestPermission().then(function(perm) {
-              if (perm !== "granted") return;
-              reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(vapidKey)
-              }).then(function(sub) {
-                fetch("/api/push/subscribe", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-Token": "{{ csrf_token }}"
-                  },
-                  body: JSON.stringify(sub.toJSON())
-                });
-              });
-            });
-          });
-        }){% endif %};
-      }
-      function urlBase64ToUint8Array(base64String) {
-        var padding = "=".repeat((4 - base64String.length % 4) % 4);
-        var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-        var rawData = atob(base64);
-        var arr = new Uint8Array(rawData.length);
-        for (var i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
-        return arr;
-      }
-    </script>
   </head>
-  <body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+  <body
+    hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+    data-csrf-token="{{ csrf_token }}"
+    data-vapid-key="{{ vapid_public_key }}"
+    data-logged-in="{{ 'true' if me else 'false' }}"
+  >
     <header class="topbar">
       <a href="/" class="logo">4orm</a>
       <nav>
@@ -60,7 +30,6 @@
             <a href="/admin">admin</a>
           {% endif %}
           <form method="post" action="/logout" class="inline">
-
             <button>logout</button>
           </form>
         {% else %}
@@ -70,95 +39,6 @@
       </nav>
     </header>
     <main class="wrap">{% block content %}{% endblock %}</main>
-    <script>
-      // Show htmx error responses (rate limits, validation errors, etc.)
-      document.addEventListener("htmx:responseError", function (e) {
-        var target = e.detail.target || e.detail.elt;
-        if (e.detail.xhr && e.detail.xhr.responseText) {
-          // Find or create an error container near the trigger element
-          var form = e.detail.elt.closest("form") || e.detail.elt;
-          var existing = form.querySelector(".htmx-error");
-          if (existing) existing.remove();
-          var div = document.createElement("div");
-          div.className = "htmx-error";
-          div.innerHTML = e.detail.xhr.responseText;
-          form.appendChild(div);
-          // Auto-remove after 5 seconds
-          setTimeout(function () {
-            div.remove();
-          }, 5000);
-        }
-      });
-
-      // Intercept all form POSTs and add the CSRF header via fetch
-      document.addEventListener("submit", function (e) {
-        var form = e.target;
-        if (form.method && form.method.toLowerCase() !== "post") return;
-        // Skip htmx-handled forms (htmx adds the header itself)
-        if (form.hasAttribute("hx-post")) return;
-        e.preventDefault();
-        var formData = new FormData(form);
-        fetch(form.action || window.location.href, {
-          method: "POST",
-          headers: { "X-CSRF-Token": "{{ csrf_token }}" },
-          body: formData,
-        }).then(function (resp) {
-          if (resp.redirected) {
-            window.location.href = resp.url;
-          } else if (resp.ok) {
-            window.location.reload();
-          } else {
-            resp.text().then(function (t) {
-              document.open();
-              document.write(t);
-              document.close();
-            });
-          }
-        });
-      });
-    </script>
-    <script>
-      // Convert UTC <time> tags to local time
-      function convertTimes() {
-        document.querySelectorAll("time[datetime]").forEach(function (el) {
-          var d = new Date(el.getAttribute("datetime"));
-          if (isNaN(d)) return;
-          var fmt = el.dataset.fmt || "full";
-          if (fmt === "relative") {
-            var diff = (Date.now() - d.getTime()) / 1000;
-            if (diff < 60) el.textContent = "just now";
-            else if (diff < 3600)
-              el.textContent = Math.floor(diff / 60) + "m ago";
-            else if (diff < 86400)
-              el.textContent = Math.floor(diff / 3600) + "h ago";
-            else if (diff < 604800)
-              el.textContent = Math.floor(diff / 86400) + "d ago";
-            else
-              el.textContent = d.toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-              });
-          } else if (fmt === "date") {
-            el.textContent = d.toLocaleDateString();
-          } else if (fmt === "time") {
-            el.textContent = d.toLocaleTimeString(undefined, {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-          } else {
-            el.textContent = d.toLocaleString(undefined, {
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-          }
-          el.classList.add("converted");
-        });
-      }
-      convertTimes();
-      // Re-run after htmx swaps new content in
-      document.addEventListener("htmx:afterSwap", convertTimes);
-    </script>
+    <script src="/static/app.js?v={{ app_hash }}"></script>
   </body>
 </html>
