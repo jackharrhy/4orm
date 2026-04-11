@@ -1,36 +1,9 @@
 """Tests for admin user deletion (reparent and prune modes)."""
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, select
 
-from app.schema import guestbook_entries, media, pages, profile_cards, users
-from app.security import hash_password
-
-
-def _make_user(conn, username, invited_by=None):
-    """Helper to create a user with a profile card. Returns user id."""
-    result = conn.execute(
-        insert(users).values(
-            username=username,
-            password_hash=hash_password("pass"),
-            display_name=username,
-            invited_by_user_id=invited_by,
-        )
-    )
-    uid = result.inserted_primary_key[0]
-    conn.execute(
-        insert(profile_cards).values(user_id=uid, headline=f"{username}'s page")
-    )
-    return uid
-
-
-def _make_admin(conn, username):
-    uid = _make_user(conn, username)
-    conn.execute(update(users).where(users.c.id == uid).values(is_admin=True))
-    return uid
-
-
-def _login(client, username):
-    client.post("/login", data={"username": username, "password": "pass"})
+from app.schema import guestbook_entries, media, pages, users
+from tests.conftest import login_as, make_admin_user, make_test_user
 
 
 def _user_exists(conn, user_id):
@@ -46,12 +19,12 @@ def _user_exists(conn, user_id):
 def test_reparent_basic(client, test_engine):
     """Deleting a user reparents their children to the deleted user's parent."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
-        parent_id = _make_user(conn, "parent", invited_by=admin_id)
-        child_id = _make_user(conn, "child", invited_by=parent_id)
-        grandchild_id = _make_user(conn, "grandchild", invited_by=child_id)
+        admin_id = make_admin_user(conn, "admin")
+        parent_id = make_test_user(conn, "parent", invited_by=admin_id)
+        child_id = make_test_user(conn, "child", invited_by=parent_id)
+        grandchild_id = make_test_user(conn, "grandchild", invited_by=child_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
 
     r = client.post(
         f"/admin/users/{child_id}/delete",
@@ -72,11 +45,11 @@ def test_reparent_basic(client, test_engine):
 def test_reparent_root_user(client, test_engine):
     """Deleting a user with no parent reparents children to NULL."""
     with test_engine.begin() as conn:
-        _make_admin(conn, "admin")
-        target_id = _make_user(conn, "target")  # no parent
-        child_id = _make_user(conn, "child", invited_by=target_id)
+        make_admin_user(conn, "admin")
+        target_id = make_test_user(conn, "target")  # no parent
+        child_id = make_test_user(conn, "child", invited_by=target_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(f"/admin/users/{target_id}/delete", data={"mode": "reparent"})
 
     with test_engine.begin() as conn:
@@ -90,15 +63,15 @@ def test_reparent_root_user(client, test_engine):
 def test_reparent_cleans_up_pages(client, test_engine):
     """Deleting a user removes their pages."""
     with test_engine.begin() as conn:
-        _make_admin(conn, "admin")
-        target_id = _make_user(conn, "target")
+        make_admin_user(conn, "admin")
+        target_id = make_test_user(conn, "target")
         conn.execute(
             insert(pages).values(
                 user_id=target_id, slug="hello", title="Hello", content="hi"
             )
         )
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(f"/admin/users/{target_id}/delete", data={"mode": "reparent"})
 
     with test_engine.begin() as conn:
@@ -121,8 +94,8 @@ def test_reparent_cleans_up_media_files(client, test_engine, tmp_path):
     (user_dir / "test.png").write_bytes(b"fake image")
 
     with test_engine.begin() as conn:
-        _make_admin(conn, "admin")
-        target_id = _make_user(conn, "target")
+        make_admin_user(conn, "admin")
+        target_id = make_test_user(conn, "target")
         conn.execute(
             insert(media).values(
                 user_id=target_id,
@@ -132,7 +105,7 @@ def test_reparent_cleans_up_media_files(client, test_engine, tmp_path):
             )
         )
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(f"/admin/users/{target_id}/delete", data={"mode": "reparent"})
 
     assert not (user_dir / "test.png").exists()
@@ -143,15 +116,15 @@ def test_reparent_cleans_up_media_files(client, test_engine, tmp_path):
 def test_reparent_cleans_up_guestbook(client, test_engine):
     """Deleting a user removes their guestbook entries."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
-        target_id = _make_user(conn, "target")
+        admin_id = make_admin_user(conn, "admin")
+        target_id = make_test_user(conn, "target")
         conn.execute(
             insert(guestbook_entries).values(
                 user_id=target_id, author_id=admin_id, message="hello"
             )
         )
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(f"/admin/users/{target_id}/delete", data={"mode": "reparent"})
 
     with test_engine.begin() as conn:
@@ -169,13 +142,13 @@ def test_reparent_cleans_up_guestbook(client, test_engine):
 def test_prune_deletes_subtree(client, test_engine):
     """Pruning deletes the user and all their invitees recursively."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
-        bad_id = _make_user(conn, "bad", invited_by=admin_id)
-        spam1_id = _make_user(conn, "spam1", invited_by=bad_id)
-        spam2_id = _make_user(conn, "spam2", invited_by=bad_id)
-        deep_id = _make_user(conn, "deep", invited_by=spam1_id)
+        admin_id = make_admin_user(conn, "admin")
+        bad_id = make_test_user(conn, "bad", invited_by=admin_id)
+        spam1_id = make_test_user(conn, "spam1", invited_by=bad_id)
+        spam2_id = make_test_user(conn, "spam2", invited_by=bad_id)
+        deep_id = make_test_user(conn, "deep", invited_by=spam1_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
 
     r = client.post(
         f"/admin/users/{bad_id}/delete",
@@ -196,12 +169,12 @@ def test_prune_deletes_subtree(client, test_engine):
 def test_prune_htmx_returns_count(client, test_engine):
     """Prune via htmx returns the count of deleted users."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
-        bad_id = _make_user(conn, "bad", invited_by=admin_id)
-        _make_user(conn, "spam1", invited_by=bad_id)
-        _make_user(conn, "spam2", invited_by=bad_id)
+        admin_id = make_admin_user(conn, "admin")
+        bad_id = make_test_user(conn, "bad", invited_by=admin_id)
+        make_test_user(conn, "spam1", invited_by=bad_id)
+        make_test_user(conn, "spam2", invited_by=bad_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
 
     r = client.post(
         f"/admin/users/{bad_id}/delete",
@@ -225,9 +198,9 @@ def test_prune_cleans_up_media(client, test_engine, tmp_path):
         (d / "file.png").write_bytes(b"data")
 
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
-        bad_id = _make_user(conn, "bad", invited_by=admin_id)
-        spam_id = _make_user(conn, "spam", invited_by=bad_id)
+        admin_id = make_admin_user(conn, "admin")
+        bad_id = make_test_user(conn, "bad", invited_by=admin_id)
+        spam_id = make_test_user(conn, "spam", invited_by=bad_id)
         conn.execute(
             insert(media).values(
                 user_id=bad_id,
@@ -245,7 +218,7 @@ def test_prune_cleans_up_media(client, test_engine, tmp_path):
             )
         )
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(f"/admin/users/{bad_id}/delete", data={"mode": "prune"})
 
     assert not (tmp_path / "bad" / "file.png").exists()
@@ -260,9 +233,9 @@ def test_prune_cleans_up_media(client, test_engine, tmp_path):
 def test_cannot_delete_self(client, test_engine):
     """Admin cannot delete themselves."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        admin_id = make_admin_user(conn, "admin")
 
-    _login(client, "admin")
+    login_as(client, "admin")
 
     r = client.post(
         f"/admin/users/{admin_id}/delete",
@@ -274,10 +247,10 @@ def test_cannot_delete_self(client, test_engine):
 def test_admin_rename_user(client, test_engine):
     """Admin can rename a user."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
-        target_id = _make_user(conn, "badname", invited_by=admin_id)
+        admin_id = make_admin_user(conn, "admin")
+        target_id = make_test_user(conn, "badname", invited_by=admin_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
 
     r = client.post(
         f"/admin/users/{target_id}/rename",
@@ -297,10 +270,10 @@ def test_admin_rename_user(client, test_engine):
 def test_admin_rename_display_name_only(client, test_engine):
     """Admin can change just the display name without renaming the user."""
     with test_engine.begin() as conn:
-        _make_admin(conn, "admin")
-        target_id = _make_user(conn, "target")
+        make_admin_user(conn, "admin")
+        target_id = make_test_user(conn, "target")
 
-    _login(client, "admin")
+    login_as(client, "admin")
 
     r = client.post(
         f"/admin/users/{target_id}/rename",
@@ -320,11 +293,11 @@ def test_admin_rename_display_name_only(client, test_engine):
 def test_admin_rename_taken(client, test_engine):
     """Admin cannot rename to an existing username."""
     with test_engine.begin() as conn:
-        _make_admin(conn, "admin")
-        _make_user(conn, "existing")
-        target_id = _make_user(conn, "target")
+        make_admin_user(conn, "admin")
+        make_test_user(conn, "existing")
+        target_id = make_test_user(conn, "target")
 
-    _login(client, "admin")
+    login_as(client, "admin")
 
     r = client.post(
         f"/admin/users/{target_id}/rename",
@@ -338,10 +311,10 @@ def test_admin_rename_taken(client, test_engine):
 def test_admin_rename_invalid(client, test_engine):
     """Admin cannot rename to an invalid username."""
     with test_engine.begin() as conn:
-        _make_admin(conn, "admin")
-        target_id = _make_user(conn, "target")
+        make_admin_user(conn, "admin")
+        target_id = make_test_user(conn, "target")
 
-    _login(client, "admin")
+    login_as(client, "admin")
 
     r = client.post(
         f"/admin/users/{target_id}/rename",
@@ -354,10 +327,10 @@ def test_admin_rename_invalid(client, test_engine):
 def test_non_admin_cannot_delete(client, test_engine):
     """Non-admin users cannot delete anyone."""
     with test_engine.begin() as conn:
-        _make_user(conn, "regular")
-        target_id = _make_user(conn, "target")
+        make_test_user(conn, "regular")
+        target_id = make_test_user(conn, "target")
 
-    _login(client, "regular")
+    login_as(client, "regular")
 
     r = client.post(
         f"/admin/users/{target_id}/delete",

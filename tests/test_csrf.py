@@ -1,78 +1,17 @@
 """Tests that verify CSRF protection is working."""
 
 import re
-from contextlib import asynccontextmanager
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event, insert
-from sqlalchemy.pool import StaticPool
 
-from app.main import app
-from app.schema import metadata, profile_cards, users
-from app.security import hash_password
-
-
-@asynccontextmanager
-async def _noop_lifespan(application):
-    yield
+from tests.conftest import make_test_user
 
 
 @pytest.fixture()
-def csrf_engine():
-    eng = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    @event.listens_for(eng, "connect")
-    def _set_sqlite_pragma(dbapi_connection, _connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
-    metadata.create_all(eng)
-    yield eng
-    eng.dispose()
-
-
-@pytest.fixture()
-def raw_client(csrf_engine):
-    """A raw TestClient WITHOUT auto CSRF token injection."""
-    original_engine = app.state.engine
-    original_lifespan = app.router.lifespan_context
-
-    app.state.engine = csrf_engine
-    app.router.lifespan_context = _noop_lifespan
-
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
-
-    app.router.lifespan_context = original_lifespan
-    app.state.engine = original_engine
-
-
-@pytest.fixture()
-def csrf_seed_user(csrf_engine):
-    with csrf_engine.begin() as conn:
-        result = conn.execute(
-            insert(users).values(
-                username="csrfuser",
-                password_hash=hash_password("csrfpass"),
-                display_name="CSRF User",
-                content="hello",
-            )
-        )
-        user_id = result.inserted_primary_key[0]
-        conn.execute(
-            insert(profile_cards).values(
-                user_id=user_id,
-                headline="card",
-                content="card content",
-            )
-        )
-    return {"id": user_id, "username": "csrfuser", "password": "csrfpass"}
+def csrf_seed_user(test_engine):
+    with test_engine.begin() as conn:
+        uid = make_test_user(conn, "csrfuser", password="csrfpass")
+    return {"id": uid, "username": "csrfuser", "password": "csrfpass"}
 
 
 def _extract_csrf_token(html: str) -> str:

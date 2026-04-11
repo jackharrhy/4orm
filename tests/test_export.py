@@ -5,8 +5,8 @@ from sqlalchemy import insert, update
 
 import app.deps as deps
 from app.queries.forum import create_reply, create_thread
-from app.schema import media, pages, profile_cards, users
-from app.security import hash_password
+from app.schema import media, pages, users
+from tests.conftest import make_test_user, promote_to_admin
 
 
 def _extract_zip(response):
@@ -18,20 +18,12 @@ def _extract_zip(response):
 
 def _make_admin(test_engine, user_id):
     with test_engine.begin() as conn:
-        conn.execute(update(users).where(users.c.id == user_id).values(is_admin=True))
+        promote_to_admin(conn, user_id)
 
 
 def _create_second_user(test_engine):
     with test_engine.begin() as conn:
-        result = conn.execute(
-            insert(users).values(
-                username="other",
-                password_hash=hash_password("pass"),
-                display_name="Other",
-            )
-        )
-        uid = result.inserted_primary_key[0]
-        conn.execute(insert(profile_cards).values(user_id=uid, headline="other's page"))
+        uid = make_test_user(conn, "other")
     return {"id": uid, "username": "other", "password": "pass"}
 
 

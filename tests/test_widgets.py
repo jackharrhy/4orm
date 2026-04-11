@@ -1,7 +1,7 @@
 from sqlalchemy import insert, select, update
 
-from app.schema import media, playlist_items, profile_cards, users
-from app.security import hash_password
+from app.schema import media, playlist_items, users
+from tests.conftest import make_test_user
 
 
 def _join_webring(test_engine, user_id):
@@ -11,18 +11,9 @@ def _join_webring(test_engine, user_id):
 
 def _create_user(test_engine, username, in_webring=False):
     with test_engine.begin() as conn:
-        result = conn.execute(
-            insert(users).values(
-                username=username,
-                password_hash=hash_password("pass"),
-                display_name=username,
-                in_webring=in_webring,
-            )
-        )
-        uid = result.inserted_primary_key[0]
-        conn.execute(
-            insert(profile_cards).values(user_id=uid, headline=f"{username}'s page")
-        )
+        uid = make_test_user(conn, username)
+        if in_webring:
+            conn.execute(update(users).where(users.c.id == uid).values(in_webring=True))
     return uid
 
 

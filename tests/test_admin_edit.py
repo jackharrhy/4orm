@@ -3,38 +3,12 @@
 from sqlalchemy import insert, select, update
 
 from app.schema import pages, profile_cards, users
-from app.security import hash_password
-
-
-def _make_user(conn, username, invited_by=None):
-    result = conn.execute(
-        insert(users).values(
-            username=username,
-            password_hash=hash_password("pass"),
-            display_name=username,
-            invited_by_user_id=invited_by,
-        )
-    )
-    uid = result.inserted_primary_key[0]
-    conn.execute(
-        insert(profile_cards).values(user_id=uid, headline=f"{username}'s page")
-    )
-    return uid
-
-
-def _make_admin(conn, username):
-    uid = _make_user(conn, username)
-    conn.execute(update(users).where(users.c.id == uid).values(is_admin=True))
-    return uid
-
-
-def _login(client, username):
-    client.post("/login", data={"username": username, "password": "pass"})
+from tests.conftest import login_as, make_admin_user, make_test_user
 
 
 def _setup_user_with_data(conn, username, admin_id):
     """Create a user with CSS, HTML, layout, pages, and card styling."""
-    uid = _make_user(conn, username, invited_by=admin_id)
+    uid = make_test_user(conn, username, invited_by=admin_id)
     conn.execute(
         update(users)
         .where(users.c.id == uid)
@@ -78,10 +52,10 @@ def _setup_user_with_data(conn, username, admin_id):
 
 def test_admin_rename_preserves_css(client, test_engine):
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        admin_id = make_admin_user(conn, "admin")
         uid = _setup_user_with_data(conn, "target", admin_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(
         f"/admin/users/{uid}/rename",
         data={"new_username": "renamed", "new_display_name": "Renamed"},
@@ -110,10 +84,10 @@ def test_admin_rename_preserves_css(client, test_engine):
 
 def test_admin_rename_preserves_card(client, test_engine):
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        admin_id = make_admin_user(conn, "admin")
         uid = _setup_user_with_data(conn, "target", admin_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(
         f"/admin/users/{uid}/rename",
         data={"new_username": "renamed", "new_display_name": "Renamed"},
@@ -138,10 +112,10 @@ def test_admin_rename_preserves_card(client, test_engine):
 
 def test_admin_rename_preserves_pages(client, test_engine):
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        admin_id = make_admin_user(conn, "admin")
         uid = _setup_user_with_data(conn, "target", admin_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(
         f"/admin/users/{uid}/rename",
         data={"new_username": "renamed", "new_display_name": "Renamed"},
@@ -168,10 +142,10 @@ def test_admin_rename_preserves_pages(client, test_engine):
 def test_admin_profile_edit_preserves_all_fields(client, test_engine):
     """Admin profile edit preserves all fields (custom_html, layout)."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        admin_id = make_admin_user(conn, "admin")
         uid = _setup_user_with_data(conn, "target", admin_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(
         f"/admin/users/{uid}/profile",
         data={
@@ -212,10 +186,10 @@ def test_admin_profile_edit_preserves_all_fields(client, test_engine):
 def test_admin_card_edit_preserves_card_data(client, test_engine):
     """Editing a card via admin should update only the submitted fields."""
     with test_engine.begin() as conn:
-        admin_id = _make_admin(conn, "admin")
+        admin_id = make_admin_user(conn, "admin")
         uid = _setup_user_with_data(conn, "target", admin_id)
 
-    _login(client, "admin")
+    login_as(client, "admin")
     client.post(
         f"/admin/users/{uid}/card",
         data={

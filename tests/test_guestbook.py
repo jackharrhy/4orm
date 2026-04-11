@@ -1,24 +1,17 @@
-from sqlalchemy import insert
+from sqlalchemy import update
 
-from app.schema import profile_cards, users
-from app.security import hash_password
+from app.schema import users
+from tests.conftest import make_test_user
 
 
 def _create_second_user(test_engine):
     """Create a second user for guestbook interaction."""
     with test_engine.begin() as conn:
-        result = conn.execute(
-            insert(users).values(
-                username="visitor",
-                password_hash=hash_password("visitorpass"),
-                display_name="Visitor",
-            )
-        )
-        user_id = result.inserted_primary_key[0]
+        uid = make_test_user(conn, "visitor", password="visitorpass")
         conn.execute(
-            insert(profile_cards).values(user_id=user_id, headline="visitor's page")
+            update(users).where(users.c.id == uid).values(display_name="Visitor")
         )
-    return {"id": user_id, "username": "visitor", "password": "visitorpass"}
+    return {"id": uid, "username": "visitor", "password": "visitorpass"}
 
 
 def test_guestbook_custom_css(client, test_engine, seed_user):
