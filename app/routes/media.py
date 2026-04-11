@@ -7,7 +7,14 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 
 import app.deps as deps
-from app.deps import clean_filename, current_user, get_engine, is_htmx, templates
+from app.deps import (
+    clean_filename,
+    current_user,
+    get_engine,
+    is_htmx,
+    templates,
+    unique_filename,
+)
 from app.queries.media import (
     create_media,
     delete_media_for_user,
@@ -69,23 +76,9 @@ async def settings_media_upload(
     if original_ext and Path(final_name).suffix.lower() != original_ext:
         final_name = f"{Path(final_name).stem}{original_ext}"
 
+    final_name = unique_filename(user_upload_dir, final_name)
     rel_path = f"{username}/{final_name}"
     disk_path = deps.UPLOADS_DIR / rel_path
-
-    # Avoid collisions by suffixing -2, -3, ...
-    if disk_path.exists():
-        base = Path(final_name).stem
-        ext = Path(final_name).suffix
-        i = 2
-        while True:
-            candidate = f"{base}-{i}{ext}"
-            candidate_path = user_upload_dir / candidate
-            if not candidate_path.exists():
-                final_name = candidate
-                rel_path = f"{username}/{final_name}"
-                disk_path = candidate_path
-                break
-            i += 1
 
     content = await file.read()
     if len(content) > deps.MAX_UPLOAD_BYTES:
@@ -188,17 +181,8 @@ def settings_media_rename(request: Request, media_id: int, filename: str = Form(
         if old_ext and Path(new_name).suffix.lower() != old_ext:
             new_name = f"{Path(new_name).stem}{old_ext}"
 
+        new_name = unique_filename(user_upload_dir, new_name)
         new_path = user_upload_dir / new_name
-        if new_path.exists() and new_path != old_path:
-            base = Path(new_name).stem
-            ext = Path(new_name).suffix
-            i = 2
-            while True:
-                candidate = user_upload_dir / f"{base}-{i}{ext}"
-                if not candidate.exists():
-                    new_path = candidate
-                    break
-                i += 1
 
         if old_path.exists() and old_path != new_path:
             old_path.rename(new_path)
@@ -230,21 +214,9 @@ async def quick_media_upload(
     if original_ext and Path(final_name).suffix.lower() != original_ext:
         final_name = f"{Path(final_name).stem}{original_ext}"
 
+    final_name = unique_filename(user_upload_dir, final_name)
     rel_path = f"{username}/{final_name}"
     disk_path = deps.UPLOADS_DIR / rel_path
-
-    if disk_path.exists():
-        base = Path(final_name).stem
-        ext = Path(final_name).suffix
-        i = 2
-        while True:
-            candidate = f"{base}-{i}{ext}"
-            if not (user_upload_dir / candidate).exists():
-                final_name = candidate
-                rel_path = f"{username}/{final_name}"
-                disk_path = user_upload_dir / candidate
-                break
-            i += 1
 
     content = await file.read()
     if len(content) > deps.MAX_UPLOAD_BYTES:

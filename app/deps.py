@@ -103,6 +103,24 @@ templates = Jinja2Templates(
 )
 
 
+def unique_filename(directory: Path, filename: str) -> str:
+    """Return a filename that doesn't collide with existing files in directory.
+
+    Appends -2, -3, etc. to the stem if the name is taken.
+    """
+    path = directory / filename
+    if not path.exists():
+        return filename
+    stem = Path(filename).stem
+    ext = Path(filename).suffix
+    i = 2
+    while True:
+        candidate = f"{stem}-{i}{ext}"
+        if not (directory / candidate).exists():
+            return candidate
+        i += 1
+
+
 def clean_filename(name: str) -> str:
     raw = Path(name or "file").name
     stem = Path(raw).stem or "file"
@@ -122,6 +140,51 @@ def human_bytes(size: int | None) -> str:
                 return f"{int(value)} {unit}"
             return f"{value:.1f} {unit}"
         value /= 1024
+
+
+def rename_user_media(
+    conn, user_id: int, old_username: str, new_username: str, uploads_dir: Path
+):
+    """Rename all media files and DB paths when a user's username changes."""
+    from sqlalchemy import select
+    from sqlalchemy import update as sql_update
+
+    from app.schema import media
+
+    old_user_dir = uploads_dir / old_username
+    new_user_dir = uploads_dir / new_username
+
+    media_rows = (
+        conn.execute(
+            select(media.c.id, media.c.storage_path).where(media.c.user_id == user_id)
+        )
+        .mappings()
+        .all()
+    )
+
+    for row in media_rows:
+        old_storage = row["storage_path"]
+        if not old_storage.startswith(f"{old_username}/"):
+            continue
+        filename = old_storage.split("/", 1)[1]
+        src = uploads_dir / old_storage
+        dst_filename = unique_filename(new_user_dir, filename)
+        dst = new_user_dir / dst_filename
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if src.exists():
+            src.rename(dst)
+        conn.execute(
+            sql_update(media)
+            .where(media.c.id == row["id"])
+            .values(storage_path=f"{new_username}/{dst_filename}")
+        )
+
+    # Clean up old directory if empty
+    if old_user_dir.exists():
+        import contextlib
+
+        with contextlib.suppress(OSError):
+            old_user_dir.rmdir()
 
 
 templates.env.filters["human_bytes"] = human_bytes

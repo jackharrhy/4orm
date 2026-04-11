@@ -1,8 +1,5 @@
 """User settings routes."""
 
-import contextlib
-from pathlib import Path
-
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select, update
@@ -14,6 +11,7 @@ from app.deps import (
     _saved_or_redirect,
     get_engine,
     is_htmx,
+    rename_user_media,
     require_user,
     templates,
 )
@@ -132,10 +130,7 @@ def settings_username(request: Request, username: str = Form(...)):
     if new_username == me["username"]:
         return _saved_or_redirect(request)
 
-    uploads_root = deps.UPLOADS_DIR
     old_username = me["username"]
-    old_user_dir = uploads_root / old_username
-    new_user_dir = uploads_root / new_username
 
     with get_engine(request).begin() as conn:
         existing = conn.execute(
@@ -149,55 +144,13 @@ def settings_username(request: Request, username: str = Form(...)):
             )
             return response
 
-        media_rows = (
-            conn.execute(
-                select(media.c.id, media.c.storage_path).where(
-                    media.c.user_id == me["id"]
-                )
-            )
-            .mappings()
-            .all()
-        )
-
-        for row in media_rows:
-            old_storage = row["storage_path"]
-            if not old_storage.startswith(f"{old_username}/"):
-                continue
-
-            filename = old_storage.split("/", 1)[1]
-            src = uploads_root / old_storage
-            dst = new_user_dir / filename
-            dst.parent.mkdir(parents=True, exist_ok=True)
-
-            if src.exists():
-                if dst.exists() and dst != src:
-                    base = Path(filename).stem
-                    ext = Path(filename).suffix
-                    n = 2
-                    while True:
-                        candidate = dst.parent / f"{base}-{n}{ext}"
-                        if not candidate.exists():
-                            dst = candidate
-                            break
-                        n += 1
-                src.rename(dst)
-
-            new_storage = f"{new_username}/{dst.name}"
-            conn.execute(
-                update(media)
-                .where(media.c.id == row["id"], media.c.user_id == me["id"])
-                .values(storage_path=new_storage)
-            )
+        rename_user_media(conn, me["id"], old_username, new_username, deps.UPLOADS_DIR)
 
         conn.execute(
             update(users)
             .where(users.c.id == me["id"])
             .values(username=new_username, updated_at=func.now())
         )
-
-    if old_user_dir.exists() and old_user_dir != new_user_dir:
-        with contextlib.suppress(OSError):
-            old_user_dir.rmdir()
 
     return _saved_or_redirect(request, url="/settings?saved=username")
 

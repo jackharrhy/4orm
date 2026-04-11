@@ -1,7 +1,5 @@
 """Admin dashboard routes."""
 
-import contextlib
-
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func, select, update
@@ -12,6 +10,7 @@ from app.deps import (
     get_engine,
     human_bytes,
     is_htmx,
+    rename_user_media,
     require_admin,
     templates,
 )
@@ -442,44 +441,11 @@ def admin_rename_user(
                 )
             return RedirectResponse(url="/admin", status_code=303)
 
-        # Rename media paths
-        new_user_dir = deps.UPLOADS_DIR / new_username
-
-        media_rows = (
-            conn.execute(
-                select(media.c.id, media.c.storage_path).where(
-                    media.c.user_id == user_id
-                )
-            )
-            .mappings()
-            .all()
-        )
-
-        for row in media_rows:
-            old_storage = row["storage_path"]
-            if not old_storage.startswith(f"{old_username}/"):
-                continue
-            filename = old_storage.split("/", 1)[1]
-            src = deps.UPLOADS_DIR / old_storage
-            dst = new_user_dir / filename
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            if src.exists():
-                src.rename(dst)
-            conn.execute(
-                update(media)
-                .where(media.c.id == row["id"])
-                .values(storage_path=f"{new_username}/{dst.name}")
-            )
+        rename_user_media(conn, user_id, old_username, new_username, deps.UPLOADS_DIR)
 
         conn.execute(
             update(users).where(users.c.id == user_id).values(username=new_username)
         )
-
-    # Clean up old directory
-    old_dir = deps.UPLOADS_DIR / old_username
-    if old_dir.exists():
-        with contextlib.suppress(OSError):
-            old_dir.rmdir()
 
     with get_engine(request).begin() as conn:
         return _admin_user_row_response(request, conn, user_id)
