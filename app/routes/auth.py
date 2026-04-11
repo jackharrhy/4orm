@@ -4,7 +4,13 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import update
 
-from app.deps import USERNAME_RE, current_user, get_engine, templates
+from app.deps import (
+    USERNAME_INVALID_MSG,
+    USERNAME_RE,
+    current_user,
+    get_engine,
+    templates,
+)
 from app.queries.users import create_user_with_invite, get_user_by_username
 from app.schema import users
 from app.security import verify_password
@@ -33,10 +39,7 @@ def register_post(
             "register.html",
             {
                 "invite": invite_code,
-                "error": (
-                    "Username must be 3-32 characters, lowercase"
-                    " letters, numbers, hyphens, or underscores"
-                ),
+                "error": USERNAME_INVALID_MSG,
             },
             status_code=400,
         )

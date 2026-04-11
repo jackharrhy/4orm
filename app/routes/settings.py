@@ -9,6 +9,7 @@ from sqlalchemy import func, select, update
 
 import app.deps as deps
 from app.deps import (
+    USERNAME_INVALID_MSG,
     _error_or_redirect,
     _saved_or_redirect,
     get_engine,
@@ -123,7 +124,7 @@ def settings_username(request: Request, username: str = Form(...)):
     if not deps.USERNAME_RE.match(new_username):
         response, _ = _error_or_redirect(
             request,
-            "Username must be 3-32 chars using a-z, 0-9, - or _",
+            USERNAME_INVALID_MSG,
             "/settings?error=invalid_username",
         )
         return response

@@ -7,7 +7,6 @@
   <h1>edit post</h1>
 
   <form method="post" action="/forum/posts/{{ post.id }}/edit" class="stack">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
     <label>
       format (<a
         href="https://www.phpbb.com/community/help/bbcode"

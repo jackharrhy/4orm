@@ -20,7 +20,7 @@
         quote
       </button>
     {% endif %}
-    {% if me and me.id == post.author_id %}
+    {% if me and (me.id == post.author_id or me.is_admin) %}
       <a href="/forum/posts/{{ post.id }}/edit"
         ><button type="button" class="btn-sm">edit</button></a
       >
@@ -33,23 +33,6 @@
         hx-swap="outerHTML"
         hx-confirm="Delete this post?"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
-        <button class="btn-sm">delete</button>
-      </form>
-    {% elif me and me.is_admin %}
-      <a href="/forum/posts/{{ post.id }}/edit"
-        ><button type="button" class="btn-sm">edit</button></a
-      >
-      <form
-        method="post"
-        action="/forum/posts/{{ post.id }}/delete"
-        style="display:inline"
-        hx-post="/forum/posts/{{ post.id }}/delete"
-        hx-target="#post-{{ post.id }}"
-        hx-swap="outerHTML"
-        hx-confirm="Delete this post?"
-      >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button class="btn-sm">delete</button>
       </form>
     {% endif %}

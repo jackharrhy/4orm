@@ -59,6 +59,9 @@ UPLOADS_DIR = BASE_DIR / "uploads"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
 USERNAME_RE = re.compile(r"^[a-z0-9_-]{3,32}$")
+USERNAME_INVALID_MSG = (
+    "username must be 3-32 chars, lowercase letters, numbers, hyphens, or underscores"
+)
 
 _raw_vapid_key = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
 # pywebpush expects DER base64, not PEM. Strip headers and join lines.

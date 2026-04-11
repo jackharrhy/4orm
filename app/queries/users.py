@@ -182,24 +182,6 @@ def list_profile_cards(conn: Connection):
     return conn.execute(q).mappings().all()
 
 
-def lineage_for_user(conn: Connection, username: str):
-    user = get_user_by_username(conn, username)
-    if not user:
-        return []
-
-    chain = [user]
-    current = user
-    while current["invited_by_user_id"]:
-        parent = get_user_by_id(conn, current["invited_by_user_id"])
-        if not parent:
-            break
-        chain.append(parent)
-        current = parent
-
-    chain.reverse()
-    return chain
-
-
 def get_invite_tree(conn: Connection):
     """Build the full invite tree as nested dicts.
 

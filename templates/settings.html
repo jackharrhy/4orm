@@ -34,7 +34,6 @@
         hx-target="#profile-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label
           >display name
           <input name="display_name" value="{{ me.display_name }}"
@@ -54,7 +53,6 @@
         hx-swap="innerHTML"
         style="margin-top: 10px"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label
           >username <input name="username" value="{{ me.username }}" required
         /></label>
@@ -72,7 +70,6 @@
         hx-target="#css-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <textarea name="custom_css" rows="10" data-codemirror="css">
 {{ me.custom_css }}</textarea
         >
@@ -93,7 +90,6 @@
         hx-target="#html-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <textarea name="custom_html" rows="10" data-codemirror="html">
 {{ me.custom_html }}</textarea
         >
@@ -111,7 +107,6 @@
         hx-target="#card-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label
           >headline
           <input
@@ -161,7 +156,6 @@
     <details>
       <summary><strong>create page</strong></summary>
       <form method="post" action="/settings/pages" class="stack">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label>slug <input name="slug" placeholder="about" /></label>
         <label>title <input name="title" placeholder="about me" /></label>
         <label>content</label>
@@ -193,7 +187,6 @@
         hx-target="#guestbook-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label>guestbook css</label>
         <textarea name="guestbook_css" rows="6" data-codemirror="css">
 {{ me.guestbook_css }}</textarea
@@ -223,7 +216,6 @@
         hx-target="#counter-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label>counter css</label>
         <textarea name="counter_css" rows="6" data-codemirror="css">
 {{ me.counter_css }}</textarea
@@ -249,7 +241,6 @@
         hx-target="#webring-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label>
           <input
             type="checkbox"
@@ -277,7 +268,6 @@
         hx-target="#status-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label
           >emoji (max 10 chars)
           <input
@@ -320,7 +310,6 @@
         hx-target="#player-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label>player css</label>
         <textarea name="player_css" rows="4" data-codemirror="css">
 {{ me.player_css }}</textarea
@@ -357,7 +346,6 @@
         hx-target="#notif-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <label>
           <input
             type="checkbox"
@@ -406,7 +394,6 @@
         hx-target="#sig-status"
         hx-swap="innerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <textarea name="forum_signature" rows="3" maxlength="200">
 {{ me.forum_signature }}</textarea
         >

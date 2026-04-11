@@ -119,42 +119,6 @@ media = Table(
     ),
 )
 
-galleries = Table(
-    "galleries",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column(
-        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    ),
-    Column("title", String(140), nullable=False),
-    Column("description", Text, nullable=False, server_default=""),
-    Column("is_public", Boolean, nullable=False, server_default="1"),
-    Column(
-        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
-    ),
-    Column(
-        "updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()
-    ),
-)
-
-gallery_items = Table(
-    "gallery_items",
-    metadata,
-    Column(
-        "gallery_id",
-        Integer,
-        ForeignKey("galleries.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-    Column(
-        "media_id",
-        Integer,
-        ForeignKey("media.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-    Column("position", Integer, nullable=False, server_default="0"),
-)
-
 guestbook_entries = Table(
     "guestbook_entries",
     metadata,

@@ -10,6 +10,7 @@ import app.deps as deps
 from app.deps import (
     _saved_or_redirect,
     get_engine,
+    human_bytes,
     is_htmx,
     require_admin,
     templates,
@@ -549,8 +550,6 @@ def admin_list_backups(request: Request):
             "</tr></thead><tbody>"
         )
         for b in backups:
-            from app.deps import human_bytes
-
             html_parts.append(
                 f"<tr><td>{b['name']}</td>"
                 f'<td style="text-align:right">{human_bytes(b["db_size"])}</td>'

@@ -6,7 +6,6 @@
   <h1>edit thread</h1>
 
   <form method="post" action="/forum/{{ thread.id }}/edit" class="stack">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
     <label>
       title
       <input

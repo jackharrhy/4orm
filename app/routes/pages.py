@@ -1,5 +1,6 @@
 """Public page routes: profiles, pages, lineage, how-to, counter, status, player."""
 
+import time as _time
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
@@ -104,8 +105,6 @@ def page_view(request: Request, username: str, slug: str):
         },
     )
 
-
-import time as _time  # noqa: E402
 
 _counter_seen: dict[str, float] = {}  # "ip:username" -> last_seen timestamp
 _COUNTER_COOLDOWN = 60  # seconds per IP per user

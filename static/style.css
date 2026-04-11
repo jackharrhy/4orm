@@ -15,12 +15,6 @@ svg {
   display: block;
   max-width: 100%;
 }
-input,
-button,
-textarea,
-select {
-  font: inherit;
-}
 p,
 h1,
 h2,
@@ -124,10 +118,6 @@ nav {
   height: 200px;
   border: none;
   display: block;
-}
-
-.card {
-  overflow: hidden;
 }
 
 .muted {
@@ -347,12 +337,6 @@ details.panel[open] > summary > h2::before {
 }
 .tree li:target {
   background: #ffff80;
-}
-
-.site-footer {
-  margin-top: 16px;
-  padding: 10px 12px 20px;
-  border-top: 2px solid #000;
 }
 
 .table-wrap {

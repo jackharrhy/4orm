@@ -35,7 +35,6 @@
         hx-target="#media-{{ item.id }}"
         hx-swap="outerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <input
           name="filename"
           value="{{ item.storage_path.split('/')[-1] }}"
@@ -52,7 +51,6 @@
         hx-target="#media-{{ item.id }}"
         hx-swap="outerHTML"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <input
           name="alt_text"
           value="{{ item.alt_text }}"
@@ -70,7 +68,6 @@
         hx-swap="outerHTML"
         hx-confirm="Delete this media?"
       >
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
         <button type="submit" class="btn-sm">delete</button>
       </form>
     </div>

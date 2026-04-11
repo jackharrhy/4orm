@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% from 'macros/custom_assets.html' import inject_custom_assets %}
 {% block title %}{{ profile.display_name }}{% endblock %}
 {% block content %}
+  {{ inject_custom_assets(profile) }}
 {% endblock %}

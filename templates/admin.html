@@ -51,7 +51,6 @@
           class="stack"
           style="margin-top: 10px"
         >
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
           <label
             >display name
             <input name="display_name" value="{{ u.display_name or '' }}"
@@ -121,7 +120,6 @@
             class="stack"
             style="margin-top: 10px"
           >
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
             <label
               >headline
               <input name="headline" value="{{ card.headline or '' }}"
@@ -198,7 +196,6 @@
           class="stack"
           style="margin-top: 10px"
         >
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
           <label
             >slug <input name="slug" value="{{ p.slug }}" required
           /></label>
@@ -359,7 +356,6 @@
       hx-target="#backup-status"
       hx-swap="innerHTML"
     >
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
       <button type="submit">run backup now</button>
     </form>
     <span id="backup-status"></span>
