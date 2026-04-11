@@ -162,6 +162,14 @@ def current_user(request: Request):
     return user
 
 
+def require_user(request: Request):
+    """Return the current user or redirect to login."""
+    me = current_user(request)
+    if not me:
+        return None, RedirectResponse(url="/login", status_code=303)
+    return me, None
+
+
 def require_admin(request: Request):
     """Return the current user if they are an admin, otherwise raise 403."""
     me = current_user(request)
@@ -174,6 +182,20 @@ def _saved_or_redirect(request: Request, url: str = "/settings"):
     if is_htmx(request):
         return templates.TemplateResponse(request, "fragments/saved.html")
     return RedirectResponse(url=url, status_code=303)
+
+
+def _error_or_redirect(request: Request, message: str, url: str):
+    if is_htmx(request):
+        return (
+            templates.TemplateResponse(
+                request,
+                "fragments/error_message.html",
+                {"message": message},
+                status_code=400,
+            ),
+            True,
+        )
+    return RedirectResponse(url=url, status_code=303), True
 
 
 def _format_rfc2822(dt) -> str:

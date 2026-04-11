@@ -9,10 +9,11 @@ from sqlalchemy import func, select, update
 
 import app.deps as deps
 from app.deps import (
+    _error_or_redirect,
     _saved_or_redirect,
-    current_user,
     get_engine,
     is_htmx,
+    require_user,
     templates,
 )
 from app.queries.media import list_media_for_user
@@ -42,9 +43,9 @@ router = APIRouter()
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_get(request: Request):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         my_pages = list_pages_for_user(conn, me["id"])
         card_settings = (
@@ -94,9 +95,9 @@ def settings_profile(
     content_format: str = Form("html"),
     layout: str = Form("default"),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -114,20 +115,18 @@ def settings_profile(
 
 @router.post("/settings/username")
 def settings_username(request: Request, username: str = Form(...)):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
 
     new_username = username.strip().lower()
     if not deps.USERNAME_RE.match(new_username):
-        if is_htmx(request):
-            return HTMLResponse(
-                '<span class="error">'
-                "Username must be 3-32 chars using a-z, 0-9, - or _"
-                "</span>",
-                status_code=400,
-            )
-        return RedirectResponse(url="/settings?error=invalid_username", status_code=303)
+        response, _ = _error_or_redirect(
+            request,
+            "Username must be 3-32 chars using a-z, 0-9, - or _",
+            "/settings?error=invalid_username",
+        )
+        return response
 
     if new_username == me["username"]:
         return _saved_or_redirect(request)
@@ -142,14 +141,12 @@ def settings_username(request: Request, username: str = Form(...)):
             select(users.c.id).where(users.c.username == new_username)
         ).first()
         if existing:
-            if is_htmx(request):
-                return HTMLResponse(
-                    '<span class="error">That username is already taken</span>',
-                    status_code=400,
-                )
-            return RedirectResponse(
-                url="/settings?error=username_taken", status_code=303
+            response, _ = _error_or_redirect(
+                request,
+                "That username is already taken",
+                "/settings?error=username_taken",
             )
+            return response
 
         media_rows = (
             conn.execute(
@@ -206,9 +203,9 @@ def settings_username(request: Request, username: str = Form(...)):
 
 @router.post("/settings/css")
 def settings_css(request: Request, custom_css: str = Form("")):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -220,9 +217,9 @@ def settings_css(request: Request, custom_css: str = Form("")):
 
 @router.post("/settings/html")
 def settings_html(request: Request, custom_html: str = Form("")):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -238,9 +235,9 @@ def settings_guestbook(
     guestbook_css: str = Form(""),
     guestbook_html: str = Form(""),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -260,9 +257,9 @@ def settings_counter(
     counter_css: str = Form(""),
     counter_html: str = Form(""),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -278,9 +275,9 @@ def settings_counter(
 
 @router.post("/settings/webring")
 def settings_webring(request: Request, in_webring: str | None = Form(None)):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -298,9 +295,9 @@ def settings_status(
     status_css: str = Form(""),
     status_html: str = Form(""),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -323,9 +320,9 @@ def settings_player(
     player_css: str = Form(""),
     player_html: str = Form(""),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -359,9 +356,9 @@ def _playlist_fragment(request, me):
 
 @router.post("/settings/player/add")
 def settings_player_add(request: Request, media_id: int = Form(...)):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         add_to_playlist(conn, me["id"], media_id)
     if is_htmx(request):
@@ -371,9 +368,9 @@ def settings_player_add(request: Request, media_id: int = Form(...)):
 
 @router.post("/settings/player/{item_id}/remove")
 def settings_player_remove(request: Request, item_id: int):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         remove_from_playlist(conn, item_id, me["id"])
     if is_htmx(request):
@@ -383,9 +380,9 @@ def settings_player_remove(request: Request, item_id: int):
 
 @router.post("/settings/player/{item_id}/move")
 def settings_player_move(request: Request, item_id: int, direction: str = Form(...)):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         move_playlist_item(conn, item_id, me["id"], direction)
     if is_htmx(request):
@@ -399,9 +396,9 @@ def settings_notifications(
     notifications_enabled: str | None = Form(None),
     watch_all_threads: str | None = Form(None),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -418,9 +415,9 @@ def settings_notifications(
 def settings_notifications_test(request: Request):
     from app.push import send_notification
 
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         send_notification(
             conn,
@@ -436,9 +433,9 @@ def settings_notifications_test(request: Request):
 
 @router.post("/settings/signature")
 def settings_signature(request: Request, forum_signature: str = Form("")):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         conn.execute(
             update(users)
@@ -458,9 +455,9 @@ def settings_card(
     border_style: str = Form("outset"),
     card_css: str = Form(""),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
 
     with get_engine(request).begin() as conn:
         conn.execute(
@@ -489,9 +486,9 @@ def _invites_fragment(request: Request, me):
 
 @router.post("/settings/invites")
 def settings_invites(request: Request, max_uses: int = Form(1)):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
 
     with get_engine(request).begin() as conn:
         code = create_invite(conn, me["id"], max_uses=max(1, min(50, max_uses)))
@@ -503,9 +500,9 @@ def settings_invites(request: Request, max_uses: int = Form(1)):
 
 @router.post("/settings/invites/{invite_id}/disable")
 def settings_invite_disable(request: Request, invite_id: int):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         disable_invite(conn, invite_id, me["id"])
 
@@ -516,9 +513,9 @@ def settings_invite_disable(request: Request, invite_id: int):
 
 @router.post("/settings/invites/{invite_id}/delete")
 def settings_invite_delete(request: Request, invite_id: int):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         delete_invite(conn, invite_id, me["id"])
 
@@ -536,9 +533,9 @@ def settings_pages(
     content_format: str = Form("html"),
     layout: str = Form("default"),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
 
     from sqlalchemy.exc import IntegrityError
 
@@ -564,9 +561,9 @@ def settings_pages(
 
 @router.post("/settings/pages/{slug}/delete")
 def settings_page_delete(request: Request, slug: str):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
     with get_engine(request).begin() as conn:
         delete_user_page(conn, me["id"], slug)
         if is_htmx(request):
@@ -581,9 +578,9 @@ def settings_page_delete(request: Request, slug: str):
 
 @router.get("/settings/pages/{slug}/edit", response_class=HTMLResponse)
 def settings_pages_edit_get(request: Request, slug: str):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
 
     with get_engine(request).begin() as conn:
         page = get_user_page(conn, me["id"], slug)
@@ -615,9 +612,9 @@ def settings_pages_edit_post(
     layout: str = Form("default"),
     is_public: str | None = Form(None),
 ):
-    me = current_user(request)
-    if not me:
-        return RedirectResponse(url="/login", status_code=303)
+    me, redirect = require_user(request)
+    if redirect:
+        return redirect
 
     cleaned_slug = new_slug.strip()
     with get_engine(request).begin() as conn:
