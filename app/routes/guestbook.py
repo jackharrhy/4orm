@@ -24,6 +24,33 @@ router = APIRouter(tags=["widgets"])
 
 
 @router.get(
+    "/guestbook-universe",
+    response_class=HTMLResponse,
+    summary="All guestbooks in one page",
+)
+def guestbook_universe(request: Request):
+    from sqlalchemy import select
+
+    from app.schema import users
+
+    with get_engine(request).begin() as conn:
+        all_users = (
+            conn.execute(
+                select(users.c.username, users.c.display_name)
+                .where(users.c.is_disabled == False)  # noqa: E712
+                .order_by(users.c.created_at)
+            )
+            .mappings()
+            .all()
+        )
+    return templates.TemplateResponse(
+        request,
+        "guestbook_universe.html",
+        {"me": current_user(request), "all_users": all_users},
+    )
+
+
+@router.get(
     "/u/{username}/guestbook", response_class=HTMLResponse, summary="View guestbook"
 )
 def guestbook_view(request: Request, username: str):

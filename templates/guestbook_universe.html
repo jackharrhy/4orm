@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}4orm · guestbook universe{% endblock %}
+{% block content %}
+  <h1>guestbook universe</h1>
+  <p class="muted">every guestbook on 4orm, all in one place.</p>
+  <div class="gb-universe-grid">
+    {% for u in all_users %}
+      <div class="gb-universe-card">
+        <h3><a href="/u/{{ u.username }}">{{ u.display_name }}</a></h3>
+        <iframe
+          src="/u/{{ u.username }}/guestbook"
+          class="gb-universe-frame"
+          loading="lazy"
+        ></iframe>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

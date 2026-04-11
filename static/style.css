@@ -443,3 +443,28 @@ details.panel[open] > summary > h2::before {
   background: #fafafa;
   font-size: 0.9rem;
 }
+.gb-universe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 640px) {
+  .gb-universe-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.gb-universe-card {
+  border: 2px solid #000;
+  background: #fff;
+  padding: 8px;
+}
+.gb-universe-card h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+.gb-universe-frame {
+  width: 100%;
+  height: 300px;
+  border: none;
+}
