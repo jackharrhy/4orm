@@ -5,7 +5,7 @@
   <td style="text-align: right">
     {{ stats.get('total_bytes', 0)|human_bytes }}
   </td>
-  <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}</td>
+  <td>{{ u.created_at|localtime('date') }}</td>
   <td>
     {{ 'admin' if u.is_admin else '' }}{{ ' / disabled' if u.is_disabled else '' }}
   </td>

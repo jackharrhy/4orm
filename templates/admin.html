@@ -295,8 +295,7 @@
           <a href="/forum/{{ p.thread_id }}#post-{{ p.id }}"
             >{{ p.thread_title }}</a
           >
-          ·
-          {{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '' }}
+          · {{ p.created_at|localtime('full') }}
           {% if p.is_edited %}· <em>(edited)</em>{% endif %}
         </div>
         <p style="font-size: 0.9rem; margin: 4px 0">

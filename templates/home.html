@@ -20,7 +20,7 @@
             <a href="/forum/{{ post.thread_id }}#post-{{ post.id }}"
               >{{ post.thread_title }}</a
             >
-            · {{ post.created_at.strftime('%H:%M') if post.created_at else '' }}
+            · {{ post.created_at|localtime('relative') }}
           </div>
           <!-- prettier-ignore-start -->
           <div style="font-size: 0.9rem; margin-top: 2px; white-space: pre-line">{{ post.rendered_content|preview_text(200) }}</div>

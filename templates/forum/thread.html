@@ -13,7 +13,7 @@
 
   <p class="muted">
     by <a href="/u/{{ thread.author_username }}">{{ thread.author_display_name or thread.author_username }}</a>
-    · {{ thread.created_at.strftime('%Y-%m-%d %H:%M') if thread.created_at else '' }}
+    · {{ thread.created_at|localtime('full') }}
     {% if thread.is_pinned %} · 📌 pinned{% endif %}
     {% if thread.is_locked %} · 🔒 locked{% endif %}
   </p>

@@ -37,9 +37,7 @@
                 >
               </td>
               <td>{{ t.reply_count }}</td>
-              <td class="muted">
-                {{ t.last_reply_at.strftime('%Y-%m-%d %H:%M') if t.last_reply_at else '' }}
-              </td>
+              <td class="muted">{{ t.last_reply_at|localtime('relative') }}</td>
             </tr>
           {% endfor %}
         </tbody>

@@ -117,5 +117,47 @@
         });
       });
     </script>
+    <script>
+      // Convert UTC <time> tags to local time
+      function convertTimes() {
+        document.querySelectorAll("time[datetime]").forEach(function (el) {
+          var d = new Date(el.getAttribute("datetime"));
+          if (isNaN(d)) return;
+          var fmt = el.dataset.fmt || "full";
+          if (fmt === "relative") {
+            var diff = (Date.now() - d.getTime()) / 1000;
+            if (diff < 60) el.textContent = "just now";
+            else if (diff < 3600)
+              el.textContent = Math.floor(diff / 60) + "m ago";
+            else if (diff < 86400)
+              el.textContent = Math.floor(diff / 3600) + "h ago";
+            else if (diff < 604800)
+              el.textContent = Math.floor(diff / 86400) + "d ago";
+            else
+              el.textContent = d.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              });
+          } else if (fmt === "date") {
+            el.textContent = d.toLocaleDateString();
+          } else if (fmt === "time") {
+            el.textContent = d.toLocaleTimeString(undefined, {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          } else {
+            el.textContent = d.toLocaleString(undefined, {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          }
+        });
+      }
+      convertTimes();
+      // Re-run after htmx swaps new content in
+      document.addEventListener("htmx:afterSwap", convertTimes);
+    </script>
   </body>
 </html>

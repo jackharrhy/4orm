@@ -193,6 +193,28 @@ def rename_user_media(
 templates.env.filters["human_bytes"] = human_bytes
 
 
+def localtime(dt, fmt="full"):
+    """Render a datetime as a <time> tag for client-side conversion.
+
+    fmt: 'full' (date+time), 'date' (date only),
+    'time' (time only), 'relative' (relative time)
+    """
+    if not dt:
+        return ""
+    from markupsafe import Markup
+
+    iso = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    fallback = dt.strftime("%Y-%m-%d %H:%M")
+    if fmt == "date":
+        fallback = dt.strftime("%Y-%m-%d")
+    elif fmt == "time":
+        fallback = dt.strftime("%H:%M")
+    return Markup(f'<time datetime="{iso}" data-fmt="{fmt}">{fallback}</time>')
+
+
+templates.env.filters["localtime"] = localtime
+
+
 def preview_text(html: str, length: int = 200) -> str:
     """Convert rendered HTML to a clean preview string for forum activity.
 

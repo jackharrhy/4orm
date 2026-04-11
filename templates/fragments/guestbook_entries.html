@@ -5,9 +5,7 @@
         <a href="/u/{{ entry.author_username }}" target="_parent"
           ><strong>{{ entry.author_display_name }}</strong></a
         >
-        <span class="gb-date"
-          >{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</span
-        >
+        <span class="gb-date">{{ entry.created_at|localtime('full') }}</span>
         {% if is_owner %}
           <form
             method="post"

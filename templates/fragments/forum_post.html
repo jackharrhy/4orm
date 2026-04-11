@@ -5,8 +5,7 @@
         >{{ post.author_display_name or post.author_username }}</strong
       ></a
     >
-    ·
-    {{ post.created_at.strftime('%Y-%m-%d %H:%M') if post.created_at else '' }}
+    · {{ post.created_at|localtime('full') }}
     {% if post.is_edited %}· <em>(edited)</em>{% endif %}
     {% if me and not thread.is_locked %}
       <button
