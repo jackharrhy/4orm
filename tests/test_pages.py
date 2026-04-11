@@ -11,7 +11,6 @@ def test_create_page_html(authed_client, seed_user):
     )
     assert r.status_code == 303
 
-    # Page should render
     r2 = authed_client.get(f"/u/{seed_user['username']}/page/hello")
     assert r2.status_code == 200
     assert "<h1>Hello</h1>" in r2.text

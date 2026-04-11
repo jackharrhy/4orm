@@ -3,8 +3,6 @@ from sqlalchemy import insert, select, update
 from app.schema import media, playlist_items, profile_cards, users
 from app.security import hash_password
 
-# --- Helpers ---
-
 
 def _join_webring(test_engine, user_id):
     with test_engine.begin() as conn:
@@ -41,9 +39,6 @@ def _create_audio_media(test_engine, user_id, filename="song.mp3"):
     return result.inserted_primary_key[0]
 
 
-# === Webring tests ===
-
-
 def test_webring_widget_renders(client, seed_user, test_engine):
     _join_webring(test_engine, seed_user["id"])
     resp = client.get("/u/testuser/webring")
@@ -52,7 +47,6 @@ def test_webring_widget_renders(client, seed_user, test_engine):
 
 
 def test_webring_prev_next(client, seed_user, test_engine):
-    # Create 3 users in webring order: alice, bob, charlie
     _create_user(test_engine, "alice", in_webring=True)
     _create_user(test_engine, "bob", in_webring=True)
     _create_user(test_engine, "charlie", in_webring=True)
@@ -76,15 +70,12 @@ def test_webring_random_404_when_empty(client, seed_user, test_engine):
 
 
 def test_webring_non_member(client, seed_user, test_engine):
-    # testuser is NOT in webring — widget should render but no prev/next links
+    # testuser is NOT in webring, widget should render but no prev/next links
     resp = client.get("/u/testuser/webring")
     assert resp.status_code == 200
     # The prev/next links use target="_parent" with user profile URLs
     # A non-member should have no neighbor links
     assert "← " not in resp.text
-
-
-# === Status tests ===
 
 
 def test_status_widget_renders(client, seed_user, test_engine):
@@ -132,9 +123,6 @@ def test_save_status(authed_client, seed_user, test_engine):
         )
     assert row["status_emoji"] == "😎"
     assert row["status_text"] == "coding away"
-
-
-# === Player tests ===
 
 
 def test_player_widget_renders(client, seed_user, test_engine):
@@ -229,7 +217,6 @@ def test_move_track(authed_client, seed_user, test_engine):
         )
         item_b_id = res2.inserted_primary_key[0]
 
-    # Move track B up
     resp = authed_client.post(
         f"/settings/player/{item_b_id}/move",
         data={"direction": "up"},
@@ -249,9 +236,6 @@ def test_move_track(authed_client, seed_user, test_engine):
         )
     assert rows[0]["title"] == "Track B"
     assert rows[1]["title"] == "Track A"
-
-
-# === Settings tests ===
 
 
 def test_save_webring_toggle(authed_client, seed_user, test_engine):

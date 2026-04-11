@@ -39,6 +39,4 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["B008"]  # FastAPI uses File(...), Form(...) etc. in defaults
-
-
+ignore = ["B008"] # FastAPI uses File(...), Form(...) etc. in defaults

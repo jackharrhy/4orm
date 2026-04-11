@@ -34,7 +34,6 @@ def test_save_profile(authed_client):
     )
     assert r.status_code == 303
 
-    # Verify on profile page
     r2 = authed_client.get("/u/testuser")
     assert r2.status_code == 200
     assert "New Name" in r2.text
@@ -78,7 +77,6 @@ def test_save_card(authed_client):
     )
     assert r.status_code == 303
 
-    # Verify on homepage
     r2 = authed_client.get("/")
     assert r2.status_code == 200
     assert "new headline" in r2.text
@@ -100,7 +98,6 @@ def test_save_card_markdown(authed_client):
     r = authed_client.get("/")
     assert r.status_code == 200
     assert "md card" in r.text
-    # Markdown should be rendered to HTML inside the srcdoc (HTML-escaped)
     assert "&lt;strong&gt;bold&lt;/strong&gt;" in r.text
 
 
@@ -120,7 +117,6 @@ def test_disable_invite(authed_client, test_engine, seed_user):
     from app.queries.users import create_invite, create_user_with_invite
     from app.schema import invites
 
-    # Create invite and use it so it can't be deleted
     with test_engine.begin() as conn:
         code = create_invite(conn, seed_user["id"], max_uses=2)
         create_user_with_invite(
@@ -152,7 +148,6 @@ def test_delete_unused_invite(authed_client, test_engine, seed_user):
     )
     assert r.status_code == 200
 
-    # Invite should be gone
     with test_engine.begin() as conn:
         remaining = conn.execute(
             select(invites.c.id).where(invites.c.code == code)
@@ -202,7 +197,6 @@ def test_page_delete(authed_client, seed_user):
     assert r.status_code == 200
     assert "to-delete" not in r.text
 
-    # Verify page is gone
     r2 = authed_client.get(f"/u/{seed_user['username']}/page/to-delete")
     assert r2.status_code == 404
 
@@ -336,7 +330,6 @@ def test_settings_username_change_rejects_invalid(
     assert user["username"] == seed_user["username"]
 
 
-# Set a known past time to test updated_at changes (SQLite has 1s precision)
 _PAST = datetime(2020, 1, 1)
 
 
