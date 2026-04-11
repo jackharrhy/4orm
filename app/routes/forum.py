@@ -94,6 +94,21 @@ def _enforce_rate_limit(request: Request, conn, user_id: int):
     return None
 
 
+@router.post("/preview", response_class=HTMLResponse, summary="Preview post content")
+def preview_post(
+    request: Request,
+    content: str = Form(""),
+    content_format: str = Form("bbcode"),
+):
+    """Render BBCode or Markdown content and return the HTML fragment."""
+    rendered = render_forum_post(content, content_format)
+    return HTMLResponse(
+        f'<div class="forum-post-content">{rendered}</div>'
+        if rendered.strip()
+        else '<p class="muted">nothing to preview</p>'
+    )
+
+
 @router.get("", response_class=HTMLResponse)
 def forum_index(request: Request, page: int = 1):
     current_page = max(1, page)

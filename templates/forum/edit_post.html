@@ -41,10 +41,60 @@
 
     {{ media_snippet_picker(media_items, 'edit-post-content', format='bbcode') }}
 
-    <button type="submit">save</button>
+    <div class="inline" style="gap: 6px; margin-top: 4px">
+      <button type="submit">save</button>
+      <button
+        type="button"
+        class="btn-sm"
+        onclick="previewPost('edit-post-content')"
+      >
+        preview
+      </button>
+    </div>
+    <div
+      id="preview-edit-post-content"
+      class="forum-preview"
+      style="display: none"
+    ></div>
   </form>
 
   <p style="margin-top: 8px">
     <a href="/forum/{{ post.thread_id }}">back to thread</a>
   </p>
+  <script>
+    function previewPost(textareaId) {
+      var ta = document.getElementById(textareaId);
+      if (!ta || !ta.value.trim()) return;
+      var form = ta.closest("form");
+      var formatSel = form
+        ? form.querySelector('select[name="content_format"]')
+        : null;
+      var fmt = formatSel ? formatSel.value : "bbcode";
+      var preview = document.getElementById("preview-" + textareaId);
+      if (!preview) return;
+      var csrfEl = document.querySelector("body[hx-headers]");
+      var csrf = "";
+      if (csrfEl) {
+        try {
+          csrf =
+            JSON.parse(csrfEl.getAttribute("hx-headers"))["X-CSRF-Token"] || "";
+        } catch (e) {}
+      }
+      var fd = new FormData();
+      fd.append("content", ta.value);
+      fd.append("content_format", fmt);
+      fetch("/forum/preview", {
+        method: "POST",
+        headers: csrf ? { "X-CSRF-Token": csrf } : {},
+        body: fd,
+      })
+        .then(function (r) {
+          return r.text();
+        })
+        .then(function (html) {
+          preview.innerHTML = html;
+          preview.style.display = "block";
+        });
+    }
+  </script>
 {% endblock %}

@@ -427,3 +427,10 @@ details.panel[open] > summary > h2::before {
 .pagination strong {
   font-weight: bold;
 }
+.forum-preview {
+  margin-top: 8px;
+  padding: 10px;
+  border: 2px dashed #ccc;
+  background: #fafafa;
+  font-size: 0.9rem;
+}
