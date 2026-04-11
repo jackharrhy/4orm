@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "build": "esbuild src/codemirror-setup.js --bundle --minify --outfile=static/codemirror-setup.js --format=esm"
+    "build": "esbuild src/app.ts --bundle --minify --outfile=static/app.js --format=iife && esbuild src/codemirror.ts --bundle --minify --outfile=static/codemirror.js --format=esm",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -13,6 +14,7 @@
     "codemirror": "^6.0.2",
     "esbuild": "^0.28.0",
     "prettier": "^3.8.1",
-    "prettier-plugin-jinja-template": "^2.1.0"
+    "prettier-plugin-jinja-template": "^2.1.0",
+    "typescript": "^6.0.2"
   }
 }
