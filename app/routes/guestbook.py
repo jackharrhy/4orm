@@ -3,7 +3,14 @@
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.deps import current_user, get_engine, is_htmx, templates, wants_json
+from app.deps import (
+    current_user,
+    get_engine,
+    is_htmx,
+    json_response,
+    templates,
+    wants_json,
+)
 from app.models import GuestbookEntry, GuestbookResponse, SuccessResponse
 from app.push import send_notification
 from app.queries.guestbook import (
@@ -29,19 +36,21 @@ def guestbook_view(request: Request, username: str):
     is_owner = me and me["id"] == owner["id"]
 
     if wants_json(request):
-        return GuestbookResponse(
-            owner_username=owner["username"],
-            entries=[
-                GuestbookEntry(
-                    id=e["id"],
-                    author_username=e["author_username"],
-                    author_display_name=e["author_display_name"],
-                    message=e["message"],
-                    created_at=e.get("created_at"),
-                )
-                for e in entries
-            ],
-            can_post=me is not None,
+        return json_response(
+            GuestbookResponse(
+                owner_username=owner["username"],
+                entries=[
+                    GuestbookEntry(
+                        id=e["id"],
+                        author_username=e["author_username"],
+                        author_display_name=e["author_display_name"],
+                        message=e["message"],
+                        created_at=e.get("created_at"),
+                    )
+                    for e in entries
+                ],
+                can_post=me is not None,
+            )
         )
 
     return templates.TemplateResponse(
@@ -84,7 +93,7 @@ def guestbook_post(request: Request, username: str, message: str = Form(...)):
         entries = list_guestbook_entries(conn, owner["id"])
     is_owner = me["id"] == owner["id"]
     if wants_json(request):
-        return SuccessResponse(message="entry added")
+        return json_response(SuccessResponse(message="entry added"))
     if is_htmx(request):
         return templates.TemplateResponse(
             request,
@@ -106,7 +115,7 @@ def guestbook_delete(request: Request, username: str, entry_id: int):
         delete_guestbook_entry(conn, entry_id, owner["id"])
         entries = list_guestbook_entries(conn, owner["id"])
     if wants_json(request):
-        return SuccessResponse(message="entry deleted")
+        return json_response(SuccessResponse(message="entry deleted"))
     if is_htmx(request):
         return templates.TemplateResponse(
             request,

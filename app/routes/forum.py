@@ -11,6 +11,7 @@ from app.deps import (
     current_user,
     get_engine,
     is_htmx,
+    json_response,
     require_admin,
     require_user_dep,
     templates,
@@ -102,24 +103,26 @@ def forum_index(request: Request, page: int = 1):
         )
     total_pages = max(1, math.ceil(total / THREADS_PER_PAGE))
     if wants_json(request):
-        return ForumThreadList(
-            threads=[
-                ForumThreadSummary(
-                    id=t["id"],
-                    title=t["title"],
-                    author_username=t["author_username"],
-                    author_display_name=t.get("author_display_name", ""),
-                    reply_count=t.get("reply_count", 0),
-                    is_pinned=t.get("is_pinned", False),
-                    is_locked=t.get("is_locked", False),
-                    last_reply_at=t.get("last_reply_at"),
-                    created_at=t.get("created_at"),
-                )
-                for t in threads
-            ],
-            total=total,
-            page=current_page,
-            total_pages=total_pages,
+        return json_response(
+            ForumThreadList(
+                threads=[
+                    ForumThreadSummary(
+                        id=t["id"],
+                        title=t["title"],
+                        author_username=t["author_username"],
+                        author_display_name=t.get("author_display_name", ""),
+                        reply_count=t.get("reply_count", 0),
+                        is_pinned=t.get("is_pinned", False),
+                        is_locked=t.get("is_locked", False),
+                        last_reply_at=t.get("last_reply_at"),
+                        created_at=t.get("created_at"),
+                    )
+                    for t in threads
+                ],
+                total=total,
+                page=current_page,
+                total_pages=total_pages,
+            )
         )
     return templates.TemplateResponse(
         request,
@@ -211,41 +214,43 @@ def thread_view(request: Request, thread_id: int, page: int = 1):
         )
 
     if wants_json(request):
-        return ForumThreadDetail(
-            id=thread["id"],
-            title=thread["title"],
-            author_username=thread["author_username"],
-            author_display_name=thread.get("author_display_name", ""),
-            is_pinned=thread.get("is_pinned", False),
-            is_locked=thread.get("is_locked", False),
-            custom_css=thread.get("custom_css", ""),
-            custom_html=thread.get("custom_html", ""),
-            created_at=thread.get("created_at"),
-            posts=[
-                ForumPost(
-                    id=p["id"],
-                    thread_id=p["thread_id"],
-                    author_username=p["author_username"],
-                    author_display_name=p.get("author_display_name", ""),
-                    content=p["content"],
-                    content_format=p["content_format"],
-                    rendered_content=p.get("rendered_content", ""),
-                    quoted_post_id=p.get("quoted_post_id"),
-                    quoted_content=p.get("quoted_content"),
-                    quoted_content_format=p.get("quoted_content_format"),
-                    rendered_quoted_content=p.get("rendered_quoted_content"),
-                    quoted_author=p.get("quoted_author"),
-                    is_edited=p.get("is_edited", False),
-                    author_signature=p.get("author_signature"),
-                    rendered_signature=p.get("rendered_signature"),
-                    created_at=p.get("created_at"),
-                )
-                for p in rendered_posts
-            ],
-            total_posts=total,
-            page=current_page,
-            total_pages=total_pages,
-            watching=watching,
+        return json_response(
+            ForumThreadDetail(
+                id=thread["id"],
+                title=thread["title"],
+                author_username=thread["author_username"],
+                author_display_name=thread.get("author_display_name", ""),
+                is_pinned=thread.get("is_pinned", False),
+                is_locked=thread.get("is_locked", False),
+                custom_css=thread.get("custom_css", ""),
+                custom_html=thread.get("custom_html", ""),
+                created_at=thread.get("created_at"),
+                posts=[
+                    ForumPost(
+                        id=p["id"],
+                        thread_id=p["thread_id"],
+                        author_username=p["author_username"],
+                        author_display_name=p.get("author_display_name", ""),
+                        content=p["content"],
+                        content_format=p["content_format"],
+                        rendered_content=p.get("rendered_content", ""),
+                        quoted_post_id=p.get("quoted_post_id"),
+                        quoted_content=p.get("quoted_content"),
+                        quoted_content_format=p.get("quoted_content_format"),
+                        rendered_quoted_content=p.get("rendered_quoted_content"),
+                        quoted_author=p.get("quoted_author"),
+                        is_edited=p.get("is_edited", False),
+                        author_signature=p.get("author_signature"),
+                        rendered_signature=p.get("rendered_signature"),
+                        created_at=p.get("created_at"),
+                    )
+                    for p in rendered_posts
+                ],
+                total_posts=total,
+                page=current_page,
+                total_pages=total_pages,
+                watching=watching,
+            )
         )
 
     is_author = me and me["id"] == thread["author_id"]

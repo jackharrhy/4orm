@@ -12,6 +12,7 @@ from app.deps import (
     current_user,
     get_engine,
     is_htmx,
+    json_response,
     templates,
     unique_filename,
     wants_json,
@@ -48,20 +49,22 @@ def settings_media_get(request: Request):
         else 0
     )
     if wants_json(request):
-        return MediaListResponse(
-            items=[
-                MediaItem(
-                    id=item["id"],
-                    storage_path=item["storage_path"],
-                    mime_type=item["mime_type"],
-                    size_bytes=item["size_bytes"],
-                    alt_text=item.get("alt_text"),
-                )
-                for item in items
-            ],
-            storage_used=storage_used,
-            storage_limit=deps.MAX_STORAGE_PER_USER,
-            storage_pct=storage_pct,
+        return json_response(
+            MediaListResponse(
+                items=[
+                    MediaItem(
+                        id=item["id"],
+                        storage_path=item["storage_path"],
+                        mime_type=item["mime_type"],
+                        size_bytes=item["size_bytes"],
+                        alt_text=item.get("alt_text"),
+                    )
+                    for item in items
+                ],
+                storage_used=storage_used,
+                storage_limit=deps.MAX_STORAGE_PER_USER,
+                storage_pct=storage_pct,
+            )
         )
     return templates.TemplateResponse(
         request,

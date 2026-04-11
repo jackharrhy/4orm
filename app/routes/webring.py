@@ -5,7 +5,7 @@ import random
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.deps import get_engine, templates, wants_json
+from app.deps import get_engine, json_response, templates, wants_json
 from app.models import WebringNeighbor, WebringResponse
 from app.queries.users import get_user_by_username
 from app.queries.widgets import get_webring_members, get_webring_neighbors
@@ -32,20 +32,22 @@ def webring_widget(request: Request, username: str):
         prev_member, next_member = get_webring_neighbors(conn, username)
 
     if wants_json(request):
-        return WebringResponse(
-            username=username,
-            prev=WebringNeighbor(
-                username=prev_member["username"],
-                display_name=prev_member["display_name"],
+        return json_response(
+            WebringResponse(
+                username=username,
+                prev=WebringNeighbor(
+                    username=prev_member["username"],
+                    display_name=prev_member["display_name"],
+                )
+                if prev_member
+                else None,
+                next=WebringNeighbor(
+                    username=next_member["username"],
+                    display_name=next_member["display_name"],
+                )
+                if next_member
+                else None,
             )
-            if prev_member
-            else None,
-            next=WebringNeighbor(
-                username=next_member["username"],
-                display_name=next_member["display_name"],
-            )
-            if next_member
-            else None,
         )
 
     return templates.TemplateResponse(

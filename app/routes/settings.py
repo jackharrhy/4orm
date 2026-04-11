@@ -11,6 +11,7 @@ from app.deps import (
     _saved_or_redirect,
     get_engine,
     is_htmx,
+    json_response,
     rename_user_media,
     require_user,
     templates,
@@ -80,66 +81,68 @@ def settings_get(request: Request):
             .all()
         )
     if wants_json(request):
-        return SettingsResponse(
-            username=me["username"],
-            display_name=me["display_name"],
-            content=me.get("content") or "",
-            content_format=me.get("content_format") or "html",
-            layout=me.get("layout") or "default",
-            custom_css=me.get("custom_css") or "",
-            custom_html=me.get("custom_html") or "",
-            guestbook_css=me.get("guestbook_css") or "",
-            guestbook_html=me.get("guestbook_html") or "",
-            counter_css=me.get("counter_css") or "",
-            counter_html=me.get("counter_html") or "",
-            status_emoji=me.get("status_emoji") or "",
-            status_text=me.get("status_text") or "",
-            player_css=me.get("player_css") or "",
-            player_html=me.get("player_html") or "",
-            forum_signature=me.get("forum_signature") or "",
-            in_webring=bool(me.get("in_webring")),
-            notifications_enabled=bool(me.get("notifications_enabled")),
-            watch_all_threads=bool(me.get("watch_all_threads")),
-            invites=[
-                InviteInfo(
-                    code=inv["code"],
-                    max_uses=inv["max_uses"],
-                    uses_count=inv["uses_count"],
-                    status=inv["status"],
-                    redeemed_by=list(inv["redeemed_by"]),
-                )
-                for inv in my_invites
-            ],
-            pages=[
-                PageSummary(
-                    slug=p["slug"],
-                    title=p["title"],
-                    is_public=p["is_public"],
-                    layout=p.get("layout", "default"),
-                    created_at=p.get("created_at"),
-                    updated_at=p.get("updated_at"),
-                )
-                for p in my_pages
-            ],
-            media_items=[
-                MediaItem(
-                    id=item["id"],
-                    storage_path=item["storage_path"],
-                    mime_type=item["mime_type"],
-                    size_bytes=item["size_bytes"],
-                    alt_text=item.get("alt_text"),
-                )
-                for item in media_items
-            ],
-            playlist=[
-                PlayerTrack(
-                    id=t["id"],
-                    title=t.get("title"),
-                    storage_path=t["storage_path"],
-                    mime_type=t.get("mime_type", ""),
-                )
-                for t in playlist
-            ],
+        return json_response(
+            SettingsResponse(
+                username=me["username"],
+                display_name=me["display_name"],
+                content=me.get("content") or "",
+                content_format=me.get("content_format") or "html",
+                layout=me.get("layout") or "default",
+                custom_css=me.get("custom_css") or "",
+                custom_html=me.get("custom_html") or "",
+                guestbook_css=me.get("guestbook_css") or "",
+                guestbook_html=me.get("guestbook_html") or "",
+                counter_css=me.get("counter_css") or "",
+                counter_html=me.get("counter_html") or "",
+                status_emoji=me.get("status_emoji") or "",
+                status_text=me.get("status_text") or "",
+                player_css=me.get("player_css") or "",
+                player_html=me.get("player_html") or "",
+                forum_signature=me.get("forum_signature") or "",
+                in_webring=bool(me.get("in_webring")),
+                notifications_enabled=bool(me.get("notifications_enabled")),
+                watch_all_threads=bool(me.get("watch_all_threads")),
+                invites=[
+                    InviteInfo(
+                        code=inv["code"],
+                        max_uses=inv["max_uses"],
+                        uses_count=inv["uses_count"],
+                        status=inv["status"],
+                        redeemed_by=list(inv["redeemed_by"]),
+                    )
+                    for inv in my_invites
+                ],
+                pages=[
+                    PageSummary(
+                        slug=p["slug"],
+                        title=p["title"],
+                        is_public=p["is_public"],
+                        layout=p.get("layout", "default"),
+                        created_at=p.get("created_at"),
+                        updated_at=p.get("updated_at"),
+                    )
+                    for p in my_pages
+                ],
+                media_items=[
+                    MediaItem(
+                        id=item["id"],
+                        storage_path=item["storage_path"],
+                        mime_type=item["mime_type"],
+                        size_bytes=item["size_bytes"],
+                        alt_text=item.get("alt_text"),
+                    )
+                    for item in media_items
+                ],
+                playlist=[
+                    PlayerTrack(
+                        id=t["id"],
+                        title=t.get("title"),
+                        storage_path=t["storage_path"],
+                        mime_type=t.get("mime_type", ""),
+                    )
+                    for t in playlist
+                ],
+            )
         )
     return templates.TemplateResponse(
         request,

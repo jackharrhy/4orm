@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
 import app.deps as deps
-from app.deps import current_user, get_engine, templates, wants_json
+from app.deps import current_user, get_engine, json_response, templates, wants_json
 from app.export import build_export_zip
 from app.models import (
     CounterResponse,
@@ -47,26 +47,28 @@ def profile(request: Request, username: str):
     rendered_content = render_content(user["content"], user["content_format"])
 
     if wants_json(request):
-        return ProfileResponse(
-            username=user["username"],
-            display_name=user["display_name"],
-            content=user["content"] or "",
-            content_format=user["content_format"] or "html",
-            rendered_content=rendered_content,
-            custom_css=user["custom_css"] or "",
-            custom_html=user["custom_html"] or "",
-            layout=user.get("layout") or "default",
-            pages=[
-                PageSummary(
-                    slug=p["slug"],
-                    title=p["title"],
-                    is_public=p["is_public"],
-                    layout=p.get("layout", "default"),
-                    created_at=p.get("created_at"),
-                    updated_at=p.get("updated_at"),
-                )
-                for p in pages
-            ],
+        return json_response(
+            ProfileResponse(
+                username=user["username"],
+                display_name=user["display_name"],
+                content=user["content"] or "",
+                content_format=user["content_format"] or "html",
+                rendered_content=rendered_content,
+                custom_css=user["custom_css"] or "",
+                custom_html=user["custom_html"] or "",
+                layout=user.get("layout") or "default",
+                pages=[
+                    PageSummary(
+                        slug=p["slug"],
+                        title=p["title"],
+                        is_public=p["is_public"],
+                        layout=p.get("layout", "default"),
+                        created_at=p.get("created_at"),
+                        updated_at=p.get("updated_at"),
+                    )
+                    for p in pages
+                ],
+            )
         )
 
     layout = user.get("layout", "default")
@@ -117,18 +119,20 @@ def page_view(request: Request, username: str, slug: str):
     rendered_content = render_content(page["content"], page["content_format"])
 
     if wants_json(request):
-        return PageDetail(
-            slug=page.get("slug", slug),
-            title=page["title"],
-            content=page["content"] or "",
-            content_format=page["content_format"] or "html",
-            rendered_content=rendered_content,
-            layout=page.get("layout") or "default",
-            is_public=page.get("is_public", True),
-            username=page["username"],
-            display_name=page["display_name"],
-            custom_css=page.get("custom_css") or "",
-            custom_html=page.get("custom_html") or "",
+        return json_response(
+            PageDetail(
+                slug=page.get("slug", slug),
+                title=page["title"],
+                content=page["content"] or "",
+                content_format=page["content_format"] or "html",
+                rendered_content=rendered_content,
+                layout=page.get("layout") or "default",
+                is_public=page.get("is_public", True),
+                username=page["username"],
+                display_name=page["display_name"],
+                custom_css=page.get("custom_css") or "",
+                custom_html=page.get("custom_html") or "",
+            )
         )
 
     layout = page.get("layout", "default")
@@ -193,7 +197,9 @@ def counter_view(request: Request, username: str):
         total_views = get_total_views(conn, owner["id"])
 
     if wants_json(request):
-        return CounterResponse(username=username, total_views=total_views)
+        return json_response(
+            CounterResponse(username=username, total_views=total_views)
+        )
 
     return templates.TemplateResponse(
         request,
@@ -216,7 +222,7 @@ def lineage(request: Request):
                 children=[node_to_dict(c) for c in n.get("children", [])],
             )
 
-        return LineageResponse(tree=[node_to_dict(r) for r in tree])
+        return json_response(LineageResponse(tree=[node_to_dict(r) for r in tree]))
 
     return templates.TemplateResponse(
         request,
@@ -280,11 +286,13 @@ def status_widget(request: Request, username: str):
             relative_time = f"{seconds // 86400}d ago"
 
     if wants_json(request):
-        return StatusResponse(
-            username=username,
-            status_emoji=user.get("status_emoji") or "",
-            status_text=user.get("status_text") or "",
-            relative_time=relative_time,
+        return json_response(
+            StatusResponse(
+                username=username,
+                status_emoji=user.get("status_emoji") or "",
+                status_text=user.get("status_text") or "",
+                relative_time=relative_time,
+            )
         )
 
     return templates.TemplateResponse(
@@ -308,17 +316,19 @@ def player_widget(request: Request, username: str):
         tracks = get_playlist(conn, user["id"])
 
     if wants_json(request):
-        return PlayerResponse(
-            username=username,
-            tracks=[
-                PlayerTrack(
-                    id=t["id"],
-                    title=t.get("title"),
-                    storage_path=t["storage_path"],
-                    mime_type=t.get("mime_type", ""),
-                )
-                for t in tracks
-            ],
+        return json_response(
+            PlayerResponse(
+                username=username,
+                tracks=[
+                    PlayerTrack(
+                        id=t["id"],
+                        title=t.get("title"),
+                        storage_path=t["storage_path"],
+                        mime_type=t.get("mime_type", ""),
+                    )
+                    for t in tracks
+                ],
+            )
         )
 
     return templates.TemplateResponse(

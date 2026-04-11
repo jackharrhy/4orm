@@ -9,6 +9,7 @@ from app.deps import (
     USERNAME_RE,
     current_user,
     get_engine,
+    json_response,
     templates,
     wants_json,
 )
@@ -67,10 +68,12 @@ def register_post(
         )
     request.session["user_id"] = user["id"]
     if wants_json(request):
-        return AuthResponse(
-            username=user["username"],
-            display_name=user["display_name"],
-            redirect="/trust-agreement",
+        return json_response(
+            AuthResponse(
+                username=user["username"],
+                display_name=user["display_name"],
+                redirect="/trust-agreement",
+            )
         )
     return RedirectResponse(url="/trust-agreement", status_code=303)
 
@@ -109,10 +112,12 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         )
     request.session["user_id"] = user["id"]
     if wants_json(request):
-        return AuthResponse(
-            username=user["username"],
-            display_name=user["display_name"],
-            redirect=f"/u/{user['username']}",
+        return json_response(
+            AuthResponse(
+                username=user["username"],
+                display_name=user["display_name"],
+                redirect=f"/u/{user['username']}",
+            )
         )
     return RedirectResponse(url=f"/u/{user['username']}", status_code=303)
 

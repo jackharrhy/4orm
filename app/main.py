@@ -3,7 +3,12 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -17,6 +22,7 @@ from app.deps import (
     LoginRequired,
     current_user,
     get_engine,
+    json_response,
     templates,
     wants_json,
 )
@@ -200,10 +206,15 @@ ERROR_MESSAGES = {
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    message = ERROR_MESSAGES.get(exc.status_code, exc.detail)
+    if wants_json(request):
+        return JSONResponse(
+            {"ok": False, "error": message, "status_code": exc.status_code},
+            status_code=exc.status_code,
+        )
     me = None
     with contextlib.suppress(Exception):
         me = current_user(request)
-    message = ERROR_MESSAGES.get(exc.status_code, exc.detail)
     return templates.TemplateResponse(
         request,
         "error.html",
@@ -248,32 +259,34 @@ def home(request: Request):
     ]
 
     if wants_json(request):
-        return HomepageResponse(
-            cards=[
-                ProfileCard(
-                    username=c["username"],
-                    headline=c.get("headline", ""),
-                    content=c.get("content", ""),
-                    content_format=c.get("content_format", "html"),
-                    rendered_content=c.get("rendered_content", ""),
-                    accent_color=c.get("accent_color", ""),
-                    border_style=c.get("border_style", ""),
-                    card_css=c.get("card_css", ""),
-                )
-                for c in cards
-            ],
-            recent_forum_posts=[
-                ForumPostPreview(
-                    id=p["id"],
-                    thread_id=p["thread_id"],
-                    thread_title=p.get("thread_title", ""),
-                    author_username=p["author_username"],
-                    author_display_name=p.get("author_display_name", ""),
-                    rendered_content=p.get("rendered_content", ""),
-                    created_at=p.get("created_at"),
-                )
-                for p in recent_posts
-            ],
+        return json_response(
+            HomepageResponse(
+                cards=[
+                    ProfileCard(
+                        username=c["username"],
+                        headline=c.get("headline", ""),
+                        content=c.get("content", ""),
+                        content_format=c.get("content_format", "html"),
+                        rendered_content=c.get("rendered_content", ""),
+                        accent_color=c.get("accent_color", ""),
+                        border_style=c.get("border_style", ""),
+                        card_css=c.get("card_css", ""),
+                    )
+                    for c in cards
+                ],
+                recent_forum_posts=[
+                    ForumPostPreview(
+                        id=p["id"],
+                        thread_id=p["thread_id"],
+                        thread_title=p.get("thread_title", ""),
+                        author_username=p["author_username"],
+                        author_display_name=p.get("author_display_name", ""),
+                        rendered_content=p.get("rendered_content", ""),
+                        created_at=p.get("created_at"),
+                    )
+                    for p in recent_posts
+                ],
+            )
         )
 
     return templates.TemplateResponse(

@@ -15,9 +15,10 @@ from email.utils import format_datetime
 from pathlib import Path
 
 from fastapi import HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from loguru import logger
+from pydantic import BaseModel
 
 # --- Loguru setup: intercept all stdlib logging ---
 
@@ -221,6 +222,16 @@ def wants_json(request: Request) -> bool:
     """Check if the client prefers JSON over HTML."""
     accept = request.headers.get("accept", "")
     return "application/json" in accept and "text/html" not in accept
+
+
+def json_response(model: BaseModel, status_code: int = 200) -> JSONResponse:
+    """Wrap a Pydantic model in a JSONResponse.
+
+    Routes that declare ``response_class=HTMLResponse`` cannot return a
+    Pydantic model directly — FastAPI/Starlette will try to ``.encode()``
+    the dict as HTML and crash.  Use this helper instead.
+    """
+    return JSONResponse(model.model_dump(mode="json"), status_code=status_code)
 
 
 def current_user(request: Request):
