@@ -377,6 +377,17 @@
         <button type="submit" class="btn-sm">send test notification</button>
         <span id="notif-test-status"></span>
       </form>
+      <h3 style="margin-top: 10px">registered devices</h3>
+      <div id="push-devices">
+        <button
+          class="btn-sm"
+          hx-get="/api/push/devices"
+          hx-target="#push-devices"
+          hx-swap="innerHTML"
+        >
+          load devices
+        </button>
+      </div>
     </details>
     <details>
       <summary><strong>forum signature</strong></summary>

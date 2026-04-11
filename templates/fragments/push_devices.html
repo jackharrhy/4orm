@@ -1,0 +1,23 @@
+{% if devices %}
+  <div class="stack" style="gap: 4px">
+    {% for d in devices %}
+      <div class="inline" style="flex-wrap: wrap; gap: 4px">
+        <strong>{{ d.device_name or d.device_id[:12] }}</strong>
+        <span class="muted">{{ d.created_at|localtime('full') }}</span>
+        <form
+          method="post"
+          action="/api/push/devices/{{ d.id }}/delete"
+          class="inline"
+          hx-post="/api/push/devices/{{ d.id }}/delete"
+          hx-target="#push-devices"
+          hx-swap="innerHTML"
+          hx-confirm="remove this device?"
+        >
+          <button type="submit" class="btn-sm">remove</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="muted">no devices registered</p>
+{% endif %}

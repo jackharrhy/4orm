@@ -217,9 +217,12 @@ push_subscriptions = Table(
     Column(
         "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     ),
-    Column("endpoint", Text, nullable=False, unique=True),
+    Column("device_id", String(64), nullable=False),
+    Column("device_name", String(100), nullable=False, server_default=""),
+    Column("endpoint", Text, nullable=False),
     Column("p256dh_key", Text, nullable=False),
     Column("auth_key", Text, nullable=False),
+    UniqueConstraint("user_id", "device_id", name="uq_push_user_device"),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
