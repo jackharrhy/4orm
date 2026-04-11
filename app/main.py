@@ -63,19 +63,27 @@ async def lifespan(application: FastAPI):
     else:
         command.upgrade(alembic_cfg, "head")
 
-    backup_dir = BASE_DIR / "backups"
-    backup_dir.mkdir(exist_ok=True)
-    scheduler = BackupScheduler(
-        db_path=BASE_DIR / "data" / "4orm.db",
-        uploads_dir=BASE_DIR / "uploads",
-        backup_dir=backup_dir,
+    # Only run backup scheduler in production (not during --reload dev)
+    is_reload = os.environ.get("UVICORN_RELOAD", "") or any(
+        "reload" in str(a) for a in __import__("sys").argv
     )
-    application.state.backup_scheduler = scheduler
-    scheduler.start()
+    if not is_reload:
+        backup_dir = BASE_DIR / "backups"
+        backup_dir.mkdir(exist_ok=True)
+        scheduler = BackupScheduler(
+            db_path=BASE_DIR / "data" / "4orm.db",
+            uploads_dir=BASE_DIR / "uploads",
+            backup_dir=backup_dir,
+        )
+        application.state.backup_scheduler = scheduler
+        scheduler.start()
+    else:
+        application.state.backup_scheduler = None
 
     yield
 
-    scheduler.stop()
+    if application.state.backup_scheduler:
+        application.state.backup_scheduler.stop()
 
 
 _CSRF_EXEMPT_PATHS = {"/login"}
