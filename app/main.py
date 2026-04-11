@@ -3,7 +3,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.backup import BackupScheduler
 from app.db import engine as default_engine
-from app.deps import BASE_DIR, current_user, get_engine, templates
+from app.deps import BASE_DIR, LoginRequired, current_user, get_engine, templates
 from app.queries.forum import recent_forum_posts
 from app.queries.users import list_profile_cards
 from app.rendering import render_content, render_forum_post
@@ -89,6 +89,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 
 app = FastAPI(title="4orm", lifespan=lifespan)
+
+
+@app.exception_handler(LoginRequired)
+async def _handle_login_required(_request, _exc):
+    return RedirectResponse(url="/login", status_code=303)
 app.state.engine = default_engine
 
 

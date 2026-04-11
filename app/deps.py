@@ -170,6 +170,18 @@ def require_user(request: Request):
     return me, None
 
 
+def require_user_dep(request: Request):
+    """Dependency-style user guard for FastAPI route params."""
+    me = current_user(request)
+    if not me:
+        raise LoginRequired()
+    return me
+
+
+class LoginRequired(Exception):
+    pass
+
+
 def require_admin(request: Request):
     """Return the current user if they are an admin, otherwise raise 403."""
     me = current_user(request)
