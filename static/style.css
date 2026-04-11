@@ -192,6 +192,12 @@ code {
   margin-top: 6px;
   font-size: 0.9rem;
 }
+time[datetime] {
+  visibility: hidden;
+}
+time.converted {
+  visibility: visible;
+}
 h2 > a,
 h3 > a {
   color: inherit;
