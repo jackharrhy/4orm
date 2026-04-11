@@ -393,6 +393,15 @@ details.panel[open] > summary > h2::before {
   cursor: pointer;
   width: auto;
 }
+.forum-post-content img,
+.forum-post-content video,
+.forum-preview img,
+.forum-preview video {
+  max-width: 100%;
+  max-height: 500px;
+  height: auto;
+  display: block;
+}
 .forum-quote {
   border-left: 3px solid #ccc;
   padding: 4px 8px;
