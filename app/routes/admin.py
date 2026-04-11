@@ -126,6 +126,18 @@ def admin_dashboard(request: Request):
             .all()
         )
 
+    scheduler = getattr(request.app.state, "backup_scheduler", None)
+    backup_summary = None
+    if scheduler:
+        backups = scheduler.list_backups()
+        total_size = sum(b["db_size"] for b in backups)
+        backup_summary = {
+            "count": len(backups),
+            "total_size": total_size,
+            "last": scheduler.last_result,
+            "latest_name": backups[0]["name"] if backups else None,
+        }
+
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -137,6 +149,7 @@ def admin_dashboard(request: Request):
             "all_pages": all_pages,
             "all_threads": all_threads,
             "recent_posts": recent_posts,
+            "backup_summary": backup_summary,
         },
     )
 

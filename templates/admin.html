@@ -338,13 +338,30 @@
   </details>
   <details class="panel">
     <summary><h2>backups</h2></summary>
+    {% if backup_summary %}
+      <p>
+        <strong>{{ backup_summary.count }}</strong> snapshots ·
+        <strong>{{ backup_summary.total_size|human_bytes }}</strong> total
+        {% if backup_summary.latest_name %}
+          · latest: <code>{{ backup_summary.latest_name }}</code>
+        {% endif %}
+        {% if backup_summary.last and backup_summary.last.error %}
+          ·
+          <span class="error">last error: {{ backup_summary.last.error }}</span>
+        {% elif backup_summary.last %}
+          · last run: {{ backup_summary.last.timestamp }}
+        {% endif %}
+      </p>
+    {% else %}
+      <p class="muted">backup scheduler not running (dev mode?)</p>
+    {% endif %}
     <div id="backup-results">
       <button
         hx-get="/admin/backups"
         hx-target="#backup-results"
         hx-swap="innerHTML"
       >
-        view backups
+        view full backup list
       </button>
     </div>
     <form
