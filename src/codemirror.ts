@@ -6,6 +6,14 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorState, Compartment } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 
+declare global {
+  interface Window {
+    _cmEditors: Record<string, any>;
+    switchEditorLang: (textareaId: string, lang: string) => void;
+    createCodeMirror: (textarea: HTMLTextAreaElement, lang: string) => any;
+  }
+}
+
 const theme = EditorView.theme({
   "&": {
     backgroundColor: "#fff",
@@ -39,16 +47,16 @@ const theme = EditorView.theme({
   ".cm-selectionMatch": { backgroundColor: "#e0e0e0" },
 });
 
-function langExtension(lang) {
+function langExtension(lang: string) {
   if (lang === "css") return css();
   if (lang === "markdown") return markdown();
   return html();
 }
 
-function createEditor(textarea, lang) {
+function createEditor(textarea: HTMLTextAreaElement, lang: string) {
   const langCompartment = new Compartment();
   const parent = document.createElement("div");
-  textarea.parentNode.insertBefore(parent, textarea);
+  textarea.parentNode!.insertBefore(parent, textarea);
   textarea.style.display = "none";
 
   const view = new EditorView({
@@ -70,7 +78,7 @@ function createEditor(textarea, lang) {
     parent,
   });
 
-  view._langCompartment = langCompartment;
+  (view as any)._langCompartment = langCompartment;
   return view;
 }
 
@@ -78,16 +86,18 @@ function createEditor(textarea, lang) {
 window._cmEditors = window._cmEditors || {};
 
 // Auto-upgrade textareas with data-codemirror attribute
-document.querySelectorAll("textarea[data-codemirror]").forEach((textarea) => {
-  const lang = textarea.dataset.codemirror || "css";
-  const view = createEditor(textarea, lang);
-  if (textarea.id) {
-    window._cmEditors[textarea.id] = view;
-  }
-});
+document
+  .querySelectorAll<HTMLTextAreaElement>("textarea[data-codemirror]")
+  .forEach((textarea) => {
+    const lang = textarea.dataset.codemirror || "css";
+    const view = createEditor(textarea, lang);
+    if (textarea.id) {
+      window._cmEditors[textarea.id] = view;
+    }
+  });
 
 // Switch editor language (called from format toggle radio buttons)
-window.switchEditorLang = function (textareaId, lang) {
+window.switchEditorLang = function (textareaId: string, lang: string) {
   const view = window._cmEditors[textareaId];
   if (view && view._langCompartment) {
     view.dispatch({
