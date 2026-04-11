@@ -15,6 +15,8 @@ def recent_forum_posts(conn: Connection, hours: int = 2, limit: int = 5):
             forum_posts.c.thread_id,
             forum_posts.c.content,
             forum_posts.c.content_format,
+            forum_posts.c.quoted_post_id,
+            forum_posts.c.quoted_author,
             forum_posts.c.created_at,
             forum_threads.c.title.label("thread_title"),
             users.c.username.label("author_username"),

@@ -12,7 +12,11 @@
                 >{{ post.author_display_name or post.author_username }}</strong
               ></a
             >
-            in
+            {% if post.quoted_author %}
+              ↩ replying to {{ post.quoted_author }} in
+            {% else %}
+              in
+            {% endif %}
             <a href="/forum/{{ post.thread_id }}#post-{{ post.id }}"
               >{{ post.thread_title }}</a
             >
