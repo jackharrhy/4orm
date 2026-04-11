@@ -14,6 +14,16 @@ from app.deps import (
     rename_user_media,
     require_user,
     templates,
+    wants_json,
+)
+from app.models import (
+    CreatedResponse,
+    InviteInfo,
+    MediaItem,
+    PageSummary,
+    PlayerTrack,
+    SettingsResponse,
+    SuccessResponse,
 )
 from app.queries.media import list_media_for_user
 from app.queries.pages import (
@@ -68,6 +78,68 @@ def settings_get(request: Request):
             )
             .mappings()
             .all()
+        )
+    if wants_json(request):
+        return SettingsResponse(
+            username=me["username"],
+            display_name=me["display_name"],
+            content=me.get("content") or "",
+            content_format=me.get("content_format") or "html",
+            layout=me.get("layout") or "default",
+            custom_css=me.get("custom_css") or "",
+            custom_html=me.get("custom_html") or "",
+            guestbook_css=me.get("guestbook_css") or "",
+            guestbook_html=me.get("guestbook_html") or "",
+            counter_css=me.get("counter_css") or "",
+            counter_html=me.get("counter_html") or "",
+            status_emoji=me.get("status_emoji") or "",
+            status_text=me.get("status_text") or "",
+            player_css=me.get("player_css") or "",
+            player_html=me.get("player_html") or "",
+            forum_signature=me.get("forum_signature") or "",
+            in_webring=bool(me.get("in_webring")),
+            notifications_enabled=bool(me.get("notifications_enabled")),
+            watch_all_threads=bool(me.get("watch_all_threads")),
+            invites=[
+                InviteInfo(
+                    code=inv["code"],
+                    max_uses=inv["max_uses"],
+                    uses_count=inv["uses_count"],
+                    status=inv["status"],
+                    redeemed_by=list(inv["redeemed_by"]),
+                )
+                for inv in my_invites
+            ],
+            pages=[
+                PageSummary(
+                    slug=p["slug"],
+                    title=p["title"],
+                    is_public=p["is_public"],
+                    layout=p.get("layout", "default"),
+                    created_at=p.get("created_at"),
+                    updated_at=p.get("updated_at"),
+                )
+                for p in my_pages
+            ],
+            media_items=[
+                MediaItem(
+                    id=item["id"],
+                    storage_path=item["storage_path"],
+                    mime_type=item["mime_type"],
+                    size_bytes=item["size_bytes"],
+                    alt_text=item.get("alt_text"),
+                )
+                for item in media_items
+            ],
+            playlist=[
+                PlayerTrack(
+                    id=t["id"],
+                    title=t.get("title"),
+                    storage_path=t["storage_path"],
+                    mime_type=t.get("mime_type", ""),
+                )
+                for t in playlist
+            ],
         )
     return templates.TemplateResponse(
         request,
@@ -315,6 +387,8 @@ def settings_player_add(request: Request, media_id: int = Form(...)):
         return redirect
     with get_engine(request).begin() as conn:
         add_to_playlist(conn, me["id"], media_id)
+    if wants_json(request):
+        return SuccessResponse()
     if is_htmx(request):
         return _playlist_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
@@ -327,6 +401,8 @@ def settings_player_remove(request: Request, item_id: int):
         return redirect
     with get_engine(request).begin() as conn:
         remove_from_playlist(conn, item_id, me["id"])
+    if wants_json(request):
+        return SuccessResponse()
     if is_htmx(request):
         return _playlist_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
@@ -339,6 +415,8 @@ def settings_player_move(request: Request, item_id: int, direction: str = Form(.
         return redirect
     with get_engine(request).begin() as conn:
         move_playlist_item(conn, item_id, me["id"], direction)
+    if wants_json(request):
+        return SuccessResponse()
     if is_htmx(request):
         return _playlist_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
@@ -380,6 +458,8 @@ def settings_notifications_test(request: Request):
             "if you see this, push notifications are working!",
             "/settings",
         )
+    if wants_json(request):
+        return SuccessResponse(message="sent")
     if is_htmx(request):
         return HTMLResponse('<span class="ok">sent!</span>')
     return RedirectResponse(url="/settings", status_code=303)
@@ -447,6 +527,8 @@ def settings_invites(request: Request, max_uses: int = Form(1)):
     with get_engine(request).begin() as conn:
         code = create_invite(conn, me["id"], max_uses=max(1, min(50, max_uses)))
 
+    if wants_json(request):
+        return CreatedResponse(ok=True, code=code)
     if is_htmx(request):
         return _invites_fragment(request, me)
     return RedirectResponse(url=f"/settings?new_invite={code}", status_code=303)
@@ -460,6 +542,8 @@ def settings_invite_disable(request: Request, invite_id: int):
     with get_engine(request).begin() as conn:
         disable_invite(conn, invite_id, me["id"])
 
+    if wants_json(request):
+        return SuccessResponse(message="invite disabled")
     if is_htmx(request):
         return _invites_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
@@ -473,6 +557,8 @@ def settings_invite_delete(request: Request, invite_id: int):
     with get_engine(request).begin() as conn:
         delete_invite(conn, invite_id, me["id"])
 
+    if wants_json(request):
+        return SuccessResponse(message="invite deleted")
     if is_htmx(request):
         return _invites_fragment(request, me)
     return RedirectResponse(url="/settings", status_code=303)
@@ -508,6 +594,12 @@ def settings_pages(
     except IntegrityError:
         return RedirectResponse(url="/settings?error=slug_taken", status_code=303)
 
+    if wants_json(request):
+        return CreatedResponse(
+            ok=True,
+            slug=slug.strip(),
+            redirect=f"/u/{me['username']}/page/{slug.strip()}",
+        )
     return RedirectResponse(
         url=f"/u/{me['username']}/page/{slug.strip()}", status_code=303
     )
@@ -520,6 +612,8 @@ def settings_page_delete(request: Request, slug: str):
         return redirect
     with get_engine(request).begin() as conn:
         delete_user_page(conn, me["id"], slug)
+        if wants_json(request):
+            return SuccessResponse(message="page deleted")
         if is_htmx(request):
             my_pages = list_pages_for_user(conn, me["id"])
             return templates.TemplateResponse(
@@ -587,6 +681,8 @@ def settings_pages_edit_post(
             is_public=is_public == "on",
         )
 
+    if wants_json(request):
+        return SuccessResponse()
     if is_htmx(request):
         return templates.TemplateResponse(request, "fragments/saved.html")
     return RedirectResponse(

@@ -265,6 +265,11 @@ def require_admin(request: Request):
 
 
 def _saved_or_redirect(request: Request, url: str = "/settings"):
+    """Return appropriate response after a settings save."""
+    if wants_json(request):
+        from app.models import SuccessResponse
+
+        return SuccessResponse()
     if is_htmx(request):
         return templates.TemplateResponse(request, "fragments/saved.html")
     return RedirectResponse(url=url, status_code=303)

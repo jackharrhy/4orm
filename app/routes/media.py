@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 
 import app.deps as deps
@@ -14,7 +14,9 @@ from app.deps import (
     is_htmx,
     templates,
     unique_filename,
+    wants_json,
 )
+from app.models import MediaItem, MediaListResponse, SuccessResponse
 from app.queries.media import (
     create_media,
     delete_media_for_user,
@@ -45,6 +47,22 @@ def settings_media_get(request: Request):
         if deps.MAX_STORAGE_PER_USER
         else 0
     )
+    if wants_json(request):
+        return MediaListResponse(
+            items=[
+                MediaItem(
+                    id=item["id"],
+                    storage_path=item["storage_path"],
+                    mime_type=item["mime_type"],
+                    size_bytes=item["size_bytes"],
+                    alt_text=item.get("alt_text"),
+                )
+                for item in items
+            ],
+            storage_used=storage_used,
+            storage_limit=deps.MAX_STORAGE_PER_USER,
+            storage_pct=storage_pct,
+        )
     return templates.TemplateResponse(
         request,
         "settings_media.html",
@@ -82,6 +100,8 @@ async def settings_media_upload(
 
     content = await file.read()
     if len(content) > deps.MAX_UPLOAD_BYTES:
+        if wants_json(request):
+            return JSONResponse({"ok": False, "error": "file too big"}, status_code=400)
         return RedirectResponse(url="/settings/media?error=too_big", status_code=303)
 
     # Check per-user storage limit
@@ -92,6 +112,8 @@ async def settings_media_upload(
             )
         ).scalar()
     if current_usage + len(content) > deps.MAX_STORAGE_PER_USER:
+        if wants_json(request):
+            return JSONResponse({"ok": False, "error": "storage full"}, status_code=400)
         return RedirectResponse(
             url="/settings/media?error=storage_full", status_code=303
         )
@@ -106,12 +128,20 @@ async def settings_media_upload(
             mime_type=file.content_type or "application/octet-stream",
             size_bytes=len(content),
         )
-        if is_htmx(request):
-            item = (
-                conn.execute(select(media).where(media.c.storage_path == rel_path))
-                .mappings()
-                .first()
+        item = (
+            conn.execute(select(media).where(media.c.storage_path == rel_path))
+            .mappings()
+            .first()
+        )
+        if wants_json(request):
+            return MediaItem(
+                id=item["id"],
+                storage_path=item["storage_path"],
+                mime_type=item["mime_type"],
+                size_bytes=item["size_bytes"],
+                alt_text=item.get("alt_text"),
             )
+        if is_htmx(request):
             return templates.TemplateResponse(
                 request, "fragments/media_card.html", {"item": item}
             )
@@ -122,6 +152,14 @@ async def settings_media_upload(
 def _media_card_response(request: Request, me, media_id):
     with get_engine(request).begin() as conn:
         item = get_media_for_user(conn, me["id"], media_id)
+    if item and wants_json(request):
+        return MediaItem(
+            id=item["id"],
+            storage_path=item["storage_path"],
+            mime_type=item["mime_type"],
+            size_bytes=item["size_bytes"],
+            alt_text=item.get("alt_text"),
+        )
     if item and is_htmx(request):
         return templates.TemplateResponse(
             request, "fragments/media_card.html", {"item": item}
@@ -155,6 +193,8 @@ def settings_media_delete(request: Request, media_id: int):
     disk_path = deps.UPLOADS_DIR / item["storage_path"]
     if disk_path.exists():
         disk_path.unlink()
+    if wants_json(request):
+        return SuccessResponse(message="deleted")
     if is_htmx(request):
         return HTMLResponse("")
     return RedirectResponse(url="/settings/media", status_code=303)
