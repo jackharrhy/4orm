@@ -59,20 +59,77 @@ def backup_uploads_hardlink(uploads_dir: Path, dest_dir: Path) -> int:
 
 
 def prune_old_backups(backup_dir: Path, max_backups: int = MAX_BACKUPS) -> int:
-    """Remove oldest backups beyond max_backups. Returns count removed."""
+    """Prune backups using logarithmic retention. Returns count removed.
+
+    Keeps:
+    - All backups from the last 24 hours
+    - 1 per day for the last 7 days
+    - 1 per week for the last 4 weeks
+    - 1 per month forever
+    Also enforces max_backups as a hard cap.
+    """
     if not backup_dir.exists():
         return 0
 
     snapshots = sorted(
-        [d for d in backup_dir.iterdir() if d.is_dir() and d.name != "latest"],
+        [d for d in backup_dir.iterdir() if d.is_dir()],
         key=lambda d: d.name,
+        reverse=True,
     )
+    if not snapshots:
+        return 0
 
+    now = datetime.now(UTC)
+    keep = set()
+
+    # Buckets: (max_age_hours, bucket_key_format)
+    # Within each bucket, keep only the first (most recent) snapshot
+    seen_buckets: dict[str, Path] = {}
+
+    for snap in snapshots:
+        # Parse timestamp from directory name (YYYY-MM-DD-HHMMSS)
+        try:
+            ts = datetime.strptime(snap.name, "%Y-%m-%d-%H%M%S").replace(tzinfo=UTC)
+        except ValueError:
+            keep.add(snap)  # Don't prune names we can't parse
+            continue
+
+        age_hours = (now - ts).total_seconds() / 3600
+
+        if age_hours < 24:
+            # Keep all from last 24 hours
+            keep.add(snap)
+        elif age_hours < 24 * 7:
+            # Keep 1 per day for last 7 days
+            bucket = ts.strftime("day-%Y-%m-%d")
+            if bucket not in seen_buckets:
+                seen_buckets[bucket] = snap
+                keep.add(snap)
+        elif age_hours < 24 * 30:
+            # Keep 1 per week for last 30 days
+            week_num = ts.isocalendar()[1]
+            bucket = f"week-{ts.year}-W{week_num:02d}"
+            if bucket not in seen_buckets:
+                seen_buckets[bucket] = snap
+                keep.add(snap)
+        else:
+            # Keep 1 per month forever
+            bucket = ts.strftime("month-%Y-%m")
+            if bucket not in seen_buckets:
+                seen_buckets[bucket] = snap
+                keep.add(snap)
+
+    # Hard cap
+    if len(keep) > max_backups:
+        sorted_keep = sorted(keep, key=lambda d: d.name, reverse=True)
+        keep = set(sorted_keep[:max_backups])
+
+    # Remove everything not in keep
     removed = 0
-    while len(snapshots) > max_backups:
-        oldest = snapshots.pop(0)
-        shutil.rmtree(oldest)
-        removed += 1
+    for snap in snapshots:
+        if snap not in keep:
+            shutil.rmtree(snap)
+            removed += 1
 
     return removed
 
