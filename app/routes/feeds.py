@@ -10,7 +10,7 @@ from app.queries.forum import recent_forum_posts_for_rss
 from app.queries.pages import list_public_pages_for_rss, list_public_pages_for_user_rss
 from app.queries.users import get_user_by_username
 
-router = APIRouter()
+router = APIRouter(tags=["feeds"])
 
 
 def build_rss_feed(
@@ -38,7 +38,7 @@ def build_rss_feed(
     )
 
 
-@router.get("/feed.xml")
+@router.get("/feed.xml", summary="Global pages RSS feed")
 def global_feed(request: Request):
     with get_engine(request).begin() as conn:
         pages = list_public_pages_for_rss(conn, limit=100)
@@ -65,7 +65,7 @@ def global_feed(request: Request):
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
 
-@router.get("/forum/feed.xml")
+@router.get("/forum/feed.xml", summary="Forum RSS feed")
 def forum_feed(request: Request):
     with get_engine(request).begin() as conn:
         posts = recent_forum_posts_for_rss(conn, limit=100)
@@ -92,7 +92,7 @@ def forum_feed(request: Request):
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
 
-@router.get("/u/{username}/feed.xml")
+@router.get("/u/{username}/feed.xml", summary="User pages RSS feed")
 def user_feed(request: Request, username: str):
     with get_engine(request).begin() as conn:
         profile = get_user_by_username(conn, username)

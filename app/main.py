@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -88,7 +89,51 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         return PlainTextResponse("CSRF token mismatch", status_code=403)
 
 
-app = FastAPI(title="4orm", lifespan=lifespan)
+def _custom_operation_id(route: APIRoute) -> str:
+    if route.tags:
+        return f"{route.tags[0]}_{route.name}"
+    return route.name
+
+
+tags_metadata = [
+    {
+        "name": "auth",
+        "description": "Authentication: login, register, logout, trust agreement",
+    },
+    {"name": "profiles", "description": "User profiles, pages, lineage tree"},
+    {"name": "forum", "description": "Forum threads, posts, and moderation"},
+    {
+        "name": "settings",
+        "description": "User settings: profile, CSS, HTML, card, widgets",
+    },
+    {"name": "media", "description": "Media library: upload, rename, delete"},
+    {"name": "admin", "description": "Admin dashboard, user management, backups"},
+    {
+        "name": "widgets",
+        "description": (
+            "Embeddable widgets: guestbook, counter, status, player, webring"
+        ),
+    },
+    {"name": "feeds", "description": "RSS feeds for pages and forum"},
+    {"name": "push", "description": "Web Push notification subscriptions"},
+    {"name": "export", "description": "Export user sites and full site snapshots"},
+]
+
+app = FastAPI(
+    title="4orm",
+    summary="a retro community platform",
+    description=(
+        "4orm is a retro-web community platform where users customize "
+        "their profiles and pages with HTML, CSS, and JavaScript. "
+        "Features include a forum with BBCode and Markdown support, "
+        "embeddable widgets (guestbook, counter, music player, status, "
+        "webring), an invite tree, media uploads, and push notifications."
+    ),
+    version="0.1.0",
+    lifespan=lifespan,
+    openapi_tags=tags_metadata,
+    generate_unique_id_function=_custom_operation_id,
+)
 
 
 @app.exception_handler(LoginRequired)
@@ -125,7 +170,7 @@ app.include_router(webring.router)
 app.include_router(push.router)
 
 
-@app.get("/sw.js")
+@app.get("/sw.js", include_in_schema=False)
 def service_worker():
     """Serve the service worker from root scope."""
     from fastapi.responses import FileResponse
@@ -172,7 +217,7 @@ async def internal_error_handler(request: Request, exc: Exception):
     )
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, summary="Homepage", tags=["profiles"])
 def home(request: Request):
     with get_engine(request).begin() as conn:
         raw_cards = list_profile_cards(conn)

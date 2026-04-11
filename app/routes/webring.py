@@ -9,10 +9,10 @@ from app.deps import get_engine, templates
 from app.queries.users import get_user_by_username
 from app.queries.widgets import get_webring_members, get_webring_neighbors
 
-router = APIRouter()
+router = APIRouter(tags=["widgets"])
 
 
-@router.get("/webring/random")
+@router.get("/webring/random", summary="Random webring member")
 def webring_random(request: Request):
     with get_engine(request).begin() as conn:
         members = get_webring_members(conn)

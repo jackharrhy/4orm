@@ -12,10 +12,12 @@ from app.queries.guestbook import (
 )
 from app.queries.users import get_user_by_username
 
-router = APIRouter()
+router = APIRouter(tags=["widgets"])
 
 
-@router.get("/u/{username}/guestbook", response_class=HTMLResponse)
+@router.get(
+    "/u/{username}/guestbook", response_class=HTMLResponse, summary="View guestbook"
+)
 def guestbook_view(request: Request, username: str):
     with get_engine(request).begin() as conn:
         owner = get_user_by_username(conn, username)
@@ -36,7 +38,11 @@ def guestbook_view(request: Request, username: str):
     )
 
 
-@router.post("/u/{username}/guestbook", response_class=HTMLResponse)
+@router.post(
+    "/u/{username}/guestbook",
+    response_class=HTMLResponse,
+    summary="Sign guestbook",
+)
 def guestbook_post(request: Request, username: str, message: str = Form(...)):
     me = current_user(request)
     if not me:

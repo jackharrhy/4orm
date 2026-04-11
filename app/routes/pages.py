@@ -15,17 +15,17 @@ from app.queries.users import get_invite_tree, get_user_by_username
 from app.queries.widgets import get_playlist
 from app.rendering import build_raw_html, render_content
 
-router = APIRouter()
+router = APIRouter(tags=["profiles"])
 
 
-@router.get("/how-to", response_class=HTMLResponse)
+@router.get("/how-to", response_class=HTMLResponse, summary="How-to guide")
 def how_to(request: Request):
     return templates.TemplateResponse(
         request, "how_to.html", {"me": current_user(request)}
     )
 
 
-@router.get("/u/{username}", response_class=HTMLResponse)
+@router.get("/u/{username}", response_class=HTMLResponse, summary="User profile")
 def profile(request: Request, username: str):
     with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username)
@@ -70,7 +70,9 @@ def profile(request: Request, username: str):
     )
 
 
-@router.get("/u/{username}/page/{slug}", response_class=HTMLResponse)
+@router.get(
+    "/u/{username}/page/{slug}", response_class=HTMLResponse, summary="View a user page"
+)
 def page_view(request: Request, username: str, slug: str):
     with get_engine(request).begin() as conn:
         page = get_public_page(conn, username, slug)
@@ -110,7 +112,12 @@ _counter_seen: dict[str, float] = {}  # "ip:username" -> last_seen timestamp
 _COUNTER_COOLDOWN = 60  # seconds per IP per user
 
 
-@router.get("/u/{username}/counter", response_class=HTMLResponse)
+@router.get(
+    "/u/{username}/counter",
+    response_class=HTMLResponse,
+    summary="Hit counter widget",
+    tags=["widgets"],
+)
 def counter_view(request: Request, username: str):
     with get_engine(request).begin() as conn:
         owner = get_user_by_username(conn, username)
@@ -141,7 +148,7 @@ def counter_view(request: Request, username: str):
     )
 
 
-@router.get("/lineage", response_class=HTMLResponse)
+@router.get("/lineage", response_class=HTMLResponse, summary="Invite tree")
 def lineage(request: Request):
     with get_engine(request).begin() as conn:
         tree = get_invite_tree(conn)
@@ -152,7 +159,7 @@ def lineage(request: Request):
     )
 
 
-@router.get("/u/{username}/export")
+@router.get("/u/{username}/export", summary="Export user site as zip", tags=["export"])
 def export_site(request: Request, username: str):
     me = current_user(request)
     with get_engine(request).begin() as conn:
@@ -178,7 +185,12 @@ def export_site(request: Request, username: str):
     )
 
 
-@router.get("/u/{username}/status", response_class=HTMLResponse)
+@router.get(
+    "/u/{username}/status",
+    response_class=HTMLResponse,
+    summary="Status widget",
+    tags=["widgets"],
+)
 def status_widget(request: Request, username: str):
     with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username)
@@ -208,7 +220,12 @@ def status_widget(request: Request, username: str):
     )
 
 
-@router.get("/u/{username}/player", response_class=HTMLResponse)
+@router.get(
+    "/u/{username}/player",
+    response_class=HTMLResponse,
+    summary="Music player widget",
+    tags=["widgets"],
+)
 def player_widget(request: Request, username: str):
     with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username)

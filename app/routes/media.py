@@ -25,10 +25,10 @@ from app.queries.media import (
 )
 from app.schema import media
 
-router = APIRouter()
+router = APIRouter(tags=["media"])
 
 
-@router.get("/settings/media", response_class=HTMLResponse)
+@router.get("/settings/media", response_class=HTMLResponse, summary="Media library")
 def settings_media_get(request: Request):
     me = current_user(request)
     if not me:
@@ -58,7 +58,7 @@ def settings_media_get(request: Request):
     )
 
 
-@router.post("/settings/media/upload")
+@router.post("/settings/media/upload", summary="Upload a file")
 async def settings_media_upload(
     request: Request, file: UploadFile = File(...), filename: str = Form("")
 ):

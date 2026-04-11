@@ -37,10 +37,10 @@ from app.queries.widgets import (
 )
 from app.schema import media, profile_cards, users
 
-router = APIRouter()
+router = APIRouter(tags=["settings"])
 
 
-@router.get("/settings", response_class=HTMLResponse)
+@router.get("/settings", response_class=HTMLResponse, summary="Settings page")
 def settings_get(request: Request):
     me, redirect = require_user(request)
     if redirect:
@@ -86,7 +86,7 @@ def settings_get(request: Request):
     )
 
 
-@router.post("/settings/profile")
+@router.post("/settings/profile", summary="Update profile")
 def settings_profile(
     request: Request,
     display_name: str = Form(""),
@@ -112,7 +112,7 @@ def settings_profile(
     return _saved_or_redirect(request)
 
 
-@router.post("/settings/username")
+@router.post("/settings/username", summary="Change username")
 def settings_username(request: Request, username: str = Form(...)):
     me, redirect = require_user(request)
     if redirect:
@@ -155,7 +155,7 @@ def settings_username(request: Request, username: str = Form(...)):
     return _saved_or_redirect(request, url="/settings?saved=username")
 
 
-@router.post("/settings/css")
+@router.post("/settings/css", summary="Update custom CSS")
 def settings_css(request: Request, custom_css: str = Form("")):
     me, redirect = require_user(request)
     if redirect:
@@ -169,7 +169,7 @@ def settings_css(request: Request, custom_css: str = Form("")):
     return _saved_or_redirect(request)
 
 
-@router.post("/settings/html")
+@router.post("/settings/html", summary="Update custom HTML")
 def settings_html(request: Request, custom_html: str = Form("")):
     me, redirect = require_user(request)
     if redirect:
@@ -399,7 +399,7 @@ def settings_signature(request: Request, forum_signature: str = Form("")):
     return _saved_or_redirect(request)
 
 
-@router.post("/settings/card")
+@router.post("/settings/card", summary="Update profile card")
 def settings_card(
     request: Request,
     headline: str = Form(""),
@@ -438,7 +438,7 @@ def _invites_fragment(request: Request, me):
     )
 
 
-@router.post("/settings/invites")
+@router.post("/settings/invites", summary="Create invite code")
 def settings_invites(request: Request, max_uses: int = Form(1)):
     me, redirect = require_user(request)
     if redirect:
@@ -478,7 +478,7 @@ def settings_invite_delete(request: Request, invite_id: int):
     return RedirectResponse(url="/settings", status_code=303)
 
 
-@router.post("/settings/pages")
+@router.post("/settings/pages", summary="Create a new page")
 def settings_pages(
     request: Request,
     slug: str = Form(...),

@@ -17,10 +17,10 @@ from app.queries.admin import delete_user_prune, delete_user_reparent
 from app.queries.users import get_user_by_id
 from app.schema import forum_posts, forum_threads, media, pages, profile_cards, users
 
-router = APIRouter()
+router = APIRouter(tags=["admin"])
 
 
-@router.get("/admin", response_class=HTMLResponse)
+@router.get("/admin", response_class=HTMLResponse, summary="Admin dashboard")
 def admin_dashboard(request: Request):
     me = require_admin(request)
     with get_engine(request).begin() as conn:
@@ -450,7 +450,7 @@ def admin_rename_user(
         return _admin_user_row_response(request, conn, user_id)
 
 
-@router.get("/admin/export")
+@router.get("/admin/export", summary="Export full site as zip", tags=["export"])
 def admin_full_export(request: Request):
     """Export the entire 4orm site as a zip."""
     require_admin(request)
