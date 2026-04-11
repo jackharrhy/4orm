@@ -14,6 +14,16 @@ from app.deps import (
     require_admin,
     require_user_dep,
     templates,
+    wants_json,
+)
+from app.models import (
+    CreatedResponse,
+    ErrorResponse,
+    ForumPost,
+    ForumThreadDetail,
+    ForumThreadList,
+    ForumThreadSummary,
+    SuccessResponse,
 )
 from app.push import send_notification
 from app.queries.forum import (
@@ -72,6 +82,8 @@ def _enforce_rate_limit(request: Request, conn, user_id: int):
     """Check rate limit and raise/return error if exceeded."""
     wait = _check_rate_limit(request, conn, user_id)
     if wait > 0:
+        if wants_json(request):
+            return ErrorResponse(error="please wait before posting again")
         if is_htmx(request):
             return HTMLResponse(
                 f'<p class="error">please wait {wait} seconds before posting again</p>',
@@ -83,17 +95,39 @@ def _enforce_rate_limit(request: Request, conn, user_id: int):
 
 @router.get("", response_class=HTMLResponse)
 def forum_index(request: Request, page: int = 1):
-    page = max(1, page)
+    current_page = max(1, page)
     with get_engine(request).begin() as conn:
-        threads, total = list_threads(conn, page=page, per_page=THREADS_PER_PAGE)
+        threads, total = list_threads(
+            conn, page=current_page, per_page=THREADS_PER_PAGE
+        )
     total_pages = max(1, math.ceil(total / THREADS_PER_PAGE))
+    if wants_json(request):
+        return ForumThreadList(
+            threads=[
+                ForumThreadSummary(
+                    id=t["id"],
+                    title=t["title"],
+                    author_username=t["author_username"],
+                    author_display_name=t.get("author_display_name", ""),
+                    reply_count=t.get("reply_count", 0),
+                    is_pinned=t.get("is_pinned", False),
+                    is_locked=t.get("is_locked", False),
+                    last_reply_at=t.get("last_reply_at"),
+                    created_at=t.get("created_at"),
+                )
+                for t in threads
+            ],
+            total=total,
+            page=current_page,
+            total_pages=total_pages,
+        )
     return templates.TemplateResponse(
         request,
         "forum/index.html",
         {
             "threads": threads,
             "total": total,
-            "current_page": page,
+            "current_page": current_page,
             "total_pages": total_pages,
             "me": current_user(request),
         },
@@ -136,18 +170,22 @@ def new_thread_submit(
             custom_css=custom_css,
             custom_html=custom_html,
         )
+    if wants_json(request):
+        return CreatedResponse(ok=True, id=thread_id, redirect=f"/forum/{thread_id}")
     return RedirectResponse(url=f"/forum/{thread_id}", status_code=303)
 
 
 @router.get("/{thread_id}", response_class=HTMLResponse)
 def thread_view(request: Request, thread_id: int, page: int = 1):
-    page = max(1, page)
+    current_page = max(1, page)
     me = current_user(request)
     with get_engine(request).begin() as conn:
         thread = get_thread(conn, thread_id)
         if not thread:
             raise HTTPException(404)
-        posts, total = list_posts(conn, thread_id, page=page, per_page=POSTS_PER_PAGE)
+        posts, total = list_posts(
+            conn, thread_id, page=current_page, per_page=POSTS_PER_PAGE
+        )
         media_items = list_media_for_user(conn, me["id"]) if me else []
         watching = is_watching(conn, me["id"], thread_id) if me else False
 
@@ -172,6 +210,44 @@ def thread_view(request: Request, thread_id: int, page: int = 1):
             }
         )
 
+    if wants_json(request):
+        return ForumThreadDetail(
+            id=thread["id"],
+            title=thread["title"],
+            author_username=thread["author_username"],
+            author_display_name=thread.get("author_display_name", ""),
+            is_pinned=thread.get("is_pinned", False),
+            is_locked=thread.get("is_locked", False),
+            custom_css=thread.get("custom_css", ""),
+            custom_html=thread.get("custom_html", ""),
+            created_at=thread.get("created_at"),
+            posts=[
+                ForumPost(
+                    id=p["id"],
+                    thread_id=p["thread_id"],
+                    author_username=p["author_username"],
+                    author_display_name=p.get("author_display_name", ""),
+                    content=p["content"],
+                    content_format=p["content_format"],
+                    rendered_content=p.get("rendered_content", ""),
+                    quoted_post_id=p.get("quoted_post_id"),
+                    quoted_content=p.get("quoted_content"),
+                    quoted_content_format=p.get("quoted_content_format"),
+                    rendered_quoted_content=p.get("rendered_quoted_content"),
+                    quoted_author=p.get("quoted_author"),
+                    is_edited=p.get("is_edited", False),
+                    author_signature=p.get("author_signature"),
+                    rendered_signature=p.get("rendered_signature"),
+                    created_at=p.get("created_at"),
+                )
+                for p in rendered_posts
+            ],
+            total_posts=total,
+            page=current_page,
+            total_pages=total_pages,
+            watching=watching,
+        )
+
     is_author = me and me["id"] == thread["author_id"]
 
     return templates.TemplateResponse(
@@ -181,7 +257,7 @@ def thread_view(request: Request, thread_id: int, page: int = 1):
             "thread": thread,
             "posts": rendered_posts,
             "total": total,
-            "current_page": page,
+            "current_page": current_page,
             "total_pages": total_pages,
             "me": me,
             "is_author": is_author,
@@ -263,6 +339,10 @@ def thread_reply(
         _, total = list_posts(conn, thread_id, page=1, per_page=POSTS_PER_PAGE)
 
     last_page = max(1, math.ceil(total / POSTS_PER_PAGE))
+    if wants_json(request):
+        return CreatedResponse(
+            ok=True, id=post_id, redirect=f"/forum/{thread_id}?page={last_page}"
+        )
     if is_htmx(request):
         response = HTMLResponse("")
         response.headers["HX-Redirect"] = f"/forum/{thread_id}?page={last_page}"
@@ -310,6 +390,8 @@ def edit_thread_submit(
             custom_html=custom_html,
             is_admin=me.get("is_admin", False),
         )
+    if wants_json(request):
+        return SuccessResponse(message="thread updated")
     return RedirectResponse(url=f"/forum/{thread_id}", status_code=303)
 
 
@@ -352,6 +434,8 @@ def edit_post_submit(
             content_format,
             is_admin=me.get("is_admin", False),
         )
+    if wants_json(request):
+        return SuccessResponse(message="post updated")
     return RedirectResponse(url=f"/forum/{post['thread_id']}", status_code=303)
 
 
@@ -367,6 +451,8 @@ def delete_post_route(request: Request, post_id: int):
         )
         if not deleted:
             raise HTTPException(403)
+    if wants_json(request):
+        return SuccessResponse(message="post deleted")
     if is_htmx(request):
         return HTMLResponse("")
     return RedirectResponse(url=f"/forum/{post['thread_id']}", status_code=303)
@@ -381,6 +467,8 @@ def delete_thread_route(request: Request, thread_id: int):
         )
         if not deleted:
             raise HTTPException(404)
+    if wants_json(request):
+        return SuccessResponse(message="thread deleted")
     if is_htmx(request):
         response = HTMLResponse("")
         response.headers["HX-Redirect"] = "/forum"
@@ -393,6 +481,8 @@ def pin_thread(request: Request, thread_id: int):
     require_admin(request)
     with get_engine(request).begin() as conn:
         toggle_pin(conn, thread_id)
+    if wants_json(request):
+        return SuccessResponse(message="pin toggled")
     if is_htmx(request):
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"
@@ -405,6 +495,8 @@ def lock_thread(request: Request, thread_id: int):
     require_admin(request)
     with get_engine(request).begin() as conn:
         toggle_lock(conn, thread_id)
+    if wants_json(request):
+        return SuccessResponse(message="lock toggled")
     if is_htmx(request):
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"
@@ -423,6 +515,10 @@ def toggle_watch(request: Request, thread_id: int):
             unwatch_thread(conn, me["id"], thread_id)
         else:
             watch_thread(conn, me["id"], thread_id)
+    if wants_json(request):
+        with get_engine(request).begin() as conn:
+            now_watching = is_watching(conn, me["id"], thread_id)
+        return SuccessResponse(message="watching" if now_watching else "unwatched")
     if is_htmx(request):
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"
