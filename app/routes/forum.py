@@ -3,7 +3,7 @@
 import math
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 
@@ -12,7 +12,7 @@ from app.deps import (
     get_engine,
     is_htmx,
     require_admin,
-    require_user,
+    require_user_dep,
     templates,
 )
 from app.push import send_notification
@@ -102,9 +102,7 @@ def forum_index(request: Request, page: int = 1):
 
 @router.get("/new", response_class=HTMLResponse)
 def new_thread_form(request: Request):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
+    me = require_user_dep(request)
     with get_engine(request).begin() as conn:
         media_items = list_media_for_user(conn, me["id"])
     return templates.TemplateResponse(
@@ -117,16 +115,13 @@ def new_thread_form(request: Request):
 @router.post("/new")
 def new_thread_submit(
     request: Request,
+    me: dict = Depends(require_user_dep),
     title: str = Form(...),
     content: str = Form(...),
     content_format: str = Form("bbcode"),
     custom_css: str = Form(""),
     custom_html: str = Form(""),
 ):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
-
     with get_engine(request).begin() as conn:
         rate_error = _enforce_rate_limit(request, conn, me["id"])
         if rate_error:
@@ -200,16 +195,13 @@ def thread_view(request: Request, thread_id: int, page: int = 1):
 def thread_reply(
     request: Request,
     thread_id: int,
+    me: dict = Depends(require_user_dep),
     content: str = Form(...),
     content_format: str = Form("bbcode"),
     quoted_post_id: int | None = Form(None),
     quoted_content: str | None = Form(None),
     quoted_author: str | None = Form(None),
 ):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
-
     with get_engine(request).begin() as conn:
         rate_error = _enforce_rate_limit(request, conn, me["id"])
         if rate_error:
@@ -280,9 +272,7 @@ def thread_reply(
 
 @router.get("/{thread_id}/edit", response_class=HTMLResponse)
 def edit_thread_form(request: Request, thread_id: int):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
+    me = require_user_dep(request)
     with get_engine(request).begin() as conn:
         thread = get_thread(conn, thread_id)
     if not thread:
@@ -300,13 +290,11 @@ def edit_thread_form(request: Request, thread_id: int):
 def edit_thread_submit(
     request: Request,
     thread_id: int,
+    me: dict = Depends(require_user_dep),
     title: str = Form(...),
     custom_css: str = Form(""),
     custom_html: str = Form(""),
 ):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
     with get_engine(request).begin() as conn:
         thread = get_thread(conn, thread_id)
         if not thread:
@@ -327,9 +315,7 @@ def edit_thread_submit(
 
 @router.get("/posts/{post_id}/edit", response_class=HTMLResponse)
 def edit_post_form(request: Request, post_id: int):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
+    me = require_user_dep(request)
     with get_engine(request).begin() as conn:
         post = get_post(conn, post_id)
         if not post:
@@ -348,12 +334,10 @@ def edit_post_form(request: Request, post_id: int):
 def edit_post_submit(
     request: Request,
     post_id: int,
+    me: dict = Depends(require_user_dep),
     content: str = Form(...),
     content_format: str = Form("bbcode"),
 ):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
     with get_engine(request).begin() as conn:
         post = get_post(conn, post_id)
         if not post:
@@ -373,9 +357,7 @@ def edit_post_submit(
 
 @router.post("/posts/{post_id}/delete")
 def delete_post_route(request: Request, post_id: int):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
+    me = require_user_dep(request)
     with get_engine(request).begin() as conn:
         post = get_post(conn, post_id)
         if not post:
@@ -392,9 +374,7 @@ def delete_post_route(request: Request, post_id: int):
 
 @router.post("/{thread_id}/delete")
 def delete_thread_route(request: Request, thread_id: int):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
+    me = require_user_dep(request)
     with get_engine(request).begin() as conn:
         deleted = delete_thread(
             conn, thread_id, me["id"], is_admin=me.get("is_admin", False)
@@ -434,9 +414,7 @@ def lock_thread(request: Request, thread_id: int):
 
 @router.post("/{thread_id}/watch")
 def toggle_watch(request: Request, thread_id: int):
-    me, redirect = require_user(request)
-    if redirect:
-        return redirect
+    me = require_user_dep(request)
     with get_engine(request).begin() as conn:
         thread = get_thread(conn, thread_id)
         if not thread:
