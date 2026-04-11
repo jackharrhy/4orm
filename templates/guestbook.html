@@ -42,7 +42,7 @@
   <body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
     <h2>{{ owner.display_name }}'s guestbook</h2>
     {% if me %}
-      <form class="gb-form" method="post" action="/u/{{ owner.username }}/guestbook" hx-post="/u/{{ owner.username }}/guestbook" hx-target="#gb-entries" hx-swap="innerHTML">
+      <form class="gb-form" method="post" action="/u/{{ owner.username }}/guestbook" hx-post="/u/{{ owner.username }}/guestbook" hx-target="#gb-entries" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) this.reset()">
 
         <textarea name="message" rows="3" maxlength="500" placeholder="sign the guestbook..." required></textarea>
         <button type="submit">sign</button>
