@@ -217,6 +217,12 @@ def is_htmx(request: Request) -> bool:
     return request.headers.get("HX-Request") == "true"
 
 
+def wants_json(request: Request) -> bool:
+    """Check if the client prefers JSON over HTML."""
+    accept = request.headers.get("accept", "")
+    return "application/json" in accept and "text/html" not in accept
+
+
 def current_user(request: Request):
     user_id = request.session.get("user_id")
     if not user_id:
