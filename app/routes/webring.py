@@ -1,3 +1,5 @@
+"""Webring routes."""
+
 import random
 
 from fastapi import APIRouter, HTTPException, Request

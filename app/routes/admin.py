@@ -8,7 +8,6 @@ import app.deps as deps
 from app.deps import (
     _saved_or_redirect,
     get_engine,
-    human_bytes,
     is_htmx,
     rename_user_media,
     require_admin,
@@ -497,35 +496,11 @@ def admin_list_backups(request: Request):
     scheduler = request.app.state.backup_scheduler
     backups = scheduler.list_backups() if scheduler else []
     last = scheduler.last_result if scheduler else None
-    # Return HTML fragment
-    html_parts = []
-    if last and last.get("error"):
-        html_parts.append(f'<p class="error">last backup error: {last["error"]}</p>')
-    elif last:
-        html_parts.append(
-            f'<p class="ok">last backup: {last["timestamp"]}'
-            f" (db={last['db_backed_up']}, files={last['files_linked']})</p>"
-        )
-
-    if backups:
-        html_parts.append(
-            '<table class="forum-table"><thead><tr>'
-            "<th>snapshot</th>"
-            '<th style="text-align:right">db size</th>'
-            '<th style="text-align:right">files</th>'
-            "</tr></thead><tbody>"
-        )
-        for b in backups:
-            html_parts.append(
-                f"<tr><td>{b['name']}</td>"
-                f'<td style="text-align:right">{human_bytes(b["db_size"])}</td>'
-                f'<td style="text-align:right">{b["file_count"]}</td></tr>'
-            )
-        html_parts.append("</tbody></table>")
-    else:
-        html_parts.append("<p>no backups yet.</p>")
-
-    return HTMLResponse("\n".join(html_parts))
+    return templates.TemplateResponse(
+        request,
+        "fragments/admin_backups.html",
+        {"backups": backups, "last": last},
+    )
 
 
 @router.post("/admin/backups/run")

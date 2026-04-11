@@ -1,3 +1,5 @@
+"""Media library query functions."""
+
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.engine import Connection
 

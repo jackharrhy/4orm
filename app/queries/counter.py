@@ -1,3 +1,5 @@
+"""Visitor counter query functions."""
+
 from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Connection
 

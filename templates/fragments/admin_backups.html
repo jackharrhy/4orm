@@ -1,0 +1,30 @@
+{% if last and last.error %}
+  <p class="error">last backup error: {{ last.error }}</p>
+{% elif last %}
+  <p class="ok">
+    last backup: {{ last.timestamp }} (db={{ last.db_backed_up }},
+    files={{ last.files_linked }})
+  </p>
+{% endif %}
+{% if backups %}
+  <table class="forum-table">
+    <thead>
+      <tr>
+        <th>snapshot</th>
+        <th style="text-align: right">db size</th>
+        <th style="text-align: right">files</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in backups %}
+        <tr>
+          <td>{{ b.name }}</td>
+          <td style="text-align: right">{{ b.db_size|human_bytes }}</td>
+          <td style="text-align: right">{{ b.file_count }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>no backups yet.</p>
+{% endif %}

@@ -1,3 +1,5 @@
+"""Page query functions."""
+
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 

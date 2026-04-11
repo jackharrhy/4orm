@@ -1,3 +1,5 @@
+"""Widget query functions (webring, playlist)."""
+
 from sqlalchemy import and_, delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 

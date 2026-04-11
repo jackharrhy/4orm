@@ -122,6 +122,7 @@ def unique_filename(directory: Path, filename: str) -> str:
 
 
 def clean_filename(name: str) -> str:
+    """Sanitize a filename for safe filesystem storage."""
     raw = Path(name or "file").name
     stem = Path(raw).stem or "file"
     suffix = Path(raw).suffix[:16].lower()
@@ -130,6 +131,7 @@ def clean_filename(name: str) -> str:
 
 
 def human_bytes(size: int | None) -> str:
+    """Format byte count as human-readable string (e.g. 1.5 MB)."""
     if size is None:
         return "0 B"
     units = ["B", "KB", "MB", "GB", "TB"]
