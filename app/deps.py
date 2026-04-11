@@ -192,6 +192,32 @@ def rename_user_media(
 
 templates.env.filters["human_bytes"] = human_bytes
 
+
+def preview_text(html: str, length: int = 200) -> str:
+    """Convert rendered HTML to a clean preview string for forum activity.
+
+    Replaces media tags with emoji placeholders, preserves line breaks,
+    then strips remaining tags and truncates.
+    """
+    import re
+
+    s = html
+    s = re.sub(r"<img[^>]*>", " 🖼️ ", s)
+    s = re.sub(r"<video[^>]*>.*?</video>", " 🎬 ", s, flags=re.DOTALL)
+    s = re.sub(r"<audio[^>]*>.*?</audio>", " 🎵 ", s, flags=re.DOTALL)
+    s = re.sub(r"<iframe[^>]*>.*?</iframe>", " 📺 ", s, flags=re.DOTALL)
+    s = re.sub(r"<br\s*/?>", "\n", s)
+    s = re.sub(r"</p>\s*<p[^>]*>", "\n\n", s)
+    s = re.sub(r"<[^>]+>", "", s)
+    s = re.sub(r"\n{3,}", "\n\n", s)
+    s = s.strip()
+    if len(s) > length:
+        s = s[:length].rsplit(" ", 1)[0] + "..."
+    return s
+
+
+templates.env.filters["preview_text"] = preview_text
+
 # Cache-busting hash for static assets
 _css_path = BASE_DIR / "static" / "style.css"
 _css_hash = (

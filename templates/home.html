@@ -18,8 +18,10 @@
             >
             · {{ post.created_at.strftime('%H:%M') if post.created_at else '' }}
           </div>
-          <div style="font-size: 0.9rem; margin-top: 2px">
-            {{ post.rendered_content|striptags|truncate(200, True) }}
+          <div
+            style="font-size: 0.9rem; margin-top: 2px; white-space: pre-line"
+          >
+            {{ post.rendered_content|preview_text(200) }}
           </div>
         </div>
       {% endfor %}
