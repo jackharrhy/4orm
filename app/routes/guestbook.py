@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.deps import current_user, get_engine, is_htmx, templates
+from app.deps import current_user, get_engine, is_htmx, templates, wants_json
+from app.models import GuestbookEntry, GuestbookResponse, SuccessResponse
 from app.push import send_notification
 from app.queries.guestbook import (
     create_guestbook_entry,
@@ -26,6 +27,23 @@ def guestbook_view(request: Request, username: str):
         entries = list_guestbook_entries(conn, owner["id"])
     me = current_user(request)
     is_owner = me and me["id"] == owner["id"]
+
+    if wants_json(request):
+        return GuestbookResponse(
+            owner_username=owner["username"],
+            entries=[
+                GuestbookEntry(
+                    id=e["id"],
+                    author_username=e["author_username"],
+                    author_display_name=e["author_display_name"],
+                    message=e["message"],
+                    created_at=e.get("created_at"),
+                )
+                for e in entries
+            ],
+            can_post=me is not None,
+        )
+
     return templates.TemplateResponse(
         request,
         "guestbook.html",
@@ -65,6 +83,8 @@ def guestbook_post(request: Request, username: str, message: str = Form(...)):
 
         entries = list_guestbook_entries(conn, owner["id"])
     is_owner = me["id"] == owner["id"]
+    if wants_json(request):
+        return SuccessResponse(message="entry added")
     if is_htmx(request):
         return templates.TemplateResponse(
             request,
@@ -85,6 +105,8 @@ def guestbook_delete(request: Request, username: str, entry_id: int):
             raise HTTPException(403)
         delete_guestbook_entry(conn, entry_id, owner["id"])
         entries = list_guestbook_entries(conn, owner["id"])
+    if wants_json(request):
+        return SuccessResponse(message="entry deleted")
     if is_htmx(request):
         return templates.TemplateResponse(
             request,

@@ -7,8 +7,19 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
 import app.deps as deps
-from app.deps import current_user, get_engine, templates
+from app.deps import current_user, get_engine, templates, wants_json
 from app.export import build_export_zip
+from app.models import (
+    CounterResponse,
+    LineageNode,
+    LineageResponse,
+    PageDetail,
+    PageSummary,
+    PlayerResponse,
+    PlayerTrack,
+    ProfileResponse,
+    StatusResponse,
+)
 from app.queries.counter import get_total_views, increment_counter
 from app.queries.pages import get_public_page, list_public_pages_for_user
 from app.queries.users import get_invite_tree, get_user_by_username
@@ -34,6 +45,30 @@ def profile(request: Request, username: str):
         pages = list_public_pages_for_user(conn, username)
 
     rendered_content = render_content(user["content"], user["content_format"])
+
+    if wants_json(request):
+        return ProfileResponse(
+            username=user["username"],
+            display_name=user["display_name"],
+            content=user["content"] or "",
+            content_format=user["content_format"] or "html",
+            rendered_content=rendered_content,
+            custom_css=user["custom_css"] or "",
+            custom_html=user["custom_html"] or "",
+            layout=user.get("layout") or "default",
+            pages=[
+                PageSummary(
+                    slug=p["slug"],
+                    title=p["title"],
+                    is_public=p["is_public"],
+                    layout=p.get("layout", "default"),
+                    created_at=p.get("created_at"),
+                    updated_at=p.get("updated_at"),
+                )
+                for p in pages
+            ],
+        )
+
     layout = user.get("layout", "default")
 
     if layout == "raw":
@@ -80,6 +115,22 @@ def page_view(request: Request, username: str, slug: str):
         raise HTTPException(404)
 
     rendered_content = render_content(page["content"], page["content_format"])
+
+    if wants_json(request):
+        return PageDetail(
+            slug=page.get("slug", slug),
+            title=page["title"],
+            content=page["content"] or "",
+            content_format=page["content_format"] or "html",
+            rendered_content=rendered_content,
+            layout=page.get("layout") or "default",
+            is_public=page.get("is_public", True),
+            username=page["username"],
+            display_name=page["display_name"],
+            custom_css=page.get("custom_css") or "",
+            custom_html=page.get("custom_html") or "",
+        )
+
     layout = page.get("layout", "default")
 
     if layout == "raw":
@@ -141,6 +192,9 @@ def counter_view(request: Request, username: str):
 
         total_views = get_total_views(conn, owner["id"])
 
+    if wants_json(request):
+        return CounterResponse(username=username, total_views=total_views)
+
     return templates.TemplateResponse(
         request,
         "counter.html",
@@ -152,6 +206,18 @@ def counter_view(request: Request, username: str):
 def lineage(request: Request):
     with get_engine(request).begin() as conn:
         tree = get_invite_tree(conn)
+
+    if wants_json(request):
+
+        def node_to_dict(n):
+            return LineageNode(
+                username=n["username"],
+                display_name=n["display_name"],
+                children=[node_to_dict(c) for c in n.get("children", [])],
+            )
+
+        return LineageResponse(tree=[node_to_dict(r) for r in tree])
+
     return templates.TemplateResponse(
         request,
         "lineage.html",
@@ -213,6 +279,14 @@ def status_widget(request: Request, username: str):
         else:
             relative_time = f"{seconds // 86400}d ago"
 
+    if wants_json(request):
+        return StatusResponse(
+            username=username,
+            status_emoji=user.get("status_emoji") or "",
+            status_text=user.get("status_text") or "",
+            relative_time=relative_time,
+        )
+
     return templates.TemplateResponse(
         request,
         "status.html",
@@ -232,6 +306,21 @@ def player_widget(request: Request, username: str):
         if not user:
             raise HTTPException(404)
         tracks = get_playlist(conn, user["id"])
+
+    if wants_json(request):
+        return PlayerResponse(
+            username=username,
+            tracks=[
+                PlayerTrack(
+                    id=t["id"],
+                    title=t.get("title"),
+                    storage_path=t["storage_path"],
+                    mime_type=t.get("mime_type", ""),
+                )
+                for t in tracks
+            ],
+        )
+
     return templates.TemplateResponse(
         request,
         "player.html",

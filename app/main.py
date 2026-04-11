@@ -12,7 +12,15 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.backup import BackupScheduler
 from app.db import engine as default_engine
-from app.deps import BASE_DIR, LoginRequired, current_user, get_engine, templates
+from app.deps import (
+    BASE_DIR,
+    LoginRequired,
+    current_user,
+    get_engine,
+    templates,
+    wants_json,
+)
+from app.models import ForumPostPreview, HomepageResponse, ProfileCard
 from app.queries.forum import recent_forum_posts
 from app.queries.users import list_profile_cards
 from app.rendering import render_content, render_forum_post
@@ -238,6 +246,36 @@ def home(request: Request):
         }
         for post in raw_recent
     ]
+
+    if wants_json(request):
+        return HomepageResponse(
+            cards=[
+                ProfileCard(
+                    username=c["username"],
+                    headline=c.get("headline", ""),
+                    content=c.get("content", ""),
+                    content_format=c.get("content_format", "html"),
+                    rendered_content=c.get("rendered_content", ""),
+                    accent_color=c.get("accent_color", ""),
+                    border_style=c.get("border_style", ""),
+                    card_css=c.get("card_css", ""),
+                )
+                for c in cards
+            ],
+            recent_forum_posts=[
+                ForumPostPreview(
+                    id=p["id"],
+                    thread_id=p["thread_id"],
+                    thread_title=p.get("thread_title", ""),
+                    author_username=p["author_username"],
+                    author_display_name=p.get("author_display_name", ""),
+                    rendered_content=p.get("rendered_content", ""),
+                    created_at=p.get("created_at"),
+                )
+                for p in recent_posts
+            ],
+        )
+
     return templates.TemplateResponse(
         request,
         "home.html",
