@@ -20,12 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Keep only the latest subscription per user, remove duplicates
-    op.execute(
-        "DELETE FROM push_subscriptions WHERE id NOT IN ("
-        "  SELECT MAX(id) FROM push_subscriptions GROUP BY user_id"
-        ")"
-    )
+    # Wipe all stale/duplicate subscriptions -- devices will re-subscribe
+    op.execute("DELETE FROM push_subscriptions")
     op.add_column(
         "push_subscriptions",
         sa.Column("device_id", sa.String(64), nullable=False, server_default="unknown"),
@@ -33,10 +29,6 @@ def upgrade() -> None:
     op.add_column(
         "push_subscriptions",
         sa.Column("device_name", sa.String(100), nullable=False, server_default=""),
-    )
-    # Backfill device_id with a unique value per row
-    op.execute(
-        "UPDATE push_subscriptions SET device_id = 'legacy-' || CAST(id AS TEXT)"
     )
 
 
