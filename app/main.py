@@ -94,6 +94,8 @@ app = FastAPI(title="4orm", lifespan=lifespan)
 @app.exception_handler(LoginRequired)
 async def _handle_login_required(_request, _exc):
     return RedirectResponse(url="/login", status_code=303)
+
+
 app.state.engine = default_engine
 
 
