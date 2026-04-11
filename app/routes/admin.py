@@ -418,7 +418,7 @@ def admin_rename_user(
     if not deps.USERNAME_RE.match(new_username):
         if is_htmx(request):
             return HTMLResponse(
-                '<tr><td colspan="8" class="error">Invalid username</td></tr>',
+                '<tr><td colspan="8" class="error">invalid username</td></tr>',
                 status_code=400,
             )
         return RedirectResponse(url="/admin", status_code=303)
@@ -448,7 +448,7 @@ def admin_rename_user(
         if existing:
             if is_htmx(request):
                 return HTMLResponse(
-                    '<tr><td colspan="8" class="error">Username taken</td></tr>',
+                    '<tr><td colspan="8" class="error">username taken</td></tr>',
                     status_code=400,
                 )
             return RedirectResponse(url="/admin", status_code=303)

@@ -20,7 +20,7 @@ def test_login_invalid_credentials(client, seed_user):
         follow_redirects=False,
     )
     assert r.status_code == 400
-    assert "Invalid credentials" in r.text
+    assert "invalid credentials" in r.text
 
 
 def test_login_success_redirects(client, seed_user):
@@ -60,7 +60,7 @@ def test_register_invalid_invite(client, seed_user):
         follow_redirects=False,
     )
     assert r.status_code == 400
-    assert "Invalid" in r.text
+    assert "invalid" in r.text
 
 
 def test_register_exhausted_invite(client, test_engine, seed_user):

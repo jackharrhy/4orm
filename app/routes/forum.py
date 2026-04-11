@@ -90,7 +90,7 @@ def _enforce_rate_limit(request: Request, conn, user_id: int):
                 f'<p class="error">please wait {wait} seconds before posting again</p>',
                 status_code=429,
             )
-        raise HTTPException(429, detail="Please wait before posting again")
+        raise HTTPException(429, detail="please wait before posting again")
     return None
 
 
@@ -307,7 +307,7 @@ def thread_reply(
         if not thread:
             raise HTTPException(404)
         if thread["is_locked"]:
-            raise HTTPException(403, detail="Thread is locked")
+            raise HTTPException(403, detail="thread is locked")
         # Look up the quoted post's content_format
         quoted_content_format = None
         if quoted_post_id:

@@ -90,24 +90,24 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
     if not user or not verify_password(password, user["password_hash"]):
         if wants_json(request):
             return JSONResponse(
-                {"ok": False, "error": "Invalid credentials"}, status_code=400
+                {"ok": False, "error": "invalid credentials"}, status_code=400
             )
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "Invalid credentials"},
+            {"error": "invalid credentials"},
             status_code=400,
         )
     if user.get("is_disabled"):
         if wants_json(request):
             return JSONResponse(
-                {"ok": False, "error": "This account has been disabled"},
+                {"ok": False, "error": "this account has been disabled"},
                 status_code=403,
             )
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "This account has been disabled"},
+            {"error": "this account has been disabled"},
             status_code=403,
         )
     request.session["user_id"] = user["id"]

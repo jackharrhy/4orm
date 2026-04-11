@@ -37,10 +37,10 @@ def create_user_with_invite(
     )
 
     if not invite:
-        return None, "Invalid or exhausted invite code"
+        return None, "invalid or exhausted invite code"
 
     if get_user_by_username(conn, username):
-        return None, "Username already exists"
+        return None, "username already exists"
 
     result = conn.execute(
         insert(users).values(

@@ -24,7 +24,7 @@ async def push_subscribe(request: Request):
     auth = keys.get("auth")
 
     if not endpoint or not p256dh or not auth:
-        raise HTTPException(400, detail="Invalid subscription")
+        raise HTTPException(400, detail="invalid subscription")
 
     with get_engine(request).begin() as conn:
         # Upsert: delete existing sub for this endpoint, then insert
