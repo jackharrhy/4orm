@@ -1,6 +1,7 @@
 <details
   id="user-row-{{ u.id }}"
   style="border-top: 1px solid #ddd; padding: 6px 0"
+  {% if detail_open %}open{% endif %}
 >
   <summary>
     <strong>@{{ u.username }}</strong>

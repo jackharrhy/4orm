@@ -366,12 +366,12 @@ def admin_toggle_admin(request: Request, user_id: int):
         return templates.TemplateResponse(
             request,
             "fragments/admin_user_row.html",
-            {"u": u, "stats": stats, "reset_url": None},
+            {"u": u, "stats": stats, "reset_url": None, "detail_open": True},
         )
     return RedirectResponse(url="/admin", status_code=303)
 
 
-def _admin_user_row_response(request, conn, user_id):
+def _admin_user_row_response(request, conn, user_id, reset_url=None):
     """Refetch user + stats and return the admin row fragment or redirect."""
     u = (
         conn.execute(
@@ -401,7 +401,12 @@ def _admin_user_row_response(request, conn, user_id):
         return templates.TemplateResponse(
             request,
             "fragments/admin_user_row.html",
-            {"u": u, "stats": stats, "reset_url": None},
+            {
+                "u": u,
+                "stats": stats,
+                "reset_url": reset_url,
+                "detail_open": True,
+            },
         )
     return RedirectResponse(url="/admin", status_code=303)
 
@@ -438,7 +443,12 @@ def admin_create_password_reset_link(request: Request, user_id: int):
             return templates.TemplateResponse(
                 request,
                 "fragments/admin_user_row.html",
-                {"u": user, "stats": stats, "reset_url": reset_url},
+                {
+                    "u": user,
+                    "stats": stats,
+                    "reset_url": reset_url,
+                    "detail_open": True,
+                },
             )
 
     return RedirectResponse(url="/admin", status_code=303)
@@ -610,6 +620,6 @@ def admin_toggle_disabled(request: Request, user_id: int):
         return templates.TemplateResponse(
             request,
             "fragments/admin_user_row.html",
-            {"u": u, "stats": stats, "reset_url": None},
+            {"u": u, "stats": stats, "reset_url": None, "detail_open": True},
         )
     return RedirectResponse(url="/admin", status_code=303)
