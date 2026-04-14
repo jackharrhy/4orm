@@ -1,9 +1,11 @@
 import secrets
+from datetime import UTC, datetime, timedelta
+import hashlib
 
 from sqlalchemy import and_, delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 
-from app.schema import invites, pages, profile_cards, users
+from app.schema import invites, pages, password_reset_tokens, profile_cards, users
 from app.security import hash_password
 
 
@@ -218,3 +220,65 @@ def get_invite_tree(conn: Connection):
             roots.append(node)
 
     return roots
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_password_reset_token(
+    conn: Connection,
+    *,
+    user_id: int,
+    created_by_user_id: int | None,
+    ttl_minutes: int = 20,
+) -> str:
+    raw_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(UTC) + timedelta(minutes=ttl_minutes)
+    conn.execute(
+        insert(password_reset_tokens).values(
+            user_id=user_id,
+            token_hash=_hash_reset_token(raw_token),
+            expires_at=expires_at,
+            created_by_user_id=created_by_user_id,
+        )
+    )
+    return raw_token
+
+
+def get_valid_password_reset_token(conn: Connection, token: str):
+    now = datetime.now(UTC)
+    return (
+        conn.execute(
+            select(password_reset_tokens).where(
+                and_(
+                    password_reset_tokens.c.token_hash == _hash_reset_token(token),
+                    password_reset_tokens.c.used_at.is_(None),
+                    password_reset_tokens.c.expires_at > now,
+                )
+            )
+        )
+        .mappings()
+        .first()
+    )
+
+
+def mark_password_reset_token_used(conn: Connection, token_id: int) -> None:
+    conn.execute(
+        update(password_reset_tokens)
+        .where(password_reset_tokens.c.id == token_id)
+        .values(used_at=func.now())
+    )
+
+
+def invalidate_user_password_reset_tokens(conn: Connection, user_id: int) -> None:
+    conn.execute(
+        update(password_reset_tokens)
+        .where(
+            and_(
+                password_reset_tokens.c.user_id == user_id,
+                password_reset_tokens.c.used_at.is_(None),
+            )
+        )
+        .values(used_at=func.now())
+    )

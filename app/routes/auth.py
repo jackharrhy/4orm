@@ -14,9 +14,15 @@ from app.deps import (
     wants_json,
 )
 from app.models import AuthResponse, SuccessResponse
-from app.queries.users import create_user_with_invite, get_user_by_username
+from app.queries.users import (
+    create_user_with_invite,
+    get_user_by_username,
+    get_valid_password_reset_token,
+    invalidate_user_password_reset_tokens,
+    mark_password_reset_token_used,
+)
 from app.schema import users
-from app.security import verify_password
+from app.security import hash_password, verify_password
 
 router = APIRouter(tags=["auth"])
 
@@ -80,7 +86,11 @@ def register_post(
 
 @router.get("/login", response_class=HTMLResponse, summary="Login page")
 def login_get(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"error": None})
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {"error": None, "success": request.query_params.get("success")},
+    )
 
 
 @router.post("/login", response_class=HTMLResponse, summary="Authenticate user")
@@ -154,3 +164,98 @@ def logout(request: Request):
     if wants_json(request):
         return SuccessResponse(message="logged out")
     return RedirectResponse(url="/", status_code=303)
+
+
+@router.get("/login/forgot-password", response_class=HTMLResponse)
+def forgot_password_get(request: Request, token: str = ""):
+    if not token:
+        return templates.TemplateResponse(
+            request,
+            "forgot_password.html",
+            {
+                "error": "invalid or expired reset link",
+                "token": "",
+                "success": None,
+            },
+            status_code=400,
+        )
+
+    with get_engine(request).begin() as conn:
+        reset_row = get_valid_password_reset_token(conn, token)
+
+    if not reset_row:
+        return templates.TemplateResponse(
+            request,
+            "forgot_password.html",
+            {
+                "error": "invalid or expired reset link",
+                "token": "",
+                "success": None,
+            },
+            status_code=400,
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "forgot_password.html",
+        {"error": None, "token": token, "success": None},
+    )
+
+
+@router.post("/login/forgot-password", response_class=HTMLResponse)
+def forgot_password_post(
+    request: Request,
+    token: str = Form(""),
+    password: str = Form(""),
+    password_confirm: str = Form(""),
+):
+    if not token:
+        return templates.TemplateResponse(
+            request,
+            "forgot_password.html",
+            {
+                "error": "invalid or expired reset link",
+                "token": "",
+                "success": None,
+            },
+            status_code=400,
+        )
+
+    if not password or password != password_confirm:
+        return templates.TemplateResponse(
+            request,
+            "forgot_password.html",
+            {
+                "error": "passwords do not match",
+                "token": token,
+                "success": None,
+            },
+            status_code=400,
+        )
+
+    with get_engine(request).begin() as conn:
+        reset_row = get_valid_password_reset_token(conn, token)
+        if not reset_row:
+            return templates.TemplateResponse(
+                request,
+                "forgot_password.html",
+                {
+                    "error": "invalid or expired reset link",
+                    "token": "",
+                    "success": None,
+                },
+                status_code=400,
+            )
+
+        conn.execute(
+            update(users)
+            .where(users.c.id == reset_row["user_id"])
+            .values(password_hash=hash_password(password))
+        )
+        mark_password_reset_token_used(conn, reset_row["id"])
+        invalidate_user_password_reset_tokens(conn, reset_row["user_id"])
+
+    return RedirectResponse(
+        url="/login?success=password+updated%2C+you+can+log+in+now",
+        status_code=303,
+    )
