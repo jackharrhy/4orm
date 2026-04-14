@@ -210,6 +210,19 @@ playlist_items = Table(
     Column("title", String(200)),
 )
 
+chat_messages = Table(
+    "chat_messages",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "author_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("message", Text, nullable=False),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
 push_subscriptions = Table(
     "push_subscriptions",
     metadata,
