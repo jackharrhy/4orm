@@ -79,6 +79,22 @@ invites = Table(
     CheckConstraint("max_uses >= 1", name="ck_invites_max_uses"),
 )
 
+password_reset_tokens = Table(
+    "password_reset_tokens",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("token_hash", String(64), nullable=False, unique=True),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True)),
+    Column("created_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
 pages = Table(
     "pages",
     metadata,

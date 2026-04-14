@@ -66,6 +66,16 @@
         <a href="/u/{{ u.username }}/export"
           ><button type="button" class="btn-sm">export</button></a
         >
+        <form
+          method="post"
+          action="/admin/users/{{ u.id }}/password-reset-link"
+          class="inline"
+          hx-post="/admin/users/{{ u.id }}/password-reset-link"
+          hx-target="#user-row-{{ u.id }}"
+          hx-swap="outerHTML"
+        >
+          <button type="submit">reset password link</button>
+        </form>
         {% if not u.is_admin %}
           <form
             method="post"
@@ -93,6 +103,12 @@
           </form>
         {% endif %}
       </div>
+      {% if reset_url %}
+        <p class="ok" style="margin: 4px 0 0">
+          reset link (20m):
+          <a href="{{ reset_url }}">{{ reset_url }}</a>
+        </p>
+      {% endif %}
     </div>
   </td>
 </tr>

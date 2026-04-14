@@ -14,7 +14,7 @@ from app.deps import (
     templates,
 )
 from app.queries.admin import delete_user_prune, delete_user_reparent
-from app.queries.users import get_user_by_id
+from app.queries.users import create_password_reset_token, get_user_by_id
 from app.schema import forum_posts, forum_threads, media, pages, profile_cards, users
 
 router = APIRouter(tags=["admin"])
@@ -366,7 +366,7 @@ def admin_toggle_admin(request: Request, user_id: int):
         return templates.TemplateResponse(
             request,
             "fragments/admin_user_row.html",
-            {"u": u, "stats": stats},
+            {"u": u, "stats": stats, "reset_url": None},
         )
     return RedirectResponse(url="/admin", status_code=303)
 
@@ -401,8 +401,46 @@ def _admin_user_row_response(request, conn, user_id):
         return templates.TemplateResponse(
             request,
             "fragments/admin_user_row.html",
-            {"u": u, "stats": stats},
+            {"u": u, "stats": stats, "reset_url": None},
         )
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/password-reset-link")
+def admin_create_password_reset_link(request: Request, user_id: int):
+    me = require_admin(request)
+    with get_engine(request).begin() as conn:
+        user = get_user_by_id(conn, user_id)
+        if not user:
+            raise HTTPException(404)
+        token = create_password_reset_token(
+            conn,
+            user_id=user_id,
+            created_by_user_id=me["id"],
+            ttl_minutes=20,
+        )
+
+        reset_url = f"/login/forgot-password?token={token}"
+
+        if is_htmx(request):
+            stats = (
+                conn.execute(
+                    select(
+                        func.count(media.c.id).label("file_count"),
+                        func.coalesce(func.sum(media.c.size_bytes), 0).label(
+                            "total_bytes"
+                        ),
+                    ).where(media.c.user_id == user_id)
+                )
+                .mappings()
+                .first()
+            )
+            return templates.TemplateResponse(
+                request,
+                "fragments/admin_user_row.html",
+                {"u": user, "stats": stats, "reset_url": reset_url},
+            )
+
     return RedirectResponse(url="/admin", status_code=303)
 
 
@@ -572,6 +610,6 @@ def admin_toggle_disabled(request: Request, user_id: int):
         return templates.TemplateResponse(
             request,
             "fragments/admin_user_row.html",
-            {"u": u, "stats": stats},
+            {"u": u, "stats": stats, "reset_url": None},
         )
     return RedirectResponse(url="/admin", status_code=303)

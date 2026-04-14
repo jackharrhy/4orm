@@ -1,4 +1,7 @@
 from app.queries.users import create_invite
+from app.security import verify_password
+from app.schema import password_reset_tokens, users
+from sqlalchemy import insert, select, update
 
 
 def test_login_page_renders(client):
@@ -90,3 +93,79 @@ def test_logout(authed_client):
     r2 = authed_client.get("/settings", follow_redirects=False)
     assert r2.status_code == 303
     assert "/login" in r2.headers["location"]
+
+
+def test_forgot_password_rejects_invalid_token(client):
+    r = client.get("/login/forgot-password?token=invalid")
+    assert r.status_code == 400
+    assert "invalid or expired reset link" in r.text
+
+
+def test_forgot_password_resets_password(client, authed_client, test_engine, seed_user):
+    with test_engine.begin() as conn:
+        conn.execute(update(users).where(users.c.id == seed_user["id"]).values(is_admin=True))
+
+    r = authed_client.post(
+        f"/admin/users/{seed_user['id']}/password-reset-link",
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    marker = "/login/forgot-password?token="
+    token = r.text.split(marker, 1)[1].split('"', 1)[0]
+
+    r2 = client.post(
+        "/login/forgot-password",
+        data={"token": token, "password": "newpass123", "password_confirm": "newpass123"},
+        follow_redirects=False,
+    )
+    assert r2.status_code == 303
+    assert "/login?success=" in r2.headers["location"]
+
+    with test_engine.begin() as conn:
+        user = conn.execute(select(users).where(users.c.id == seed_user["id"])).mappings().first()
+        assert verify_password("newpass123", user["password_hash"])
+        row = conn.execute(select(password_reset_tokens).where(password_reset_tokens.c.user_id == seed_user["id"])).mappings().first()
+        assert row["used_at"] is not None
+
+
+def test_forgot_password_requires_matching_confirmation(client, authed_client, test_engine, seed_user):
+    with test_engine.begin() as conn:
+        conn.execute(update(users).where(users.c.id == seed_user["id"]).values(is_admin=True))
+
+    r = authed_client.post(
+        f"/admin/users/{seed_user['id']}/password-reset-link",
+        headers={"HX-Request": "true"},
+    )
+    token = r.text.split("/login/forgot-password?token=", 1)[1].split('"', 1)[0]
+
+    r2 = client.post(
+        "/login/forgot-password",
+        data={"token": token, "password": "a", "password_confirm": "b"},
+        follow_redirects=False,
+    )
+    assert r2.status_code == 400
+    assert "passwords do not match" in r2.text
+
+
+def test_forgot_password_rejects_expired_token(client, test_engine, seed_user):
+    import hashlib
+    from datetime import UTC, datetime, timedelta
+
+    raw = "expired-token"
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(password_reset_tokens).values(
+                user_id=seed_user["id"],
+                token_hash=hashlib.sha256(raw.encode("utf-8")).hexdigest(),
+                expires_at=datetime.now(UTC) - timedelta(minutes=1),
+                created_by_user_id=seed_user["id"],
+            )
+        )
+
+    r = client.post(
+        "/login/forgot-password",
+        data={"token": raw, "password": "newpass", "password_confirm": "newpass"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    assert "invalid or expired reset link" in r.text
