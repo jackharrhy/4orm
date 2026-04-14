@@ -1,5 +1,7 @@
 import contextlib
 import os
+import random as _random
+import time as _time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -299,8 +301,57 @@ def home(request: Request):
             )
         )
 
+    _CHAT_FONTS = [
+        "monospace",
+        "cursive",
+        "fantasy",
+        "serif",
+        "Comic Sans MS, cursive",
+    ]
+    _CHAT_COLORS = [
+        "#ff0000",
+        "#00ff00",
+        "#0000ff",
+        "#ff00ff",
+        "#ffff00",
+        "#00ffff",
+        "#ff6600",
+        "#66ff33",
+    ]
+    _CHAT_BG = [
+        "#000",
+        "#111",
+        "#220022",
+        "#002200",
+        "#000033",
+        "#330000",
+        "#1a1a2e",
+    ]
+    _CHAT_BORDERS = [
+        "3px solid",
+        "3px dashed",
+        "3px double",
+        "3px dotted",
+        "3px outset",
+        "3px ridge",
+    ]
+    seed = int(_time.time()) // 300
+    rng = _random.Random(seed)
+    chat_style = (
+        f"font-family: {rng.choice(_CHAT_FONTS)}; "
+        f"color: {rng.choice(_CHAT_COLORS)}; "
+        f"background: {rng.choice(_CHAT_BG)}; "
+        f"border: {rng.choice(_CHAT_BORDERS)} {rng.choice(_CHAT_COLORS)}; "
+        f"padding: 6px 16px; text-decoration: none; display: inline-block;"
+    )
+
     return templates.TemplateResponse(
         request,
         "home.html",
-        {"cards": cards, "recent_posts": recent_posts, "me": current_user(request)},
+        {
+            "cards": cards,
+            "recent_posts": recent_posts,
+            "me": current_user(request),
+            "chat_style": chat_style,
+        },
     )
