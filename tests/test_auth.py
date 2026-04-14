@@ -1,7 +1,8 @@
-from app.queries.users import create_invite
-from app.security import verify_password
-from app.schema import password_reset_tokens, users
 from sqlalchemy import insert, select, update
+
+from app.queries.users import create_invite
+from app.schema import password_reset_tokens, users
+from app.security import verify_password
 
 
 def test_login_page_renders(client):
