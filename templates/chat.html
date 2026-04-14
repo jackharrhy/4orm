@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}4orm · chat{% endblock %}
+{% block content %}
+  <div class="chat-room">
+    <h1>chat</h1>
+    <div class="chat-container" hx-ext="sse" sse-connect="/chat/stream">
+      <div
+        id="chat-messages"
+        sse-swap="message"
+        hx-swap="beforeend scroll:bottom"
+      >
+        {{ messages_html|safe }}
+      </div>
+    </div>
+    {% if me %}
+      <form
+        class="chat-input"
+        method="post"
+        action="/chat"
+        hx-post="/chat"
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful) this.reset()"
+      >
+        <input
+          type="text"
+          name="message"
+          maxlength="500"
+          placeholder="say something..."
+          required
+          autocomplete="off"
+        />
+        <button type="submit">send</button>
+      </form>
+    {% else %}
+      <p class="muted"><a href="/login">sign in</a> to chat</p>
+    {% endif %}
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.4/sse.js"></script>
+  <script>
+    var chatEl = document.getElementById("chat-messages");
+    if (chatEl) {
+      chatEl.scrollTop = chatEl.scrollHeight;
+      new MutationObserver(function () {
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }).observe(chatEl, { childList: true });
+    }
+  </script>
+{% endblock %}
