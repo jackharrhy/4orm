@@ -33,6 +33,7 @@ from app.rendering import render_content, render_forum_post
 from app.routes import (
     admin,
     auth,
+    chat,
     feeds,
     forum,
     guestbook,
@@ -181,6 +182,7 @@ app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads
 
 # Include all route modules
 app.include_router(auth.router)
+app.include_router(chat.router)
 app.include_router(pages.router)
 app.include_router(settings.router)
 app.include_router(media.router)
