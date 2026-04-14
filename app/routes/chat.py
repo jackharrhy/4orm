@@ -23,7 +23,7 @@ _FLOOD_MAX = 20  # max messages in window
 _FLOOD_TIMEOUT = 60  # seconds to time out
 _post_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
 _timed_out_until: dict[int, float] = {}  # user_id -> monotonic time
-_presence: dict[int, str] = {}  # user_id -> username (currently connected)
+_presence: dict[int, tuple[str, bool]] = {}  # user_id -> (username, is_active)
 _PRESENCE_INTERVAL = 10  # seconds between presence broadcasts
 
 
@@ -91,8 +91,11 @@ def _render_presence_html() -> str:
     """Render the presence indicator as HTML."""
     if not _presence:
         return '<span class="muted">nobody here</span>'
-    users = sorted(_presence.values())
-    parts = [f'<span class="chat-present">🟢 {escape(u)}</span>' for u in users]
+    entries = sorted(_presence.values(), key=lambda x: x[0])
+    parts = []
+    for username, is_active in entries:
+        dot = "🟢" if is_active else "🟡"
+        parts.append(f'<span class="chat-present">{dot} {escape(username)}</span>')
     return " ".join(parts)
 
 
@@ -102,7 +105,7 @@ async def chat_stream(request: Request):
     me = current_user(request)
     uid = me["id"] if me else None
     if uid:
-        _presence[uid] = me["username"]
+        _presence[uid] = (me["username"], True)
 
     last_seen = len(_chat_buffer)
     last_presence = 0.0
@@ -142,6 +145,19 @@ async def chat_stream(request: Request):
     )
 
 
+@router.post("/chat/presence", include_in_schema=False)
+async def chat_presence_update(request: Request):
+    """Update a user's active/idle status."""
+    me = current_user(request)
+    if not me or me["id"] not in _presence:
+        return HTMLResponse("")
+    body = await request.json()
+    is_active = body.get("active", True)
+    username = _presence[me["id"]][0]
+    _presence[me["id"]] = (username, is_active)
+    return HTMLResponse("")
+
+
 @router.post("/chat", response_class=HTMLResponse, summary="Send chat message")
 def chat_post(request: Request, message: str = Form(...)):
     me = current_user(request)
@@ -154,6 +170,10 @@ def chat_post(request: Request, message: str = Form(...)):
 
     now = time.monotonic()
     uid = me["id"]
+
+    # Posting means you're active
+    if uid in _presence:
+        _presence[uid] = (_presence[uid][0], True)
 
     # Check if user is timed out
     if uid in _timed_out_until and now < _timed_out_until[uid]:

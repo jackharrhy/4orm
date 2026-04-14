@@ -36,13 +36,4 @@
     {% endif %}
   </div>
   <script src="https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.4/sse.js"></script>
-  <script>
-    var chatEl = document.getElementById("chat-messages");
-    if (chatEl) {
-      chatEl.scrollTop = chatEl.scrollHeight;
-      new MutationObserver(function () {
-        chatEl.scrollTop = chatEl.scrollHeight;
-      }).observe(chatEl, { childList: true });
-    }
-  </script>
 {% endblock %}
