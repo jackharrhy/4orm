@@ -240,6 +240,7 @@ def create_password_reset_token(
             user_id=user_id,
             token_hash=_hash_reset_token(raw_token),
             expires_at=expires_at,
+            created_at=datetime.now(UTC),
             created_by_user_id=created_by_user_id,
         )
     )
