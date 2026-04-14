@@ -7,108 +7,122 @@
   </td>
   <td>{{ u.created_at|localtime('date') }}</td>
   <td>
-    {{ 'admin' if u.is_admin else '' }}{{ ' / disabled' if u.is_disabled else '' }}
+    {{ 'admin' if u.is_admin else '' }}{{ ' · disabled' if u.is_disabled else '' }}
   </td>
   <td>
-    <div class="stack" style="gap: 4px">
-      {% if not u.is_admin %}
-        <form
-          method="post"
-          action="/admin/users/{{ u.id }}/rename"
-          class="inline"
-          hx-post="/admin/users/{{ u.id }}/rename"
-          hx-target="#user-row-{{ u.id }}"
-          hx-swap="outerHTML"
-        >
-          <input
-            name="new_username"
-            value="{{ u.username }}"
-            style="width: 100px"
-            required
-            placeholder="username"
-          />
-          <input
-            name="new_display_name"
-            value="{{ u.display_name }}"
-            style="width: 100px"
-            placeholder="display name"
-          />
-          <button type="submit">save</button>
-        </form>
-      {% endif %}
-      <div class="inline" style="flex-wrap: wrap; gap: 4px">
-        {% if not u.is_admin %}
-          <form
-            method="post"
-            action="/admin/users/{{ u.id }}/toggle-admin"
-            class="inline"
-            hx-post="/admin/users/{{ u.id }}/toggle-admin"
-            hx-target="#user-row-{{ u.id }}"
-            hx-swap="outerHTML"
-            hx-confirm="Make {{ u.username }} an admin?"
-          >
-            <button type="submit">make admin</button>
-          </form>
+    <details class="admin-actions">
+      <summary class="btn-sm">actions</summary>
+      <div class="admin-actions-panel">
+        {% if reset_url %}
+          <p class="ok">
+            reset link: <a href="{{ reset_url }}">{{ reset_url }}</a>
+          </p>
         {% endif %}
-        <form
-          method="post"
-          action="/admin/users/{{ u.id }}/toggle-disabled"
-          class="inline"
-          hx-post="/admin/users/{{ u.id }}/toggle-disabled"
-          hx-target="#user-row-{{ u.id }}"
-          hx-swap="outerHTML"
-          hx-confirm="{% if u.is_disabled %}Re-enable{% else %}Disable{% endif %} {{ u.username }}?"
-        >
-          <button type="submit">
-            {% if u.is_disabled %}re-enable{% else %}disable{% endif %}
-          </button>
-        </form>
-        <a href="/u/{{ u.username }}/export"
-          ><button type="button" class="btn-sm">export</button></a
-        >
-        <form
-          method="post"
-          action="/admin/users/{{ u.id }}/password-reset-link"
-          class="inline"
-          hx-post="/admin/users/{{ u.id }}/password-reset-link"
-          hx-target="#user-row-{{ u.id }}"
-          hx-swap="outerHTML"
-        >
-          <button type="submit">reset password link</button>
-        </form>
+
         {% if not u.is_admin %}
-          <form
-            method="post"
-            action="/admin/users/{{ u.id }}/delete"
-            class="inline"
-            hx-post="/admin/users/{{ u.id }}/delete"
-            hx-target="#user-row-{{ u.id }}"
-            hx-swap="outerHTML"
-            hx-confirm="Delete {{ u.username }}? Their invitees will be reparented."
-          >
-            <input type="hidden" name="mode" value="reparent" />
-            <button type="submit">delete</button>
-          </form>
-          <form
-            method="post"
-            action="/admin/users/{{ u.id }}/delete"
-            class="inline"
-            hx-post="/admin/users/{{ u.id }}/delete"
-            hx-target="#user-row-{{ u.id }}"
-            hx-swap="outerHTML"
-            hx-confirm="Delete {{ u.username }} AND everyone they invited? This is irreversible!"
-          >
-            <input type="hidden" name="mode" value="prune" />
-            <button type="submit">prune tree</button>
-          </form>
+          <fieldset>
+            <legend>rename</legend>
+            <form
+              method="post"
+              action="/admin/users/{{ u.id }}/rename"
+              class="inline"
+              hx-post="/admin/users/{{ u.id }}/rename"
+              hx-target="#user-row-{{ u.id }}"
+              hx-swap="outerHTML"
+            >
+              <input
+                name="new_username"
+                value="{{ u.username }}"
+                style="width: 100px"
+                required
+              />
+              <input
+                name="new_display_name"
+                value="{{ u.display_name }}"
+                style="width: 100px"
+              />
+              <button type="submit" class="btn-sm">save</button>
+            </form>
+          </fieldset>
+        {% endif %}
+
+        <fieldset>
+          <legend>account</legend>
+          <div class="inline" style="flex-wrap: wrap; gap: 4px">
+            <form
+              method="post"
+              action="/admin/users/{{ u.id }}/password-reset-link"
+              class="inline"
+              hx-post="/admin/users/{{ u.id }}/password-reset-link"
+              hx-target="#user-row-{{ u.id }}"
+              hx-swap="outerHTML"
+            >
+              <button type="submit" class="btn-sm">reset password</button>
+            </form>
+            <form
+              method="post"
+              action="/admin/users/{{ u.id }}/toggle-disabled"
+              class="inline"
+              hx-post="/admin/users/{{ u.id }}/toggle-disabled"
+              hx-target="#user-row-{{ u.id }}"
+              hx-swap="outerHTML"
+              hx-confirm="{% if u.is_disabled %}re-enable{% else %}disable{% endif %} {{ u.username }}?"
+            >
+              <button type="submit" class="btn-sm">
+                {% if u.is_disabled %}re-enable{% else %}disable{% endif %}
+              </button>
+            </form>
+            {% if not u.is_admin %}
+              <form
+                method="post"
+                action="/admin/users/{{ u.id }}/toggle-admin"
+                class="inline"
+                hx-post="/admin/users/{{ u.id }}/toggle-admin"
+                hx-target="#user-row-{{ u.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="make {{ u.username }} an admin?"
+              >
+                <button type="submit" class="btn-sm">make admin</button>
+              </form>
+            {% endif %}
+            <a href="/u/{{ u.username }}/export"
+              ><button type="button" class="btn-sm">export</button></a
+            >
+          </div>
+        </fieldset>
+
+        {% if not u.is_admin %}
+          <fieldset>
+            <legend>danger</legend>
+            <div class="inline" style="flex-wrap: wrap; gap: 4px">
+              <form
+                method="post"
+                action="/admin/users/{{ u.id }}/delete"
+                class="inline"
+                hx-post="/admin/users/{{ u.id }}/delete"
+                hx-target="#user-row-{{ u.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="delete {{ u.username }}? their invitees will be reparented."
+              >
+                <input type="hidden" name="mode" value="reparent" />
+                <button type="submit" class="btn-sm">delete</button>
+              </form>
+              <form
+                method="post"
+                action="/admin/users/{{ u.id }}/delete"
+                class="inline"
+                hx-post="/admin/users/{{ u.id }}/delete"
+                hx-target="#user-row-{{ u.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="delete {{ u.username }} AND everyone they invited? this is irreversible!"
+              >
+                <input type="hidden" name="mode" value="prune" />
+                <button type="submit" class="btn-sm">prune tree</button>
+              </form>
+            </div>
+          </fieldset>
         {% endif %}
       </div>
-      {% if reset_url %}
-        <p class="ok" style="margin: 4px 0 0">
-          reset link (20m):
-          <a href="{{ reset_url }}">{{ reset_url }}</a>
-        </p>
-      {% endif %}
-    </div>
+    </details>
   </td>
 </tr>
