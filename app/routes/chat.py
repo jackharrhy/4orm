@@ -17,8 +17,20 @@ router = APIRouter(tags=["chat"])
 _chat_buffer: list[dict] = []
 _chat_event = asyncio.Event()
 _BUFFER_MAX = 200
-_RATE_LIMIT_SECONDS = 3
-_last_post: dict[int, float] = {}
+_FLOOD_WINDOW = 30  # seconds
+_FLOOD_MAX = 20  # max messages in window
+_FLOOD_TIMEOUT = 60  # seconds to time out
+_post_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
+_timed_out_until: dict[int, float] = {}  # user_id -> monotonic time
+
+
+def _inject_system_message(text: str) -> None:
+    """Push a system message into the chat stream."""
+    msg = {"username": "system", "message": text, "created_at": datetime.now(UTC)}
+    _chat_buffer.append(msg)
+    if len(_chat_buffer) > _BUFFER_MAX:
+        _chat_buffer[:] = _chat_buffer[-_BUFFER_MAX:]
+    _chat_event.set()
 
 
 def _render_message_html(msg: dict, index: int, total: int) -> str:
@@ -109,14 +121,26 @@ def chat_post(request: Request, message: str = Form(...)):
         raise HTTPException(400, detail="empty message")
 
     now = time.monotonic()
-    last = _last_post.get(me["id"], 0)
-    if now - last < _RATE_LIMIT_SECONDS:
+    uid = me["id"]
+
+    # Check if user is timed out
+    if uid in _timed_out_until and now < _timed_out_until[uid]:
+        remaining = int(_timed_out_until[uid] - now)
+        _inject_system_message(f"{me['username']} is timed out for {remaining}s")
         if is_htmx(request):
-            return HTMLResponse(
-                '<span class="error">slow down!</span>', status_code=429
-            )
+            return HTMLResponse("")
         raise HTTPException(429)
-    _last_post[me["id"]] = now
+
+    # Track flood: sliding window of recent posts
+    history = _post_history.setdefault(uid, [])
+    history[:] = [t for t in history if now - t < _FLOOD_WINDOW]
+    if len(history) >= _FLOOD_MAX:
+        _timed_out_until[uid] = now + _FLOOD_TIMEOUT
+        _inject_system_message(f"{me['username']} has been timed out for flooding")
+        if is_htmx(request):
+            return HTMLResponse("")
+        raise HTTPException(429)
+    history.append(now)
 
     with get_engine(request).begin() as conn:
         conn.execute(insert(chat_messages).values(author_id=me["id"], message=text))

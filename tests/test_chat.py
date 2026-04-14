@@ -3,16 +3,18 @@
 import pytest
 from sqlalchemy import select
 
-from app.routes.chat import _last_post
+from app.routes.chat import _post_history, _timed_out_until
 from app.schema import chat_messages
 
 
 @pytest.fixture(autouse=True)
 def _clear_rate_limit():
-    """Reset the in-memory rate-limit dict between tests."""
-    _last_post.clear()
+    """Reset the in-memory rate-limit state between tests."""
+    _post_history.clear()
+    _timed_out_until.clear()
     yield
-    _last_post.clear()
+    _post_history.clear()
+    _timed_out_until.clear()
 
 
 def test_chat_page_renders(client, seed_user):
