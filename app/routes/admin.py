@@ -425,7 +425,7 @@ def admin_create_password_reset_link(request: Request, user_id: int):
             ttl_minutes=20,
         )
 
-        reset_url = f"/login/forgot-password?token={token}"
+        reset_url = f"{deps.SITE_URL}/login/forgot-password?token={token}"
 
         if is_htmx(request):
             stats = (

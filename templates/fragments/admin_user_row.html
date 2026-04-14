@@ -16,14 +16,14 @@
   <div class="stack" style="gap: 8px; padding: 8px 0 4px">
     {% if reset_url %}
       <p class="ok">
-        reset link: <code>...{{ reset_url[-8:] }}</code>
+        reset link ready
         <button
           type="button"
           class="btn-sm"
           data-url="{{ reset_url }}"
           onclick="navigator.clipboard.writeText(this.dataset.url);this.textContent='copied!'"
         >
-          copy
+          copy to clipboard
         </button>
       </p>
     {% endif %}

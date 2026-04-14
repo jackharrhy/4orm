@@ -59,6 +59,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
+SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
 USERNAME_RE = re.compile(r"^[a-z0-9_-]{3,32}$")
 USERNAME_INVALID_MSG = (
     "username must be 3-32 chars, lowercase letters, numbers, hyphens, or underscores"
