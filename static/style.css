@@ -474,3 +474,65 @@ details.panel[open] > summary > h2::before {
   height: 300px;
   border: none;
 }
+
+.chat-room {
+  max-width: 700px;
+}
+.chat-container {
+  border: 2px solid #000;
+  background: #1a1a1a;
+  height: 400px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #eee;
+}
+.chat-msg {
+  padding: 2px 0;
+  line-height: 1.4;
+}
+.chat-user {
+  color: #0f0;
+  text-decoration: none;
+  font-weight: 700;
+}
+.chat-user::after {
+  content: ": ";
+  color: #666;
+}
+.chat-text {
+  color: #ddd;
+}
+.chat-input {
+  display: flex;
+  gap: 0;
+  border-top: 2px solid #000;
+}
+.chat-input input {
+  flex: 1;
+  border: none;
+  padding: 8px;
+  font: inherit;
+  font-family: monospace;
+  background: #2a2a2a;
+  color: #eee;
+}
+.chat-input button {
+  width: auto;
+  padding: 8px 16px;
+  background: #333;
+  color: #0f0;
+  border: none;
+  font-family: monospace;
+  cursor: pointer;
+}
+.chat-input button:hover {
+  background: #444;
+}
