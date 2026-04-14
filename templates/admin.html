@@ -17,27 +17,10 @@
 
   <details class="panel" open>
     <summary><h2>users ({{ all_users|length }})</h2></summary>
-    <div class="table-wrap">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th style="text-align: left">user</th>
-            <th style="text-align: left">display name</th>
-            <th style="text-align: right">files</th>
-            <th style="text-align: right">storage</th>
-            <th style="text-align: left">joined</th>
-            <th style="text-align: left">status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for u in all_users %}
-            {% set stats = storage_by_user.get(u.id, {}) %}
-            {% include 'fragments/admin_user_row.html' %}
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    {% for u in all_users %}
+      {% set stats = storage_by_user.get(u.id, {}) %}
+      {% include 'fragments/admin_user_row.html' %}
+    {% endfor %}
   </details>
 
   <details class="panel">
