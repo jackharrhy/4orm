@@ -114,8 +114,8 @@ def test_forgot_password_resets_password(client, authed_client, test_engine, see
         headers={"HX-Request": "true"},
     )
     assert r.status_code == 200
-    marker = "/login/forgot-password?token="
-    token = r.text.split(marker, 1)[1].split('"', 1)[0]
+    assert "data-url=" in r.text
+    token = r.text.split("token=", 1)[1].split('"', 1)[0]
 
     r2 = client.post(
         "/login/forgot-password",
@@ -160,7 +160,7 @@ def test_forgot_password_requires_matching_confirmation(
         f"/admin/users/{seed_user['id']}/password-reset-link",
         headers={"HX-Request": "true"},
     )
-    token = r.text.split("/login/forgot-password?token=", 1)[1].split('"', 1)[0]
+    token = r.text.split("token=", 1)[1].split('"', 1)[0]
 
     r2 = client.post(
         "/login/forgot-password",
@@ -246,9 +246,8 @@ def test_full_password_reset_flow(client, test_engine, seed_user):
         headers={"HX-Request": "true"},
     )
     assert r.status_code == 200, f"expected 200 got {r.status_code}"
-    marker = "/login/forgot-password?token="
-    assert marker in r.text
-    token = r.text.split(marker, 1)[1].split('"', 1)[0]
+    assert "data-url=" in r.text
+    token = r.text.split("token=", 1)[1].split('"', 1)[0]
 
     # 5. Use the reset link to set a new password
     r = client.post(
