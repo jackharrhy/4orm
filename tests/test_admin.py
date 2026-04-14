@@ -193,7 +193,13 @@ def test_admin_can_create_password_reset_link(authed_client, test_engine, seed_u
     assert "/login/forgot-password?token=" in r.text
 
     with test_engine.begin() as conn:
-        row = conn.execute(
-            select(password_reset_tokens).where(password_reset_tokens.c.user_id == target_id)
-        ).mappings().first()
+        row = (
+            conn.execute(
+                select(password_reset_tokens).where(
+                    password_reset_tokens.c.user_id == target_id
+                )
+            )
+            .mappings()
+            .first()
+        )
     assert row is not None
