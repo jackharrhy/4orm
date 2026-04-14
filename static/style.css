@@ -476,43 +476,30 @@ details.panel[open] > summary > h2::before {
 }
 
 .chat-room {
-  max-width: 700px;
-}
-.chat-container {
-  border: 2px solid #000;
-  background: #1a1a1a;
-  height: 400px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  max-width: 600px;
+  margin: 0 auto;
 }
 #chat-messages {
-  flex: 1;
+  height: 400px;
   overflow-y: auto;
+  border: 2px solid #000;
   padding: 8px;
-  font-family: monospace;
   font-size: 13px;
-  color: #eee;
 }
 .chat-msg {
-  padding: 2px 0;
-  line-height: 1.4;
+  padding: 1px 0;
 }
 .chat-user {
-  color: #0f0;
-  text-decoration: none;
   font-weight: 700;
+  text-decoration: none;
+  color: #000;
 }
 .chat-user::after {
   content: ": ";
-  color: #666;
-}
-.chat-text {
-  color: #ddd;
+  color: #999;
 }
 .chat-input {
   display: flex;
-  gap: 0;
   border-top: 2px solid #000;
 }
 .chat-input input {
@@ -520,19 +507,9 @@ details.panel[open] > summary > h2::before {
   border: none;
   padding: 8px;
   font: inherit;
-  font-family: monospace;
-  background: #2a2a2a;
-  color: #eee;
 }
 .chat-input button {
   width: auto;
   padding: 8px 16px;
-  background: #333;
-  color: #0f0;
-  border: none;
-  font-family: monospace;
   cursor: pointer;
-}
-.chat-input button:hover {
-  background: #444;
 }
