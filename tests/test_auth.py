@@ -3,6 +3,7 @@ from sqlalchemy import insert, select, update
 from app.queries.users import create_invite
 from app.schema import password_reset_tokens, users
 from app.security import verify_password
+from tests.conftest import promote_to_admin
 
 
 def test_login_page_renders(client):
@@ -192,3 +193,87 @@ def test_forgot_password_rejects_expired_token(client, test_engine, seed_user):
     )
     assert r.status_code == 400
     assert "invalid or expired reset link" in r.text
+
+
+def test_full_password_reset_flow(client, test_engine, seed_user):
+    """End-to-end: register, login, get reset link, reset, login with new pw."""
+    from app.queries.users import create_invite
+
+    # 1. Create an invite and register a new user
+    with test_engine.begin() as conn:
+        code = create_invite(conn, seed_user["id"], max_uses=1)
+
+    client.post(
+        "/register",
+        data={
+            "username": "resetuser",
+            "password": "original123",
+            "invite_code": code,
+        },
+    )
+
+    # 2. Login works with original password
+    r = client.post(
+        "/login",
+        data={"username": "resetuser", "password": "original123"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, "login with original password should work"
+
+    # 3. Login fails with wrong password
+    r = client.post(
+        "/login",
+        data={"username": "resetuser", "password": "wrongpassword"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 400, "login with wrong password should fail"
+
+    # 4. Admin creates a password reset link
+    with test_engine.begin() as conn:
+        promote_to_admin(conn, seed_user["id"])
+        target = conn.execute(
+            select(users.c.id).where(users.c.username == "resetuser")
+        ).scalar()
+
+    # Log in as admin
+    client.post(
+        "/login",
+        data={"username": seed_user["username"], "password": seed_user["password"]},
+    )
+
+    r = client.post(
+        f"/admin/users/{target}/password-reset-link",
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200, f"expected 200 got {r.status_code}"
+    marker = "/login/forgot-password?token="
+    assert marker in r.text
+    token = r.text.split(marker, 1)[1].split('"', 1)[0]
+
+    # 5. Use the reset link to set a new password
+    r = client.post(
+        "/login/forgot-password",
+        data={
+            "token": token,
+            "password": "newpassword456",
+            "password_confirm": "newpassword456",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, "password reset should redirect to login"
+
+    # 6. Login fails with old password
+    r = client.post(
+        "/login",
+        data={"username": "resetuser", "password": "original123"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 400, "old password should no longer work"
+
+    # 7. Login succeeds with new password
+    r = client.post(
+        "/login",
+        data={"username": "resetuser", "password": "newpassword456"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, "new password should work after reset"
