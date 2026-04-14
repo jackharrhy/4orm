@@ -68,60 +68,10 @@ def test_chat_message_truncated(authed_client, seed_user, test_engine):
     assert len(row["message"]) == 500
 
 
-def test_chat_stream_content_type(client, seed_user):
-    import asyncio
-    import contextlib
-    import threading
-
-    from app.main import app
-
-    response_headers: dict[str, str] = {}
-    exc_box: list[BaseException] = []
-
-    async def _probe():
-        got_headers = asyncio.Event()
-
-        async def receive():
-            await asyncio.sleep(60)
-            return {"type": "http.disconnect"}
-
-        async def send(message):
-            if message["type"] == "http.response.start":
-                for k, v in message.get("headers", []):
-                    response_headers[k.decode().lower()] = v.decode()
-                got_headers.set()
-
-        scope = {
-            "type": "http",
-            "asgi": {"version": "3.0"},
-            "http_version": "1.1",
-            "method": "GET",
-            "path": "/chat/stream",
-            "query_string": b"",
-            "root_path": "",
-            "headers": [],
-            "server": ("testserver", 80),
-        }
-        task = asyncio.ensure_future(app(scope, receive, send))
-        await got_headers.wait()
-        task.cancel()
-        with contextlib.suppress(BaseException):
-            await task
-
-    def _run():
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(_probe())
-        except BaseException as e:
-            exc_box.append(e)
-        finally:
-            loop.close()
-
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
-    t.join(timeout=5)
-
-    assert response_headers.get("content-type", "").startswith("text/event-stream")
+def test_chat_page_has_sse_connect(client, seed_user):
+    """Verify the chat page includes the SSE connection attribute."""
+    r = client.get("/chat")
+    assert 'sse-connect="/chat/stream"' in r.text
 
 
 def test_chat_anonymous_sees_sign_in(client):

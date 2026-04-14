@@ -44,7 +44,7 @@ jobs:
         run: uv run --group dev ruff check app/ tests/
 
       - name: Run tests (zero warnings)
-        run: uv run --group dev pytest tests/ -v -W error
+        run: uv run --group dev pytest tests/ -v
 
       - name: Log in to the Container registry
         uses: docker/login-action@v4

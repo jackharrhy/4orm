@@ -17,13 +17,20 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
-    from sqlalchemy import create_engine
-
-    connectable = create_engine(DATABASE_URL)
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+    # Support passing a connection via config attributes (for tests)
+    connectable = config.attributes.get("connection")
+    if connectable is not None:
+        context.configure(connection=connectable, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
+    else:
+        from sqlalchemy import create_engine
+
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as connection:
+            context.configure(connection=connection, target_metadata=target_metadata)
+            with context.begin_transaction():
+                context.run_migrations()
 
 
 if context.is_offline_mode():
