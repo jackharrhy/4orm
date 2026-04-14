@@ -25,22 +25,20 @@
             <form
               method="post"
               action="/admin/users/{{ u.id }}/rename"
-              class="inline"
+              class="stack"
+              style="gap: 4px"
               hx-post="/admin/users/{{ u.id }}/rename"
               hx-target="#user-row-{{ u.id }}"
               hx-swap="outerHTML"
             >
-              <input
-                name="new_username"
-                value="{{ u.username }}"
-                style="width: 100px"
-                required
-              />
-              <input
-                name="new_display_name"
-                value="{{ u.display_name }}"
-                style="width: 100px"
-              />
+              <label
+                >username
+                <input name="new_username" value="{{ u.username }}" required
+              /></label>
+              <label
+                >display name
+                <input name="new_display_name" value="{{ u.display_name }}"
+              /></label>
               <button type="submit" class="btn-sm">save</button>
             </form>
           </fieldset>

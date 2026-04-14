@@ -388,15 +388,11 @@ details.panel[open] > summary > h2::before {
   display: none;
 }
 .admin-actions-panel {
-  position: absolute;
-  right: 0;
-  z-index: 10;
   background: #fff;
   border: 2px solid #000;
-  padding: 8px;
+  padding: 10px;
   margin-top: 4px;
-  min-width: 280px;
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+  min-width: 360px;
 }
 .admin-actions-panel fieldset {
   border: 1px solid #ddd;
