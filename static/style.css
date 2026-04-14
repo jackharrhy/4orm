@@ -500,6 +500,14 @@ details.panel[open] > summary > h2::before {
   content: ": ";
   color: #999;
 }
+#chat-presence {
+  padding: 4px 8px;
+  font-size: 11px;
+  border-bottom: 1px solid #ddd;
+}
+.chat-present {
+  margin-right: 8px;
+}
 .chat-input {
   display: flex;
   gap: 0.5rem;

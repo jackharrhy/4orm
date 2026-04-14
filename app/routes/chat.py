@@ -1,6 +1,7 @@
 """Chatroom routes: page, SSE stream, post message."""
 
 import asyncio
+import contextlib
 import time
 from datetime import UTC, datetime
 from html import escape
@@ -22,6 +23,8 @@ _FLOOD_MAX = 20  # max messages in window
 _FLOOD_TIMEOUT = 60  # seconds to time out
 _post_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
 _timed_out_until: dict[int, float] = {}  # user_id -> monotonic time
+_presence: dict[int, str] = {}  # user_id -> username (currently connected)
+_PRESENCE_INTERVAL = 10  # seconds between presence broadcasts
 
 
 def _inject_system_message(text: str) -> None:
@@ -84,24 +87,53 @@ def chat_page(request: Request):
     )
 
 
+def _render_presence_html() -> str:
+    """Render the presence indicator as HTML."""
+    if not _presence:
+        return '<span class="muted">nobody here</span>'
+    users = sorted(_presence.values())
+    parts = [f'<span class="chat-present">🟢 {escape(u)}</span>' for u in users]
+    return " ".join(parts)
+
+
 @router.get("/chat/stream")
 async def chat_stream(request: Request):
-    """SSE endpoint that pushes new chat messages."""
+    """SSE endpoint that pushes new chat messages and presence updates."""
+    me = current_user(request)
+    uid = me["id"] if me else None
+    if uid:
+        _presence[uid] = me["username"]
+
     last_seen = len(_chat_buffer)
+    last_presence = 0.0
 
     async def event_generator():
-        nonlocal last_seen
-        while True:
-            _chat_event.clear()
-            while len(_chat_buffer) > last_seen:
-                msg = _chat_buffer[last_seen]
-                html = _render_message_html(msg, 0, 1)
-                yield f"event: message\ndata: {html}\n\n"
-                last_seen += 1
-            try:
-                await asyncio.wait_for(_chat_event.wait(), timeout=30)
-            except TimeoutError:
-                yield ": keepalive\n\n"
+        nonlocal last_seen, last_presence
+        try:
+            # Send initial presence
+            yield f"event: presence\ndata: {_render_presence_html()}\n\n"
+            last_presence = time.monotonic()
+
+            while True:
+                _chat_event.clear()
+                while len(_chat_buffer) > last_seen:
+                    msg = _chat_buffer[last_seen]
+                    html = _render_message_html(msg, 0, 1)
+                    yield f"event: message\ndata: {html}\n\n"
+                    last_seen += 1
+
+                now = time.monotonic()
+                if now - last_presence >= _PRESENCE_INTERVAL:
+                    yield f"event: presence\ndata: {_render_presence_html()}\n\n"
+                    last_presence = now
+
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(
+                        _chat_event.wait(), timeout=_PRESENCE_INTERVAL
+                    )
+        finally:
+            if uid and uid in _presence:
+                del _presence[uid]
 
     return StreamingResponse(
         event_generator(),

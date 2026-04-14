@@ -2,6 +2,7 @@
 {% block title %}4orm · chat{% endblock %}
 {% block content %}
   <div class="chat-room" hx-ext="sse" sse-connect="/chat/stream">
+    <div id="chat-presence" sse-swap="presence" hx-swap="innerHTML"></div>
     <div
       id="chat-messages"
       sse-swap="message"
