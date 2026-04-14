@@ -103,7 +103,9 @@ def test_forgot_password_rejects_invalid_token(client):
 
 def test_forgot_password_resets_password(client, authed_client, test_engine, seed_user):
     with test_engine.begin() as conn:
-        conn.execute(update(users).where(users.c.id == seed_user["id"]).values(is_admin=True))
+        conn.execute(
+            update(users).where(users.c.id == seed_user["id"]).values(is_admin=True)
+        )
 
     r = authed_client.post(
         f"/admin/users/{seed_user['id']}/password-reset-link",
@@ -115,22 +117,42 @@ def test_forgot_password_resets_password(client, authed_client, test_engine, see
 
     r2 = client.post(
         "/login/forgot-password",
-        data={"token": token, "password": "newpass123", "password_confirm": "newpass123"},
+        data={
+            "token": token,
+            "password": "newpass123",
+            "password_confirm": "newpass123",
+        },
         follow_redirects=False,
     )
     assert r2.status_code == 303
     assert "/login?success=" in r2.headers["location"]
 
     with test_engine.begin() as conn:
-        user = conn.execute(select(users).where(users.c.id == seed_user["id"])).mappings().first()
+        user = (
+            conn.execute(select(users).where(users.c.id == seed_user["id"]))
+            .mappings()
+            .first()
+        )
         assert verify_password("newpass123", user["password_hash"])
-        row = conn.execute(select(password_reset_tokens).where(password_reset_tokens.c.user_id == seed_user["id"])).mappings().first()
+        row = (
+            conn.execute(
+                select(password_reset_tokens).where(
+                    password_reset_tokens.c.user_id == seed_user["id"]
+                )
+            )
+            .mappings()
+            .first()
+        )
         assert row["used_at"] is not None
 
 
-def test_forgot_password_requires_matching_confirmation(client, authed_client, test_engine, seed_user):
+def test_forgot_password_requires_matching_confirmation(
+    client, authed_client, test_engine, seed_user
+):
     with test_engine.begin() as conn:
-        conn.execute(update(users).where(users.c.id == seed_user["id"]).values(is_admin=True))
+        conn.execute(
+            update(users).where(users.c.id == seed_user["id"]).values(is_admin=True)
+        )
 
     r = authed_client.post(
         f"/admin/users/{seed_user['id']}/password-reset-link",
