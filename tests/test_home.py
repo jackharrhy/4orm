@@ -32,3 +32,22 @@ def test_home_card_links_to_profile(client, seed_user):
     r = client.get("/")
     assert r.status_code == 200
     assert "/u/testuser" in r.text
+
+
+def test_home_forum_preview_unescapes_html_entities(authed_client, seed_user):
+    r = authed_client.post(
+        "/forum/new",
+        data={
+            "title": "encoding test",
+            "content": "Something that doesn't taste like before",
+            "content_format": "bbcode",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    home = authed_client.get("/")
+    assert home.status_code == 200
+    assert "Something that" in home.text
+    assert "taste like before" in home.text
+    assert "doesn&amp;#39;t" not in home.text
