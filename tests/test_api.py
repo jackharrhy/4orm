@@ -1,15 +1,15 @@
 """Tests for JSON API content negotiation.
 
 Every non-admin GET and POST route should return JSON when the request
-includes ``Accept: application/json``.  The CSRFTestClient does NOT add
-this header automatically, so each call must include it explicitly.
+includes ``Accept: application/json``.  This header must be included
+explicitly in each call.
 """
 
 _JSON = {"Accept": "application/json"}
 
 
 def _json_headers():
-    """Fresh copy so _inject_csrf never mutates the shared dict."""
+    """Fresh copy so callers can't mutate the shared dict."""
     return dict(_JSON)
 
 
