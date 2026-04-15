@@ -37,12 +37,10 @@ function stopFlashing(): void {
 }
 
 function sendPresence(active: boolean): void {
-  const csrf = document.body.dataset.csrfToken || "";
   fetch("/chat/presence", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-CSRF-Token": csrf,
     },
     body: JSON.stringify({ active }),
   }).catch(() => {});

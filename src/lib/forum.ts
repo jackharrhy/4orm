@@ -1,5 +1,3 @@
-import { getCsrfToken } from "./csrf";
-
 declare global {
   interface Window {
     previewPost: (textareaId: string) => void;
@@ -24,7 +22,6 @@ export function previewPost(textareaId: string): void {
   fd.append("content_format", fmt);
   fetch("/forum/preview", {
     method: "POST",
-    headers: { "X-CSRF-Token": getCsrfToken() },
     body: fd,
   })
     .then((r) => r.text())

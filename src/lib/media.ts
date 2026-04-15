@@ -1,5 +1,3 @@
-import { getCsrfToken } from "./csrf";
-
 declare global {
   interface Window {
     _mediaFormat: Record<string, string>;
@@ -28,7 +26,6 @@ export function quickUploadMedia(textareaId: string, fmt: string): void {
 
   fetch("/api/media/quick-upload", {
     method: "POST",
-    headers: { "X-CSRF-Token": getCsrfToken() },
     body: formData,
   })
     .then((resp) => {

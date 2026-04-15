@@ -26,10 +26,7 @@ function getDeviceName(): string {
   return "unknown";
 }
 
-function sendSubscription(
-  sub: PushSubscription,
-  csrfToken: string,
-): Promise<void> {
+function sendSubscription(sub: PushSubscription): Promise<void> {
   const payload = sub.toJSON() as Record<string, unknown>;
   payload.device_id = getDeviceId();
   payload.device_name = getDeviceName();
@@ -37,7 +34,6 @@ function sendSubscription(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-CSRF-Token": csrfToken,
     },
     body: JSON.stringify(payload),
   }).then(() => {});
@@ -47,7 +43,6 @@ export function initPushSubscription(): void {
   if (!("serviceWorker" in navigator)) return;
 
   const vapidKey = document.body.dataset.vapidKey || "";
-  const csrfToken = document.body.dataset.csrfToken || "";
   const isLoggedIn = document.body.dataset.loggedIn === "true";
 
   navigator.serviceWorker.register("/sw.js").then((reg) => {
@@ -56,7 +51,7 @@ export function initPushSubscription(): void {
     reg.pushManager.getSubscription().then((existing) => {
       if (existing) {
         // Already subscribed -- re-send to ensure server has it
-        sendSubscription(existing, csrfToken);
+        sendSubscription(existing);
         return;
       }
 
@@ -66,7 +61,7 @@ export function initPushSubscription(): void {
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(vapidKey),
           })
-          .then((newSub) => sendSubscription(newSub, csrfToken));
+          .then((newSub) => sendSubscription(newSub));
       } else if (Notification.permission === "default") {
         Notification.requestPermission().then((perm) => {
           if (perm !== "granted") return;
@@ -75,7 +70,7 @@ export function initPushSubscription(): void {
               userVisibleOnly: true,
               applicationServerKey: urlBase64ToUint8Array(vapidKey),
             })
-            .then((newSub) => sendSubscription(newSub, csrfToken));
+            .then((newSub) => sendSubscription(newSub));
         });
       }
     });
