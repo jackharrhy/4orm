@@ -233,12 +233,8 @@ def preview_text(html: str, length: int = 200) -> str:
     s = re.sub(r"<br\s*/?>", "\n", s)
     s = re.sub(r"</p>\s*<p[^>]*>", "\n\n", s)
     s = re.sub(r"<[^>]+>", "", s)
-    # Handle content that may already be escaped once or twice.
-    for _ in range(3):
-        unescaped = unescape(s)
-        if unescaped == s:
-            break
-        s = unescaped
+    # Avoid visible entities like &#39; when template escaping runs.
+    s = unescape(s)
     s = re.sub(r"\n{3,}", "\n\n", s)
     s = s.strip()
     if len(s) > length:
