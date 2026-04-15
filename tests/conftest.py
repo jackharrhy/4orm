@@ -1,4 +1,3 @@
-import re
 from contextlib import asynccontextmanager
 
 import pytest
@@ -14,49 +13,6 @@ from app.security import hash_password
 @asynccontextmanager
 async def _noop_lifespan(application):
     yield
-
-
-class CSRFTestClient:
-    """Wrapper around TestClient that auto-includes the CSRF token header."""
-
-    def __init__(self, client: TestClient):
-        self._client = client
-        self._csrf_token = None
-
-    def _ensure_token(self):
-        if self._csrf_token is None:
-            r = self._client.get("/login")
-            match = re.search(r'X-CSRF-Token["\s:]+([^"}\s]+)', r.text)
-            if match:
-                self._csrf_token = match.group(1)
-
-    def _inject_csrf(self, kwargs):
-        self._ensure_token()
-        if self._csrf_token:
-            headers = kwargs.get("headers", {})
-            if "X-CSRF-Token" not in headers:
-                headers["X-CSRF-Token"] = self._csrf_token
-                kwargs["headers"] = headers
-        return kwargs
-
-    def get(self, *args, **kwargs):
-        return self._client.get(*args, **kwargs)
-
-    def post(self, *args, **kwargs):
-        kwargs = self._inject_csrf(kwargs)
-        return self._client.post(*args, **kwargs)
-
-    def put(self, *args, **kwargs):
-        kwargs = self._inject_csrf(kwargs)
-        return self._client.put(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        kwargs = self._inject_csrf(kwargs)
-        return self._client.delete(*args, **kwargs)
-
-    def patch(self, *args, **kwargs):
-        kwargs = self._inject_csrf(kwargs)
-        return self._client.patch(*args, **kwargs)
 
 
 @pytest.fixture()
@@ -81,11 +37,7 @@ def test_engine():
 
 @pytest.fixture()
 def client(test_engine):
-    """TestClient with the app's engine swapped to the test database.
-
-    Returns a CSRFTestClient that auto-includes the CSRF token header
-    on all state-changing requests (POST, PUT, DELETE, PATCH).
-    """
+    """TestClient with the app's engine swapped to the test database."""
     original_engine = app.state.engine
     original_lifespan = app.router.lifespan_context
 
@@ -94,7 +46,7 @@ def client(test_engine):
     app.router.lifespan_context = _noop_lifespan
 
     with TestClient(app, raise_server_exceptions=True) as c:
-        yield CSRFTestClient(c)
+        yield c
 
     app.router.lifespan_context = original_lifespan
     app.state.engine = original_engine
@@ -139,7 +91,7 @@ def raw_client(test_engine):
 
 @pytest.fixture()
 def authed_client(client, seed_user):
-    """A CSRFTestClient that is logged in as the seed user."""
+    """A TestClient that is logged in as the seed user."""
     client.post(
         "/login",
         data={"username": seed_user["username"], "password": seed_user["password"]},
