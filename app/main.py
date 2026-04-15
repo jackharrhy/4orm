@@ -3,6 +3,7 @@ import os
 import random as _random
 import time as _time
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
 from fastapi.responses import (
@@ -90,10 +91,21 @@ async def lifespan(application: FastAPI):
 
 
 _CSRF_EXEMPT_PATHS = {"/login"}
+_TRUSTED_ORIGINS: set[str] = set()  # add full origins like "https://example.com"
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
-    """Reject state-changing requests that lack a valid CSRF token."""
+    """Reject cross-origin non-safe requests using Sec-Fetch-Site / Origin.
+
+    Algorithm from https://words.filippo.io/csrf/ and Go 1.25 CrossOriginProtection:
+    1. Allow safe methods (GET, HEAD, OPTIONS).
+    2. Allow exempt paths (login, feeds).
+    3. Allow trusted origins from the allowlist.
+    4. If Sec-Fetch-Site is present: allow same-origin/none, reject everything else.
+    5. If neither Sec-Fetch-Site nor Origin is present: allow (not a browser).
+    6. If Origin host == Host header: allow (old browser / HTTP origin fallback).
+    7. Reject.
+    """
 
     async def dispatch(self, request: Request, call_next):
         if request.method in ("GET", "HEAD", "OPTIONS"):
@@ -103,15 +115,34 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if path in _CSRF_EXEMPT_PATHS or path.endswith("/feed.xml"):
             return await call_next(request)
 
-        session_token = request.session.get("csrf_token")
-        if not session_token:
-            return PlainTextResponse("CSRF token missing", status_code=403)
+        origin = request.headers.get("origin")
+        sec_fetch_site = request.headers.get("sec-fetch-site")
 
-        # Check header first (htmx / fetch)
-        if request.headers.get("X-CSRF-Token") == session_token:
+        # Step 2: trusted origin allowlist
+        if origin and origin in _TRUSTED_ORIGINS:
             return await call_next(request)
 
-        return PlainTextResponse("CSRF token mismatch", status_code=403)
+        # Step 3: Sec-Fetch-Site (reliable in all major browsers since 2023)
+        if sec_fetch_site is not None:
+            if sec_fetch_site in ("same-origin", "none"):
+                return await call_next(request)
+            return PlainTextResponse(
+                "Forbidden: cross-origin request rejected", status_code=403
+            )
+
+        # Step 4: no browser headers at all — not a browser, allow
+        if origin is None:
+            return await call_next(request)
+
+        # Step 5: Origin vs Host fallback (old browsers, HTTP origins)
+        origin_host = urlparse(origin).netloc  # includes port if non-default
+        host = request.headers.get("host", "")
+        if origin_host == host:
+            return await call_next(request)
+
+        return PlainTextResponse(
+            "Forbidden: origin does not match host", status_code=403
+        )
 
 
 def _custom_operation_id(route: APIRoute) -> str:
