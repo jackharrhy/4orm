@@ -8,7 +8,6 @@ import hashlib
 import logging
 import os
 import re
-import secrets
 import sys
 from datetime import UTC, datetime
 from email.utils import format_datetime
@@ -74,34 +73,11 @@ VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_EMAIL = os.environ.get("VAPID_EMAIL", "mailto:me@jackharrhy.dev")
 
 # ---------------------------------------------------------------------------
-# CSRF helpers
-# ---------------------------------------------------------------------------
-
-
-def ensure_csrf_token(request: Request) -> str:
-    """Get or create a CSRF token stored in the session."""
-    try:
-        session = request.session
-    except AssertionError:
-        return ""
-    if "csrf_token" not in session:
-        session["csrf_token"] = secrets.token_urlsafe(32)
-    return session["csrf_token"]
-
-
-# ---------------------------------------------------------------------------
 # Templates
 # ---------------------------------------------------------------------------
 
-
-def _csrf_context_processor(request: Request) -> dict:
-    """Inject csrf_token into every template context."""
-    return {"csrf_token": ensure_csrf_token(request)}
-
-
 templates = Jinja2Templates(
     directory=str(BASE_DIR / "templates"),
-    context_processors=[_csrf_context_processor],
 )
 
 
