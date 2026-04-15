@@ -1,6 +1,4 @@
-"""Tests that verify CSRF protection is working."""
-
-import re
+"""Tests that verify CSRF protection works with the Sec-Fetch-Site / Origin algorithm."""
 
 import pytest
 
@@ -14,101 +12,106 @@ def csrf_seed_user(test_engine):
     return {"id": uid, "username": "csrfuser", "password": "csrfpass"}
 
 
-def _extract_csrf_token(html: str) -> str:
-    match = re.search(r'X-CSRF-Token["\s:]+([^"}\s]+)', html)
-    return match.group(1) if match else ""
-
-
 def _login(client, user):
-    """Log in and return the CSRF token from the session."""
     client.post(
-        "/login",
-        data={"username": user["username"], "password": user["password"]},
+        "/login", data={"username": user["username"], "password": user["password"]}
     )
-    r = client.get("/settings")
-    return _extract_csrf_token(r.text)
 
 
-class TestCSRFBlocks:
-    """POST without a valid CSRF token should be rejected."""
+class TestCSRFBlocksCrossOrigin:
+    """Cross-origin browser requests (with Origin header from a different host) must be rejected."""
 
-    def test_post_without_token_returns_403(self, raw_client, csrf_seed_user):
+    def test_cross_origin_post_returns_403(self, raw_client, csrf_seed_user):
         _login(raw_client, csrf_seed_user)
         r = raw_client.post(
             "/settings/profile",
             data={"display_name": "hacked"},
+            headers={"Origin": "https://evil.example.com"},
         )
         assert r.status_code == 403
 
-    def test_post_with_wrong_header_returns_403(self, raw_client, csrf_seed_user):
+    def test_sec_fetch_site_cross_site_returns_403(self, raw_client, csrf_seed_user):
         _login(raw_client, csrf_seed_user)
         r = raw_client.post(
             "/settings/profile",
             data={"display_name": "hacked"},
-            headers={"X-CSRF-Token": "wrong-token"},
+            headers={"Sec-Fetch-Site": "cross-site"},
         )
         assert r.status_code == 403
 
-    def test_no_session_returns_403(self, raw_client):
-        """A POST with no session at all should be rejected."""
+    def test_sec_fetch_site_same_site_returns_403(self, raw_client, csrf_seed_user):
+        """same-site (but not same-origin) is also rejected — different origin same eTLD+1."""
+        _login(raw_client, csrf_seed_user)
         r = raw_client.post(
             "/settings/profile",
             data={"display_name": "hacked"},
+            headers={"Sec-Fetch-Site": "same-site"},
         )
         assert r.status_code == 403
 
 
-class TestCSRFAllows:
-    """POST with a valid CSRF token header should succeed."""
+class TestCSRFAllowsSameOrigin:
+    """Requests that pass the algorithm must be allowed."""
 
-    def test_header_token_allows_post(self, raw_client, csrf_seed_user):
-        token = _login(raw_client, csrf_seed_user)
+    def test_no_browser_headers_allows_post(self, raw_client, csrf_seed_user):
+        """Non-browser clients (curl, server-to-server) with no Origin header are allowed."""
+        _login(raw_client, csrf_seed_user)
         r = raw_client.post(
             "/settings/profile",
             data={"display_name": "Legit", "content": "hi"},
-            headers={"X-CSRF-Token": token},
+            # No Origin, no Sec-Fetch-Site — simulates curl / API client
+        )
+        assert r.status_code in (200, 303)
+
+    def test_sec_fetch_site_same_origin_allows_post(self, raw_client, csrf_seed_user):
+        _login(raw_client, csrf_seed_user)
+        r = raw_client.post(
+            "/settings/profile",
+            data={"display_name": "Legit", "content": "hi"},
+            headers={"Sec-Fetch-Site": "same-origin"},
+        )
+        assert r.status_code in (200, 303)
+
+    def test_sec_fetch_site_none_allows_post(self, raw_client, csrf_seed_user):
+        """Sec-Fetch-Site: none means direct navigation (bookmark, etc.) — allow."""
+        _login(raw_client, csrf_seed_user)
+        r = raw_client.post(
+            "/settings/profile",
+            data={"display_name": "Legit", "content": "hi"},
+            headers={"Sec-Fetch-Site": "none"},
+        )
+        assert r.status_code in (200, 303)
+
+    def test_matching_origin_host_allows_post(self, raw_client, csrf_seed_user):
+        """Origin host matching Host header passes the fallback check."""
+        _login(raw_client, csrf_seed_user)
+        # TestClient sends Host: testserver by default
+        r = raw_client.post(
+            "/settings/profile",
+            data={"display_name": "Legit", "content": "hi"},
+            headers={"Origin": "http://testserver"},
         )
         assert r.status_code in (200, 303)
 
 
 class TestCSRFExemptPaths:
-    """Login is exempt from CSRF checks."""
+    """Exempt paths bypass CSRF checks entirely."""
 
-    def test_login_exempt(self, raw_client, csrf_seed_user):
+    def test_login_exempt_from_csrf(self, raw_client, csrf_seed_user):
         r = raw_client.post(
             "/login",
             data={
                 "username": csrf_seed_user["username"],
                 "password": csrf_seed_user["password"],
             },
+            headers={"Origin": "https://evil.example.com"},  # would normally block
         )
         assert r.status_code != 403
 
-    def test_register_requires_csrf(self, raw_client):
+    def test_register_is_not_exempt(self, raw_client):
         r = raw_client.post(
             "/register",
-            data={
-                "invite_code": "nonexistent",
-                "username": "newuser",
-                "password": "pass123",
-            },
+            data={"invite_code": "x", "username": "u", "password": "p"},
+            headers={"Origin": "https://evil.example.com"},
         )
         assert r.status_code == 403
-
-
-class TestCSRFTokenInTemplates:
-    """Verify that rendered pages include CSRF tokens."""
-
-    def test_login_page_has_csrf_token(self, raw_client):
-        r = raw_client.get("/login")
-        assert "X-CSRF-Token" in r.text
-
-    def test_settings_page_has_csrf_token(self, raw_client, csrf_seed_user):
-        _login(raw_client, csrf_seed_user)
-        r = raw_client.get("/settings")
-        assert "X-CSRF-Token" in r.text
-
-    def test_base_template_has_hx_headers(self, raw_client, csrf_seed_user):
-        _login(raw_client, csrf_seed_user)
-        r = raw_client.get("/settings")
-        assert "hx-headers" in r.text
