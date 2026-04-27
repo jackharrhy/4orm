@@ -1,6 +1,6 @@
 """Authentication routes: login, register, logout."""
 
-from urllib.parse import quote, urlparse
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -86,25 +86,31 @@ def register_post(
     return RedirectResponse(url="/trust-agreement", status_code=303)
 
 
-def _safe_next_url(url: str | None) -> str:
-    """Only allow local (path-only) redirects to prevent open redirect."""
-    if not url:
-        return ""
-    parsed = urlparse(url)
-    if parsed.scheme or parsed.netloc:
-        return ""
-    return url
+def _pop_oauth_redirect(request: Request) -> str | None:
+    """If login was triggered by an OAuth flow, reconstruct the authorize URL.
+
+    The per-request params (state, code_challenge, etc.) are stashed in the
+    session by ``/oauth/authorize``; the ``?next=oauth`` query param tells us
+    to look for them.
+    """
+    oauth_params = request.session.pop("oauth_params", None)
+    if not oauth_params:
+        return None
+    return f"/oauth/authorize?{urlencode(oauth_params)}"
 
 
 @router.get("/login", response_class=HTMLResponse, summary="Login page")
 def login_get(request: Request):
+    next_kind = request.query_params.get("next", "")
+    client_id = request.query_params.get("client_id", "")
     return templates.TemplateResponse(
         request,
         "login.html",
         {
             "error": None,
             "success": request.query_params.get("success"),
-            "next": _safe_next_url(request.query_params.get("next")),
+            "next": next_kind,
+            "client_id": client_id,
         },
     )
 
@@ -115,8 +121,8 @@ def login_post(
     username: str = Form(...),
     password: str = Form(...),
     next: str = Form(""),
+    client_id: str = Form(""),
 ):
-    next_url = _safe_next_url(next)
     with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username.strip())
     if not user or not verify_password(password, user["password_hash"]):
@@ -127,7 +133,7 @@ def login_post(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "invalid credentials", "next": next_url},
+            {"error": "invalid credentials", "next": next, "client_id": client_id},
             status_code=400,
         )
     if user.get("is_disabled"):
@@ -139,11 +145,18 @@ def login_post(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "this account has been disabled", "next": next_url},
+            {"error": "this account has been disabled", "next": next, "client_id": client_id},
             status_code=403,
         )
     request.session["user_id"] = user["id"]
-    redirect_to = next_url or f"/u/{user['username']}"
+
+    # Check for a pending OAuth flow
+    redirect_to = None
+    if next == "oauth":
+        redirect_to = _pop_oauth_redirect(request)
+    if not redirect_to:
+        redirect_to = f"/u/{user['username']}"
+
     if wants_json(request):
         return json_response(
             AuthResponse(

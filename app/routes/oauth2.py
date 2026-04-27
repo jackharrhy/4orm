@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import time
 import warnings
-from urllib.parse import quote
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -49,10 +49,12 @@ def _get_server(request: Request):
 def authorize_get(request: Request):
     me = current_user(request)
     if not me:
-        # Preserve the full authorize URL so login can redirect back
-        next_url = str(request.url.include_query_params())
+        # Stash the per-request OAuth params in the session, keep the URL short
+        params = dict(request.query_params)
+        client_id = params.get("client_id", "")
+        request.session["oauth_params"] = params
         return RedirectResponse(
-            url=f"/login?next={quote(next_url, safe='')}", status_code=303
+            url=f"/login?next=oauth&client_id={client_id}", status_code=303
         )
 
     params = request.query_params
