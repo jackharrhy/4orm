@@ -2,10 +2,16 @@
 {% block title %}login{% endblock %}
 {% block content %}
   <h1>login</h1>
+  {% if next == "oauth" and client_id %}
+    <p>log in to authorize <strong>{{ client_id }}</strong></p>
+  {% endif %}
   {% if success %}<p class="ok">{{ success }}</p>{% endif %}
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
   <form method="post" class="stack">
-    {% if next %}<input type="hidden" name="next" value="{{ next }}" />{% endif %}
+    {% if next %}
+      <input type="hidden" name="next" value="{{ next }}" />
+      <input type="hidden" name="client_id" value="{{ client_id }}" />
+    {% endif %}
     <label>
       username
       <input name="username" required />
