@@ -1,5 +1,7 @@
 """Authentication routes: login, register, logout."""
 
+from urllib.parse import quote, urlparse
+
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import update
@@ -84,17 +86,37 @@ def register_post(
     return RedirectResponse(url="/trust-agreement", status_code=303)
 
 
+def _safe_next_url(url: str | None) -> str:
+    """Only allow local (path-only) redirects to prevent open redirect."""
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    if parsed.scheme or parsed.netloc:
+        return ""
+    return url
+
+
 @router.get("/login", response_class=HTMLResponse, summary="Login page")
 def login_get(request: Request):
     return templates.TemplateResponse(
         request,
         "login.html",
-        {"error": None, "success": request.query_params.get("success")},
+        {
+            "error": None,
+            "success": request.query_params.get("success"),
+            "next": _safe_next_url(request.query_params.get("next")),
+        },
     )
 
 
 @router.post("/login", response_class=HTMLResponse, summary="Authenticate user")
-def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
+def login_post(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    next: str = Form(""),
+):
+    next_url = _safe_next_url(next)
     with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username.strip())
     if not user or not verify_password(password, user["password_hash"]):
@@ -105,7 +127,7 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "invalid credentials"},
+            {"error": "invalid credentials", "next": next_url},
             status_code=400,
         )
     if user.get("is_disabled"):
@@ -117,19 +139,20 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "this account has been disabled"},
+            {"error": "this account has been disabled", "next": next_url},
             status_code=403,
         )
     request.session["user_id"] = user["id"]
+    redirect_to = next_url or f"/u/{user['username']}"
     if wants_json(request):
         return json_response(
             AuthResponse(
                 username=user["username"],
                 display_name=user["display_name"],
-                redirect=f"/u/{user['username']}",
+                redirect=redirect_to,
             )
         )
-    return RedirectResponse(url=f"/u/{user['username']}", status_code=303)
+    return RedirectResponse(url=redirect_to, status_code=303)
 
 
 @router.get(
