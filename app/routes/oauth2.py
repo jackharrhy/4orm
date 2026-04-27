@@ -103,6 +103,15 @@ async def authorize_post(request: Request):
         uri = add_params_to_uri(redirect_uri, params)
         return RedirectResponse(url=uri, status_code=302)
 
+    # PKCE is required – reject early if code_challenge is missing
+    code_challenge = form.get("code_challenge")
+    if not code_challenge:
+        params = [("error", "invalid_request"), ("error_description", "Missing code_challenge")]
+        if state:
+            params.append(("state", state))
+        uri = add_params_to_uri(redirect_uri, params)
+        return RedirectResponse(url=uri, status_code=302)
+
     # Build the form data dict for Authlib
     form_data = {
         "response_type": form.get("response_type", ""),
@@ -110,8 +119,8 @@ async def authorize_post(request: Request):
         "redirect_uri": redirect_uri,
         "scope": form.get("scope", ""),
         "state": state,
-        "code_challenge": form.get("code_challenge", ""),
-        "code_challenge_method": form.get("code_challenge_method", ""),
+        "code_challenge": code_challenge,
+        "code_challenge_method": form.get("code_challenge_method", "S256"),
     }
     nonce = form.get("nonce")
     if nonce:
