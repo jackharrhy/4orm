@@ -34,3 +34,11 @@ def test_create_oauth2_client(test_engine):
     assert row is not None
     assert row["client_name"] == "artbin"
     assert row["redirect_uris"] == "https://artbin.jackharrhy.dev/auth/4orm/callback"
+
+
+def test_authorization_server_creates(test_engine):
+    """The authorization server should instantiate without error."""
+    from app.oauth2 import create_authorization_server
+
+    server = create_authorization_server(test_engine)
+    assert server is not None
