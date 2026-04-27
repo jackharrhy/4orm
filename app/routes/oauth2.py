@@ -240,6 +240,7 @@ def userinfo(request: Request):
             "sub": str(user_row["id"]),
             "username": user_row["username"],
             "display_name": user_row["display_name"],
+            "is_admin": bool(user_row["is_admin"]),
         }
     )
 
