@@ -265,3 +265,326 @@ def test_openid_configuration(client):
     assert "authorization_endpoint" in data
     assert "token_endpoint" in data
     assert "userinfo_endpoint" in data
+
+
+# ---------------------------------------------------------------------------
+# Security validation helpers
+# ---------------------------------------------------------------------------
+
+
+def _seed_client_and_user(test_engine, client_id="test-app", username="oauthuser", password="oauthpass"):
+    """Seed an OAuth2 client and user, return (user_id, client_id)."""
+    with test_engine.begin() as conn:
+        user_id = make_test_user(conn, username, password=password)
+        conn.execute(
+            insert(oauth2_clients).values(
+                client_id=client_id,
+                client_secret="",
+                client_name="Test App",
+                redirect_uris="http://localhost:3000/callback",
+                scope="openid profile",
+                grant_types="authorization_code",
+                response_types="code",
+                token_endpoint_auth_method="none",
+            )
+        )
+    return user_id, client_id
+
+
+def _get_auth_code(client, challenge, client_id="test-app", redirect_uri="http://localhost:3000/callback", scope="openid profile"):
+    """Drive through consent and return the authorization code."""
+    r = client.post(
+        "/oauth/authorize",
+        data={
+            "response_type": "code",
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": scope,
+            "state": "s",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "confirm": "yes",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303), f"Expected redirect, got {r.status_code}: {r.text}"
+    return parse_qs(urlparse(r.headers["location"]).query)["code"][0]
+
+
+# ---------------------------------------------------------------------------
+# Security validation tests
+# ---------------------------------------------------------------------------
+
+
+def test_authorize_rejects_wrong_redirect_uri(client, test_engine):
+    """Valid client but unregistered redirect_uri should be rejected."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    # Try various malicious redirect URIs -- all should be rejected with 400
+    bad_uris = [
+        "http://evil.com/callback",
+        "http://localhost:3000/callback/../evil",
+        "http://localhost:3000/callback?extra=param",
+        "//evil.com/callback",
+        "javascript:alert(1)",
+        "http://localhost:3000/CALLBACK",  # case sensitivity
+    ]
+    for uri in bad_uris:
+        r = client.get(
+            "/oauth/authorize",
+            params={
+                "response_type": "code",
+                "client_id": "test-app",
+                "redirect_uri": uri,
+                "scope": "openid profile",
+                "state": "s",
+                "code_challenge": "abc",
+                "code_challenge_method": "S256",
+            },
+            follow_redirects=False,
+        )
+        assert r.status_code == 400, f"redirect_uri '{uri}' should be rejected but got {r.status_code}"
+
+
+def test_authorize_rejects_missing_pkce(client, test_engine):
+    """Authorization request without code_challenge should be rejected (PKCE required)."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    # Try to approve consent without code_challenge
+    r = client.post(
+        "/oauth/authorize",
+        data={
+            "response_type": "code",
+            "client_id": "test-app",
+            "redirect_uri": "http://localhost:3000/callback",
+            "scope": "openid profile",
+            "state": "s",
+            # No code_challenge or code_challenge_method
+            "confirm": "yes",
+        },
+        follow_redirects=False,
+    )
+    # Should either return 400 or redirect with error
+    if r.status_code in (302, 303):
+        qs = parse_qs(urlparse(r.headers["location"]).query)
+        assert "error" in qs, "Missing PKCE should produce an error redirect"
+    else:
+        assert r.status_code == 400
+
+
+def test_token_rejects_missing_verifier(client, test_engine):
+    """Token exchange without code_verifier should fail."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    verifier, challenge = _create_pkce()
+    code = _get_auth_code(client, challenge)
+
+    r = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "http://localhost:3000/callback",
+            "client_id": "test-app",
+            # No code_verifier
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_code_cannot_be_reused(client, test_engine):
+    """An authorization code should only be usable once."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    verifier, challenge = _create_pkce()
+    code = _get_auth_code(client, challenge)
+
+    # First exchange should succeed
+    r = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "http://localhost:3000/callback",
+            "client_id": "test-app",
+            "code_verifier": verifier,
+        },
+    )
+    assert r.status_code == 200
+
+    # Second exchange with same code should fail
+    r = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "http://localhost:3000/callback",
+            "client_id": "test-app",
+            "code_verifier": verifier,
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_code_rejected_for_wrong_client(client, test_engine):
+    """A code issued to client-a cannot be exchanged by client-b."""
+    with test_engine.begin() as conn:
+        make_test_user(conn, "oauthuser", password="oauthpass")
+        conn.execute(
+            insert(oauth2_clients).values(
+                client_id="client-a",
+                client_secret="",
+                client_name="App A",
+                redirect_uris="http://localhost:3000/callback",
+                scope="openid profile",
+                grant_types="authorization_code",
+                response_types="code",
+                token_endpoint_auth_method="none",
+            )
+        )
+        conn.execute(
+            insert(oauth2_clients).values(
+                client_id="client-b",
+                client_secret="",
+                client_name="App B",
+                redirect_uris="http://localhost:4000/callback",
+                scope="openid profile",
+                grant_types="authorization_code",
+                response_types="code",
+                token_endpoint_auth_method="none",
+            )
+        )
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    verifier, challenge = _create_pkce()
+    code = _get_auth_code(client, challenge, client_id="client-a")
+
+    # Try to exchange using client-b
+    r = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "http://localhost:3000/callback",
+            "client_id": "client-b",
+            "code_verifier": verifier,
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_code_rejected_for_wrong_redirect_uri(client, test_engine):
+    """Token exchange must use the same redirect_uri as the authorize request."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    verifier, challenge = _create_pkce()
+    code = _get_auth_code(client, challenge)
+
+    r = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "http://localhost:9999/different",
+            "client_id": "test-app",
+            "code_verifier": verifier,
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_userinfo_rejects_expired_token(client, test_engine):
+    """Userinfo should reject tokens past their expiry."""
+    _seed_client_and_user(test_engine)
+
+    # Insert a token that expired in the past
+    import time
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(oauth2_tokens).values(
+                client_id="test-app",
+                user_id=1,
+                token_type="Bearer",
+                access_token="expired-token-abc",
+                scope="openid profile",
+                issued_at=int(time.time()) - 7200,  # 2 hours ago
+                expires_in=3600,  # 1 hour lifetime = expired 1 hour ago
+            )
+        )
+
+    r = client.get(
+        "/oauth/userinfo",
+        headers={"Authorization": "Bearer expired-token-abc"},
+    )
+    assert r.status_code == 401
+
+
+def test_consent_denial_redirects_with_error(client, test_engine):
+    """Clicking deny should redirect with error=access_denied."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    verifier, challenge = _create_pkce()
+    r = client.post(
+        "/oauth/authorize",
+        data={
+            "response_type": "code",
+            "client_id": "test-app",
+            "redirect_uri": "http://localhost:3000/callback",
+            "scope": "openid profile",
+            "state": "deny-test",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "confirm": "no",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303)
+    qs = parse_qs(urlparse(r.headers["location"]).query)
+    assert qs.get("error") == ["access_denied"]
+
+
+def test_userinfo_rejects_revoked_token(client, test_engine):
+    """Userinfo should reject revoked tokens."""
+    _seed_client_and_user(test_engine)
+
+    import time
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(oauth2_tokens).values(
+                client_id="test-app",
+                user_id=1,
+                token_type="Bearer",
+                access_token="revoked-token-xyz",
+                scope="openid profile",
+                issued_at=int(time.time()),
+                expires_in=3600,
+                revoked=True,
+            )
+        )
+
+    r = client.get(
+        "/oauth/userinfo",
+        headers={"Authorization": "Bearer revoked-token-xyz"},
+    )
+    assert r.status_code == 401
+
+
+def test_userinfo_rejects_missing_auth_header(client):
+    """Userinfo with no Authorization header should return 401."""
+    r = client.get("/oauth/userinfo")
+    assert r.status_code == 401
+
+
+def test_userinfo_rejects_non_bearer_auth(client):
+    """Userinfo with non-Bearer auth scheme should return 401."""
+    r = client.get(
+        "/oauth/userinfo",
+        headers={"Authorization": "Basic dXNlcjpwYXNz"},
+    )
+    assert r.status_code == 401
