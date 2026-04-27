@@ -588,3 +588,63 @@ def test_userinfo_rejects_non_bearer_auth(client):
         headers={"Authorization": "Basic dXNlcjpwYXNz"},
     )
     assert r.status_code == 401
+
+
+def test_authorize_unauthenticated_redirects_with_next(client, test_engine):
+    """GET /oauth/authorize when not logged in should redirect to /login?next=..."""
+    r = client.get(
+        "/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": "test-app",
+            "redirect_uri": "http://localhost:3000/callback",
+            "scope": "openid profile",
+            "state": "s",
+            "code_challenge": "abc",
+            "code_challenge_method": "S256",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    location = r.headers["location"]
+    assert "/login?" in location
+    assert "next=" in location
+    # The next param should contain the original authorize URL with all params
+    assert "oauth%2Fauthorize" in location or "oauth/authorize" in location
+
+
+def test_login_respects_next_param(client, test_engine):
+    """After login with a next param, user is redirected to that URL."""
+    with test_engine.begin() as conn:
+        make_test_user(conn, "nextuser", password="pass")
+
+    r = client.post(
+        "/login",
+        data={
+            "username": "nextuser",
+            "password": "pass",
+            "next": "/oauth/authorize?client_id=test&state=s",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/oauth/authorize?client_id=test&state=s"
+
+
+def test_login_next_rejects_external_urls(client, test_engine):
+    """The next param should not allow redirects to external URLs."""
+    with test_engine.begin() as conn:
+        make_test_user(conn, "safeuser", password="pass")
+
+    r = client.post(
+        "/login",
+        data={
+            "username": "safeuser",
+            "password": "pass",
+            "next": "https://evil.com/steal",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    # Should redirect to profile, not evil.com
+    assert "evil.com" not in r.headers["location"]
