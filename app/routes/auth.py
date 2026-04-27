@@ -1,11 +1,10 @@
 """Authentication routes: login, register, logout."""
 
-import time
+from urllib.parse import quote, urlparse
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import update
-from urllib.parse import urlencode
 
 from app.deps import (
     USERNAME_INVALID_MSG,
@@ -87,24 +86,14 @@ def register_post(
     return RedirectResponse(url="/trust-agreement", status_code=303)
 
 
-_OAUTH_SESSION_TTL = 600  # must match oauth2.py
-
-
-def _pop_oauth_redirect(request: Request) -> str | None:
-    """If the session has a pending OAuth authorize, pop it and return the URL.
-
-    Returns ``None`` if there's nothing pending or it's stale (>10 min).
-    """
-    pending = request.session.pop("oauth_authorize", None)
-    if not pending:
-        return None
-    ts = pending.get("ts", 0)
-    if time.time() - ts > _OAUTH_SESSION_TTL:
-        return None
-    params = pending.get("params", {})
-    if not params:
-        return None
-    return f"/oauth/authorize?{urlencode(params)}"
+def _safe_next_url(url: str | None) -> str:
+    """Only allow local (path-only) redirects to prevent open redirect."""
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    if parsed.scheme or parsed.netloc:
+        return ""
+    return url
 
 
 @router.get("/login", response_class=HTMLResponse, summary="Login page")
@@ -115,12 +104,19 @@ def login_get(request: Request):
         {
             "error": None,
             "success": request.query_params.get("success"),
+            "next": _safe_next_url(request.query_params.get("next")),
         },
     )
 
 
 @router.post("/login", response_class=HTMLResponse, summary="Authenticate user")
-def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
+def login_post(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    next: str = Form(""),
+):
+    next_url = _safe_next_url(next)
     with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username.strip())
     if not user or not verify_password(password, user["password_hash"]):
@@ -131,7 +127,7 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "invalid credentials"},
+            {"error": "invalid credentials", "next": next_url},
             status_code=400,
         )
     if user.get("is_disabled"):
@@ -143,13 +139,11 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "this account has been disabled"},
+            {"error": "this account has been disabled", "next": next_url},
             status_code=403,
         )
     request.session["user_id"] = user["id"]
-    # Check for a pending OAuth flow stashed before the login redirect
-    oauth_redirect = _pop_oauth_redirect(request)
-    redirect_to = oauth_redirect or f"/u/{user['username']}"
+    redirect_to = next_url or f"/u/{user['username']}"
     if wants_json(request):
         return json_response(
             AuthResponse(
