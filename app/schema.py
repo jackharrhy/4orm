@@ -293,6 +293,65 @@ profile_cards = Table(
     ),
 )
 
+oauth2_clients = Table(
+    "oauth2_clients",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("client_id", String(48), nullable=False, unique=True),
+    Column("client_secret", String(120), nullable=False, server_default=""),
+    Column("client_name", String(120), nullable=False),
+    Column("redirect_uris", Text, nullable=False, server_default=""),
+    Column("scope", Text, nullable=False, server_default=""),
+    Column("grant_types", Text, nullable=False, server_default="authorization_code"),
+    Column("response_types", Text, nullable=False, server_default="code"),
+    Column("token_endpoint_auth_method", String(48), nullable=False, server_default="client_secret_basic"),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
+oauth2_authorization_codes = Table(
+    "oauth2_authorization_codes",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("code", String(120), nullable=False, unique=True),
+    Column("client_id", String(48), nullable=False),
+    Column(
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("redirect_uri", Text, nullable=False, server_default=""),
+    Column("scope", Text, nullable=False, server_default=""),
+    Column("nonce", String(120)),
+    Column("code_challenge", Text),
+    Column("code_challenge_method", String(10)),
+    Column(
+        "expires_at", DateTime(timezone=True), nullable=False
+    ),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
+oauth2_tokens = Table(
+    "oauth2_tokens",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("client_id", String(48), nullable=False),
+    Column(
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("token_type", String(40), nullable=False, server_default="bearer"),
+    Column("access_token", String(255), nullable=False, unique=True),
+    Column("refresh_token", String(255), unique=True),
+    Column("scope", Text, nullable=False, server_default=""),
+    Column("issued_at", Integer, nullable=False),
+    Column("expires_in", Integer, nullable=False, server_default="3600"),
+    Column("revoked", Boolean, nullable=False, server_default="0"),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
 
 def create_all(engine):
     metadata.create_all(engine)
