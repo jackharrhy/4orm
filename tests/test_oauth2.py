@@ -590,8 +590,54 @@ def test_userinfo_rejects_non_bearer_auth(client):
     assert r.status_code == 401
 
 
-def test_authorize_unauthenticated_redirects_with_next(client, test_engine):
-    """GET /oauth/authorize when not logged in should redirect to /login?next=..."""
+def test_authorize_unauthenticated_stashes_and_resumes(client, test_engine):
+    """Full flow: unauthenticated authorize -> login -> consent screen."""
+    _seed_client_and_user(test_engine)
+
+    # 1. Hit authorize without being logged in
+    verifier, challenge = _create_pkce()
+    r = client.get(
+        "/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": "test-app",
+            "redirect_uri": "http://localhost:3000/callback",
+            "scope": "openid profile",
+            "state": "resume-test",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/login"
+
+    # 2. Log in -- should redirect to the authorize URL, not the profile
+    r = client.post(
+        "/login",
+        data={"username": "oauthuser", "password": "oauthpass"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    location = r.headers["location"]
+    assert "/oauth/authorize?" in location
+    assert "client_id=test-app" in location
+    assert "state=resume-test" in location
+
+    # 3. Follow the redirect -- should show consent page
+    r = client.get(location, follow_redirects=False)
+    assert r.status_code == 200
+    assert "Test App" in r.text
+
+
+def test_stale_oauth_session_is_ignored(client, test_engine):
+    """A pending OAuth flow older than 10 minutes is discarded."""
+    import time as _time
+    from unittest.mock import patch
+
+    _seed_client_and_user(test_engine)
+
+    # Stash an OAuth flow
     r = client.get(
         "/oauth/authorize",
         params={
@@ -606,45 +652,15 @@ def test_authorize_unauthenticated_redirects_with_next(client, test_engine):
         follow_redirects=False,
     )
     assert r.status_code == 303
-    location = r.headers["location"]
-    assert "/login?" in location
-    assert "next=" in location
-    # The next param should contain the original authorize URL with all params
-    assert "oauth%2Fauthorize" in location or "oauth/authorize" in location
 
-
-def test_login_respects_next_param(client, test_engine):
-    """After login with a next param, user is redirected to that URL."""
-    with test_engine.begin() as conn:
-        make_test_user(conn, "nextuser", password="pass")
-
-    r = client.post(
-        "/login",
-        data={
-            "username": "nextuser",
-            "password": "pass",
-            "next": "/oauth/authorize?client_id=test&state=s",
-        },
-        follow_redirects=False,
-    )
+    # Fast-forward time by 11 minutes
+    with patch("app.routes.auth.time") as mock_time:
+        mock_time.time.return_value = _time.time() + 660
+        r = client.post(
+            "/login",
+            data={"username": "oauthuser", "password": "oauthpass"},
+            follow_redirects=False,
+        )
     assert r.status_code == 303
-    assert r.headers["location"] == "/oauth/authorize?client_id=test&state=s"
-
-
-def test_login_next_rejects_external_urls(client, test_engine):
-    """The next param should not allow redirects to external URLs."""
-    with test_engine.begin() as conn:
-        make_test_user(conn, "safeuser", password="pass")
-
-    r = client.post(
-        "/login",
-        data={
-            "username": "safeuser",
-            "password": "pass",
-            "next": "https://evil.com/steal",
-        },
-        follow_redirects=False,
-    )
-    assert r.status_code == 303
-    # Should redirect to profile, not evil.com
-    assert "evil.com" not in r.headers["location"]
+    # Should go to profile, not the stale OAuth flow
+    assert "/u/oauthuser" in r.headers["location"]
