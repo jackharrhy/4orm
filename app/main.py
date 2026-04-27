@@ -68,6 +68,13 @@ async def lifespan(application: FastAPI):
     else:
         command.upgrade(alembic_cfg, "head")
 
+    # Sync OAuth2 clients from config file
+    from app.oauth2_clients_sync import sync_oauth2_clients
+
+    oauth2_config = BASE_DIR / "oauth2_clients.toml"
+    if not getattr(application.state, "testing", False):
+        sync_oauth2_clients(engine, oauth2_config)
+
     # Only run backup scheduler in production (not during --reload dev)
     is_reload = os.environ.get("UVICORN_RELOAD", "") or any(
         "reload" in str(a) for a in __import__("sys").argv
