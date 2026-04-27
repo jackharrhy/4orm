@@ -41,6 +41,7 @@ from app.routes import (
     forum,
     guestbook,
     media,
+    oauth2,
     pages,
     push,
     settings,
@@ -90,7 +91,7 @@ async def lifespan(application: FastAPI):
         application.state.backup_scheduler.stop()
 
 
-_CSRF_EXEMPT_PATHS = {"/login"}
+_CSRF_EXEMPT_PATHS = {"/login", "/oauth/token"}
 _TRUSTED_ORIGINS: set[str] = set()  # add full origins like "https://example.com"
 
 
@@ -225,6 +226,7 @@ app.include_router(feeds.router)
 app.include_router(forum.router)
 app.include_router(webring.router)
 app.include_router(push.router)
+app.include_router(oauth2.router)
 
 
 @app.get("/sw.js", include_in_schema=False)
