@@ -149,6 +149,7 @@ def test_full_oauth2_flow(client, test_engine):
     assert r.status_code == 200
     userinfo = r.json()
     assert userinfo["username"] == "oauthuser"
+    assert userinfo["is_admin"] is False
 
 
 def test_authorize_requires_login(client, test_engine):
