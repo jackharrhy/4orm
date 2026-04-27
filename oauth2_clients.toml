@@ -1,0 +1,16 @@
+# OAuth2 client registrations.
+#
+# Clients defined here are synced to the database on every app startup:
+#   - New clients are created
+#   - Existing clients are updated to match this file
+#   - Clients in the database but NOT in this file are removed
+#
+# The [clients.<key>] becomes the client_id.
+
+[clients.artbin]
+client_name = "artbin"
+redirect_uris = [
+    "https://artbin.jackharrhy.dev/auth/4orm/callback",
+    "http://localhost:5173/auth/4orm/callback",
+]
+scope = "openid profile"
