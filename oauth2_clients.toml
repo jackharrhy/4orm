@@ -11,6 +11,8 @@
 client_name = "artbin"
 redirect_uris = [
     "https://artbin.jackharrhy.dev/auth/4orm/callback",
+    "https://artbin.jackharrhy.dev/auth/cli/callback",
     "http://localhost:5173/auth/4orm/callback",
+    "http://localhost:5173/auth/cli/callback",
 ]
 scope = "openid profile"
