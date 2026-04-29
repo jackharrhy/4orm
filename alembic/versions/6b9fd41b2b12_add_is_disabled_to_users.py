@@ -5,9 +5,9 @@ Revises: 2e486ad14546
 Create Date: 2026-04-08 02:05:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "6b9fd41b2b12"
@@ -19,7 +19,9 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "users",
-        sa.Column("is_disabled", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column(
+            "is_disabled", sa.Boolean(), nullable=False, server_default=sa.text("0")
+        ),
     )
 
 

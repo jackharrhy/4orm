@@ -262,9 +262,7 @@ def userinfo(request: Request):
             return JSONResponse({"error": "insufficient_scope"}, status_code=403)
 
         user_row = (
-            conn.execute(
-                select(users).where(users.c.id == token_row["user_id"])
-            )
+            conn.execute(select(users).where(users.c.id == token_row["user_id"]))
             .mappings()
             .first()
         )

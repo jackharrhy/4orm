@@ -304,7 +304,12 @@ oauth2_clients = Table(
     Column("scope", Text, nullable=False, server_default=""),
     Column("grant_types", Text, nullable=False, server_default="authorization_code"),
     Column("response_types", Text, nullable=False, server_default="code"),
-    Column("token_endpoint_auth_method", String(48), nullable=False, server_default="client_secret_basic"),
+    Column(
+        "token_endpoint_auth_method",
+        String(48),
+        nullable=False,
+        server_default="client_secret_basic",
+    ),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
@@ -324,9 +329,7 @@ oauth2_authorization_codes = Table(
     Column("nonce", String(120)),
     Column("code_challenge", Text),
     Column("code_challenge_method", String(10)),
-    Column(
-        "expires_at", DateTime(timezone=True), nullable=False
-    ),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),

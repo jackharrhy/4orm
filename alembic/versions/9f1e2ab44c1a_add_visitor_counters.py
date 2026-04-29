@@ -5,9 +5,9 @@ Revises: 6b9fd41b2b12
 Create Date: 2026-04-08 02:20:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "9f1e2ab44c1a"
@@ -19,9 +19,21 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "visitor_counters",
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
-        sa.Column("total_views", sa.Integer(), nullable=False, server_default=sa.text("0")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "user_id",
+            sa.Integer(),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            primary_key=True,
+        ),
+        sa.Column(
+            "total_views", sa.Integer(), nullable=False, server_default=sa.text("0")
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
     )
 
 

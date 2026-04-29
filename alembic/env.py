@@ -1,5 +1,4 @@
 from alembic import context
-
 from app.db import DATABASE_URL
 from app.schema import metadata
 

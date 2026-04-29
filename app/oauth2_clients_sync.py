@@ -14,7 +14,7 @@ The TOML format is:
     grant_types = "authorization_code"             # optional
     response_types = "code"                        # optional
     token_endpoint_auth_method = "none"            # optional
-    client_secret = ""                             # optional, default "" (public client)
+    client_secret = ""                             # optional, default ""
 """
 
 from __future__ import annotations
@@ -68,7 +68,9 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
                 "client_secret": cfg.get("client_secret", _DEFAULTS["client_secret"]),
                 "scope": cfg.get("scope", _DEFAULTS["scope"]),
                 "grant_types": cfg.get("grant_types", _DEFAULTS["grant_types"]),
-                "response_types": cfg.get("response_types", _DEFAULTS["response_types"]),
+                "response_types": cfg.get(
+                    "response_types", _DEFAULTS["response_types"]
+                ),
                 "token_endpoint_auth_method": cfg.get(
                     "token_endpoint_auth_method",
                     _DEFAULTS["token_endpoint_auth_method"],

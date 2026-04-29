@@ -36,9 +36,13 @@ def test_create_oauth2_client(test_engine):
                 token_endpoint_auth_method="none",
             )
         )
-        row = conn.execute(
-            select(oauth2_clients).where(oauth2_clients.c.client_id == "artbin")
-        ).mappings().first()
+        row = (
+            conn.execute(
+                select(oauth2_clients).where(oauth2_clients.c.client_id == "artbin")
+            )
+            .mappings()
+            .first()
+        )
     assert row is not None
     assert row["client_name"] == "artbin"
     assert row["redirect_uris"] == "https://artbin.jackharrhy.dev/auth/4orm/callback"
@@ -693,6 +697,7 @@ def test_userinfo_rejects_revoked_token(client, test_engine):
     _seed_client_and_user(test_engine)
 
     import time
+
     with test_engine.begin() as conn:
         conn.execute(
             insert(oauth2_tokens).values(

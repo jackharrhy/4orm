@@ -38,10 +38,10 @@ jobs:
         run: npm run build
 
       - name: Check formatting
-        run: uv run --group dev ruff format --check app/ tests/
+        run: uv run --group dev ruff format --check .
 
       - name: Lint
-        run: uv run --group dev ruff check app/ tests/
+        run: uv run --group dev ruff check .
 
       - name: Run tests (zero warnings)
         run: uv run --group dev pytest tests/ -v

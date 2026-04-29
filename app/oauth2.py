@@ -170,8 +170,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         with self.server.engine.begin() as conn:
             conn.execute(
                 delete(oauth2_authorization_codes).where(
-                    oauth2_authorization_codes.c.code
-                    == authorization_code._row["code"]
+                    oauth2_authorization_codes.c.code == authorization_code._row["code"]
                 )
             )
 

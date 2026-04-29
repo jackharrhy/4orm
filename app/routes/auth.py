@@ -145,7 +145,11 @@ def login_post(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "this account has been disabled", "next": next, "client_id": client_id},
+            {
+                "error": "this account has been disabled",
+                "next": next,
+                "client_id": client_id,
+            },
             status_code=403,
         )
     request.session["user_id"] = user["id"]

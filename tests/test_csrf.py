@@ -1,4 +1,4 @@
-"""Tests that verify CSRF protection works with the Sec-Fetch-Site / Origin algorithm."""
+"""Tests for Sec-Fetch-Site / Origin CSRF protection."""
 
 import pytest
 
@@ -19,7 +19,7 @@ def _login(client, user):
 
 
 class TestCSRFBlocksCrossOrigin:
-    """Cross-origin browser requests (with Origin header from a different host) must be rejected."""
+    """Cross-origin browser requests must be rejected."""
 
     def test_cross_origin_post_returns_403(self, raw_client, csrf_seed_user):
         _login(raw_client, csrf_seed_user)
@@ -40,7 +40,7 @@ class TestCSRFBlocksCrossOrigin:
         assert r.status_code == 403
 
     def test_sec_fetch_site_same_site_returns_403(self, raw_client, csrf_seed_user):
-        """same-site (but not same-origin) is also rejected — different origin same eTLD+1."""
+        """same-site but not same-origin is also rejected."""
         _login(raw_client, csrf_seed_user)
         r = raw_client.post(
             "/settings/profile",
@@ -54,7 +54,7 @@ class TestCSRFAllowsSameOrigin:
     """Requests that pass the algorithm must be allowed."""
 
     def test_no_browser_headers_allows_post(self, raw_client, csrf_seed_user):
-        """Non-browser clients (curl, server-to-server) with no Origin header are allowed."""
+        """Non-browser clients with no Origin header are allowed."""
         _login(raw_client, csrf_seed_user)
         r = raw_client.post(
             "/settings/profile",
