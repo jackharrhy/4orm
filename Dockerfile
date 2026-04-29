@@ -7,7 +7,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml uv.lock README.md oauth2_clients.toml ./
 RUN uv sync --frozen --no-dev
 
 COPY alembic.ini ./
