@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import time
 import warnings
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from authlib.common.urls import add_params_to_uri
 from authlib.oauth2 import OAuth2Request as AuthlibOAuth2Request
@@ -317,8 +317,20 @@ def _make_authlib_request(
     method: str, uri: str, form_data: dict, headers: dict | None = None
 ) -> AuthlibOAuth2Request:
     """Build an Authlib OAuth2Request with both payload and legacy body set."""
+    uri = _public_oauth_uri(uri)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         req = AuthlibOAuth2Request(method, uri, body=form_data, headers=headers)
     req.payload = BasicOAuth2Payload(form_data)
     return req
+
+
+def _public_oauth_uri(uri: str) -> str:
+    public = urlparse(SITE_URL)
+    internal = urlparse(uri)
+    return urlunparse(
+        internal._replace(
+            scheme=public.scheme,
+            netloc=public.netloc,
+        )
+    )

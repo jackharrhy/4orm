@@ -299,6 +299,22 @@ def test_authlib_insecure_transport_not_enabled_for_https_prod(monkeypatch):
     assert "AUTHLIB_INSECURE_TRANSPORT" not in os.environ
 
 
+def test_authlib_request_uses_site_url_scheme(monkeypatch):
+    """Authlib should see public HTTPS URLs behind an HTTP reverse proxy hop."""
+    from app.routes import oauth2
+
+    monkeypatch.delenv("AUTHLIB_INSECURE_TRANSPORT", raising=False)
+    monkeypatch.setattr(oauth2, "SITE_URL", "https://4orm.example")
+
+    req = oauth2._make_authlib_request(
+        "GET",
+        "http://testserver/oauth/authorize",
+        {"client_id": "artbin"},
+    )
+
+    assert req.uri == "https://4orm.example/oauth/authorize"
+
+
 # ---------------------------------------------------------------------------
 # Security validation helpers
 # ---------------------------------------------------------------------------
