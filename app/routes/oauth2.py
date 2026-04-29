@@ -5,23 +5,29 @@ from __future__ import annotations
 import os
 import time
 import warnings
-from urllib.parse import urlencode
-
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from urllib.parse import urlparse
 
 from authlib.common.urls import add_params_to_uri
 from authlib.oauth2 import OAuth2Request as AuthlibOAuth2Request
 from authlib.oauth2.rfc6749.errors import OAuth2Error
 from authlib.oauth2.rfc6749.requests import BasicOAuth2Payload
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select
 
 from app.deps import SITE_URL, current_user, get_engine, templates
 from app.oauth2 import create_authorization_server
 from app.schema import oauth2_tokens, users
 
-# Allow http:// in development (Authlib rejects non-https by default)
-os.environ.setdefault("AUTHLIB_INSECURE_TRANSPORT", "1")
+
+def _configure_authlib_transport(site_url: str) -> None:
+    """Allow HTTP OAuth only for local development URLs."""
+    parsed = urlparse(site_url)
+    if parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}:
+        os.environ.setdefault("AUTHLIB_INSECURE_TRANSPORT", "1")
+
+
+_configure_authlib_transport(SITE_URL)
 
 router = APIRouter()
 
@@ -68,6 +74,12 @@ def authorize_get(request: Request):
     redirect_uri = params.get("redirect_uri", "")
     if not client.check_redirect_uri(redirect_uri):
         return JSONResponse({"error": "invalid redirect_uri"}, status_code=400)
+    if not params.get("code_challenge"):
+        return JSONResponse({"error": "missing code_challenge"}, status_code=400)
+    if params.get("code_challenge_method") != "S256":
+        return JSONResponse(
+            {"error": "unsupported code_challenge_method"}, status_code=400
+        )
 
     return templates.TemplateResponse(
         request,
@@ -100,8 +112,17 @@ async def authorize_post(request: Request):
 
     form = await request.form()
     confirm = form.get("confirm", "no")
+    client_id = form.get("client_id", "")
     redirect_uri = form.get("redirect_uri", "")
     state = form.get("state", "")
+    code_challenge_method = form.get("code_challenge_method", "")
+
+    server = _get_server(request)
+    oauth_client = server.query_client(client_id)
+    if not oauth_client:
+        return JSONResponse({"error": "unknown client"}, status_code=400)
+    if not oauth_client.check_redirect_uri(redirect_uri):
+        return JSONResponse({"error": "invalid redirect_uri"}, status_code=400)
 
     if confirm != "yes":
         params = [("error", "access_denied")]
@@ -113,7 +134,19 @@ async def authorize_post(request: Request):
     # PKCE is required – reject early if code_challenge is missing
     code_challenge = form.get("code_challenge")
     if not code_challenge:
-        params = [("error", "invalid_request"), ("error_description", "Missing code_challenge")]
+        params = [
+            ("error", "invalid_request"),
+            ("error_description", "Missing code_challenge"),
+        ]
+        if state:
+            params.append(("state", state))
+        uri = add_params_to_uri(redirect_uri, params)
+        return RedirectResponse(url=uri, status_code=302)
+    if code_challenge_method != "S256":
+        params = [
+            ("error", "invalid_request"),
+            ("error_description", "Unsupported code_challenge_method"),
+        ]
         if state:
             params.append(("state", state))
         uri = add_params_to_uri(redirect_uri, params)
@@ -127,13 +160,11 @@ async def authorize_post(request: Request):
         "scope": form.get("scope", ""),
         "state": state,
         "code_challenge": code_challenge,
-        "code_challenge_method": form.get("code_challenge_method", "S256"),
+        "code_challenge_method": code_challenge_method,
     }
     nonce = form.get("nonce")
     if nonce:
         form_data["nonce"] = nonce
-
-    server = _get_server(request)
 
     # Build an Authlib OAuth2Request for the authorization endpoint
     # Use the full request URL so Authlib can parse it
@@ -186,7 +217,10 @@ async def token_endpoint(request: Request):
             status_code=error.status_code or 400,
         )
 
-    return JSONResponse(token, status_code=status)
+    headers = dict(response_headers)
+    headers.setdefault("Cache-Control", "no-store")
+    headers.setdefault("Pragma", "no-cache")
+    return JSONResponse(token, status_code=status, headers=headers)
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +257,9 @@ def userinfo(request: Request):
         # Check expiry: issued_at + expires_in < now
         if token_row["issued_at"] + token_row["expires_in"] < int(time.time()):
             return JSONResponse({"error": "token expired"}, status_code=401)
+
+        if "openid" not in token_row["scope"].split():
+            return JSONResponse({"error": "insufficient_scope"}, status_code=403)
 
         user_row = (
             conn.execute(

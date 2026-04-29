@@ -2,12 +2,14 @@
 
 import base64
 import hashlib
+import os
 import secrets
+import time
 from urllib.parse import parse_qs, urlparse
 
-from sqlalchemy import inspect, insert, select
+from sqlalchemy import insert, inspect, select
 
-from app.schema import oauth2_clients, oauth2_authorization_codes, oauth2_tokens
+from app.schema import oauth2_clients, oauth2_tokens
 from tests.conftest import make_test_user
 
 
@@ -71,7 +73,7 @@ def _create_pkce():
 def test_full_oauth2_flow(client, test_engine):
     """End-to-end: authorize -> consent -> token -> userinfo."""
     with test_engine.begin() as conn:
-        user_id = make_test_user(conn, "oauthuser", password="oauthpass")
+        make_test_user(conn, "oauthuser", password="oauthpass")
         conn.execute(
             insert(oauth2_clients).values(
                 client_id="test-app",
@@ -137,8 +139,11 @@ def test_full_oauth2_flow(client, test_engine):
         },
     )
     assert r.status_code == 200
+    assert r.headers["cache-control"] == "no-store"
+    assert r.headers["pragma"] == "no-cache"
     token_data = r.json()
     assert "access_token" in token_data
+    assert "refresh_token" not in token_data
     assert token_data["token_type"].lower() == "bearer"
 
     access_token = token_data["access_token"]
@@ -268,12 +273,39 @@ def test_openid_configuration(client):
     assert "userinfo_endpoint" in data
 
 
+def test_authlib_insecure_transport_enabled_for_local_dev(monkeypatch):
+    """Local HTTP dev keeps Authlib's insecure transport escape hatch."""
+    from app.routes.oauth2 import _configure_authlib_transport
+
+    monkeypatch.delenv("AUTHLIB_INSECURE_TRANSPORT", raising=False)
+
+    _configure_authlib_transport("http://localhost:8000")
+
+    assert os.environ["AUTHLIB_INSECURE_TRANSPORT"] == "1"
+
+
+def test_authlib_insecure_transport_not_enabled_for_https_prod(monkeypatch):
+    """HTTPS production config should not enable insecure OAuth transport."""
+    from app.routes.oauth2 import _configure_authlib_transport
+
+    monkeypatch.delenv("AUTHLIB_INSECURE_TRANSPORT", raising=False)
+
+    _configure_authlib_transport("https://4orm.example")
+
+    assert "AUTHLIB_INSECURE_TRANSPORT" not in os.environ
+
+
 # ---------------------------------------------------------------------------
 # Security validation helpers
 # ---------------------------------------------------------------------------
 
 
-def _seed_client_and_user(test_engine, client_id="test-app", username="oauthuser", password="oauthpass"):
+def _seed_client_and_user(
+    test_engine,
+    client_id="test-app",
+    username="oauthuser",
+    password="oauthpass",
+):
     """Seed an OAuth2 client and user, return (user_id, client_id)."""
     with test_engine.begin() as conn:
         user_id = make_test_user(conn, username, password=password)
@@ -292,7 +324,13 @@ def _seed_client_and_user(test_engine, client_id="test-app", username="oauthuser
     return user_id, client_id
 
 
-def _get_auth_code(client, challenge, client_id="test-app", redirect_uri="http://localhost:3000/callback", scope="openid profile"):
+def _get_auth_code(
+    client,
+    challenge,
+    client_id="test-app",
+    redirect_uri="http://localhost:3000/callback",
+    scope="openid profile",
+):
     """Drive through consent and return the authorization code."""
     r = client.post(
         "/oauth/authorize",
@@ -308,7 +346,9 @@ def _get_auth_code(client, challenge, client_id="test-app", redirect_uri="http:/
         },
         follow_redirects=False,
     )
-    assert r.status_code in (302, 303), f"Expected redirect, got {r.status_code}: {r.text}"
+    assert r.status_code in (302, 303), (
+        f"Expected redirect, got {r.status_code}: {r.text}"
+    )
     return parse_qs(urlparse(r.headers["location"]).query)["code"][0]
 
 
@@ -345,11 +385,13 @@ def test_authorize_rejects_wrong_redirect_uri(client, test_engine):
             },
             follow_redirects=False,
         )
-        assert r.status_code == 400, f"redirect_uri '{uri}' should be rejected but got {r.status_code}"
+        assert r.status_code == 400, (
+            f"redirect_uri '{uri}' should be rejected but got {r.status_code}"
+        )
 
 
 def test_authorize_rejects_missing_pkce(client, test_engine):
-    """Authorization request without code_challenge should be rejected (PKCE required)."""
+    """Authorization without code_challenge should be rejected."""
     _seed_client_and_user(test_engine)
     client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
 
@@ -373,6 +415,79 @@ def test_authorize_rejects_missing_pkce(client, test_engine):
         assert "error" in qs, "Missing PKCE should produce an error redirect"
     else:
         assert r.status_code == 400
+
+
+def test_authorize_rejects_plain_pkce_method(client, test_engine):
+    """Only S256 PKCE should be accepted for new authorization codes."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    verifier = secrets.token_urlsafe(32)
+    r = client.post(
+        "/oauth/authorize",
+        data={
+            "response_type": "code",
+            "client_id": "test-app",
+            "redirect_uri": "http://localhost:3000/callback",
+            "scope": "openid profile",
+            "state": "s",
+            "code_challenge": verifier,
+            "code_challenge_method": "plain",
+            "confirm": "yes",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303)
+    qs = parse_qs(urlparse(r.headers["location"]).query)
+    assert qs.get("error") == ["invalid_request"]
+    assert "code" not in qs
+
+
+def test_authorize_post_denial_rejects_unregistered_redirect_uri(client, test_engine):
+    """Consent denial must not turn POST /oauth/authorize into an open redirect."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    r = client.post(
+        "/oauth/authorize",
+        data={
+            "response_type": "code",
+            "client_id": "test-app",
+            "redirect_uri": "https://evil.example/callback",
+            "scope": "openid profile",
+            "state": "s",
+            "code_challenge": "abc",
+            "code_challenge_method": "S256",
+            "confirm": "no",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    assert (
+        r.headers.get("location")
+        != "https://evil.example/callback?error=access_denied&state=s"
+    )
+
+
+def test_authorize_post_error_rejects_unregistered_redirect_uri(client, test_engine):
+    """Authorization errors must not redirect to an unregistered redirect_uri."""
+    _seed_client_and_user(test_engine)
+    client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
+
+    r = client.post(
+        "/oauth/authorize",
+        data={
+            "response_type": "code",
+            "client_id": "test-app",
+            "redirect_uri": "https://evil.example/callback",
+            "scope": "openid profile",
+            "state": "s",
+            "confirm": "yes",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    assert r.headers.get("location") is None
 
 
 def test_token_rejects_missing_verifier(client, test_engine):
@@ -504,7 +619,6 @@ def test_userinfo_rejects_expired_token(client, test_engine):
     _seed_client_and_user(test_engine)
 
     # Insert a token that expired in the past
-    import time
     with test_engine.begin() as conn:
         conn.execute(
             insert(oauth2_tokens).values(
@@ -523,6 +637,30 @@ def test_userinfo_rejects_expired_token(client, test_engine):
         headers={"Authorization": "Bearer expired-token-abc"},
     )
     assert r.status_code == 401
+
+
+def test_userinfo_requires_openid_scope(client, test_engine):
+    """The userinfo endpoint should not disclose profile data for unscoped tokens."""
+    _seed_client_and_user(test_engine)
+
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(oauth2_tokens).values(
+                client_id="test-app",
+                user_id=1,
+                token_type="Bearer",
+                access_token="profileless-token",
+                scope="",
+                issued_at=int(time.time()),
+                expires_in=3600,
+            )
+        )
+
+    r = client.get(
+        "/oauth/userinfo",
+        headers={"Authorization": "Bearer profileless-token"},
+    )
+    assert r.status_code == 403
 
 
 def test_consent_denial_redirects_with_error(client, test_engine):
@@ -618,7 +756,12 @@ def test_authorize_unauthenticated_stashes_and_resumes(client, test_engine):
     # 2. Log in -- should redirect to the authorize URL, not the profile
     r = client.post(
         "/login",
-        data={"username": "oauthuser", "password": "oauthpass", "next": "oauth", "client_id": "test-app"},
+        data={
+            "username": "oauthuser",
+            "password": "oauthpass",
+            "next": "oauth",
+            "client_id": "test-app",
+        },
         follow_redirects=False,
     )
     assert r.status_code == 303
@@ -654,7 +797,12 @@ def test_login_next_oauth_without_session_goes_to_profile(client, test_engine):
 
     r = client.post(
         "/login",
-        data={"username": "trickuser", "password": "pass", "next": "oauth", "client_id": "fake"},
+        data={
+            "username": "trickuser",
+            "password": "pass",
+            "next": "oauth",
+            "client_id": "fake",
+        },
         follow_redirects=False,
     )
     assert r.status_code == 303

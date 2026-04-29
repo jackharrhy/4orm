@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from authlib.oauth2 import AuthorizationServer
 from authlib.oauth2.rfc6749 import grants, list_to_scope, scope_to_list
 from authlib.oauth2.rfc7636 import CodeChallenge
 from sqlalchemy import delete, insert, select
 
-from app.schema import oauth2_authorization_codes, oauth2_clients, oauth2_tokens, users
-
+from app.schema import (
+    oauth2_authorization_codes,
+    oauth2_clients,
+    oauth2_tokens,
+    users,
+)
 
 # ---------------------------------------------------------------------------
 # Wrapper classes – adapt SQLAlchemy Core row dicts to Authlib interfaces
@@ -96,8 +100,8 @@ class OAuth2AuthCodeWrapper:
         if isinstance(expires_at, datetime):
             # SQLite may return naive datetimes; treat as UTC
             if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
-            return expires_at < datetime.now(timezone.utc)
+                expires_at = expires_at.replace(tzinfo=UTC)
+            return expires_at < datetime.now(UTC)
         return True
 
 
@@ -125,7 +129,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
                     nonce=payload.data.get("nonce"),
                     code_challenge=payload.data.get("code_challenge"),
                     code_challenge_method=payload.data.get("code_challenge_method"),
-                    expires_at=datetime.now(timezone.utc) + CODE_LIFETIME,
+                    expires_at=datetime.now(UTC) + CODE_LIFETIME,
                 )
             )
 
@@ -206,7 +210,7 @@ def _generate_bearer_token(
     user=None,
     scope=None,
     expires_in=None,
-    include_refresh_token=True,
+    include_refresh_token=False,
 ):
     token = {
         "token_type": "Bearer",
