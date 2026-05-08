@@ -21,6 +21,6 @@ scope = "openid profile"
 client_name = "burger"
 redirect_uris = [
     "https://big.burger.beauty/auth/4orm/callback",
-    "http://localhost:5000/auth/4orm/callback",
+    "http://localhost:5173/auth/4orm/callback",
 ]
 scope = "openid profile"
