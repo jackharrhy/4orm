@@ -14,7 +14,7 @@ dependencies = [
   "alembic==1.18.4",
   "markdown==3.10.2",
   "bbcode==1.1.0",
-  "bleach==6.3.0",
+  "bleach==6.4.0",
   "pywebpush==2.3.0",
   "loguru==0.7.3",
   "authlib==1.7.0",
