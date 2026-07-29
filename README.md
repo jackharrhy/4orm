@@ -13,3 +13,7 @@ uv run uvicorn app.main:app --reload
 ```
 
 Open http://127.0.0.1:8000
+
+## CLI
+
+Download the portable CLI at <https://4orm.harrhy.xyz/cli>.

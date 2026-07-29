@@ -1,9 +1,12 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 data/*.db
 uploads/*
 !.gitkeep
 docs/
 node_modules/
 backups
+dist/

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import time
 import warnings
 from urllib.parse import urlparse, urlunparse
 
@@ -13,11 +12,10 @@ from authlib.oauth2.rfc6749.errors import OAuth2Error
 from authlib.oauth2.rfc6749.requests import BasicOAuth2Payload
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy import select
 
+from app.auth import get_access_token_context
 from app.deps import SITE_URL, current_user, get_engine, templates
 from app.oauth2 import create_authorization_server
-from app.schema import oauth2_tokens, users
 
 
 def _configure_authlib_transport(site_url: str) -> None:
@@ -32,7 +30,7 @@ _configure_authlib_transport(SITE_URL)
 router = APIRouter()
 
 # ---------------------------------------------------------------------------
-# Lazy server singleton – created once per engine
+# Lazy server singleton - created once per engine
 # ---------------------------------------------------------------------------
 
 _server_cache: dict[int, object] = {}
@@ -47,7 +45,7 @@ def _get_server(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# GET /oauth/authorize – consent page
+# GET /oauth/authorize - consent page
 # ---------------------------------------------------------------------------
 
 
@@ -100,7 +98,7 @@ def authorize_get(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# POST /oauth/authorize – process consent
+# POST /oauth/authorize - process consent
 # ---------------------------------------------------------------------------
 
 
@@ -131,7 +129,7 @@ async def authorize_post(request: Request):
         uri = add_params_to_uri(redirect_uri, params)
         return RedirectResponse(url=uri, status_code=302)
 
-    # PKCE is required – reject early if code_challenge is missing
+    # PKCE is required - reject early if code_challenge is missing
     code_challenge = form.get("code_challenge")
     if not code_challenge:
         params = [
@@ -174,7 +172,7 @@ async def authorize_post(request: Request):
     try:
         grant = server.get_authorization_grant(oauth2_req)
         redirect_uri_validated = grant.validate_authorization_request()
-        status, body, headers = grant.create_authorization_response(
+        _status, _body, headers = grant.create_authorization_response(
             redirect_uri_validated, grant_user=dict(me)
         )
     except OAuth2Error as error:
@@ -192,7 +190,7 @@ async def authorize_post(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# POST /oauth/token – exchange code for token
+# POST /oauth/token - exchange code for token
 # ---------------------------------------------------------------------------
 
 
@@ -224,7 +222,7 @@ async def token_endpoint(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# GET /oauth/userinfo – protected resource
+# GET /oauth/userinfo - protected resource
 # ---------------------------------------------------------------------------
 
 
@@ -238,37 +236,12 @@ def userinfo(request: Request):
 
     engine = get_engine(request)
     with engine.begin() as conn:
-        token_row = (
-            conn.execute(
-                select(oauth2_tokens).where(
-                    oauth2_tokens.c.access_token == access_token,
-                )
-            )
-            .mappings()
-            .first()
-        )
-
-        if not token_row:
+        context = get_access_token_context(conn, access_token)
+        if not context:
             return JSONResponse({"error": "invalid token"}, status_code=401)
-
-        if token_row["revoked"]:
-            return JSONResponse({"error": "token revoked"}, status_code=401)
-
-        # Check expiry: issued_at + expires_in < now
-        if token_row["issued_at"] + token_row["expires_in"] < int(time.time()):
-            return JSONResponse({"error": "token expired"}, status_code=401)
-
+        token_row, user_row = context
         if "openid" not in token_row["scope"].split():
             return JSONResponse({"error": "insufficient_scope"}, status_code=403)
-
-        user_row = (
-            conn.execute(select(users).where(users.c.id == token_row["user_id"]))
-            .mappings()
-            .first()
-        )
-
-        if not user_row:
-            return JSONResponse({"error": "user not found"}, status_code=401)
 
     return JSONResponse(
         {
@@ -294,7 +267,7 @@ def openid_configuration():
             "token_endpoint": f"{SITE_URL}/oauth/token",
             "userinfo_endpoint": f"{SITE_URL}/oauth/userinfo",
             "response_types_supported": ["code"],
-            "grant_types_supported": ["authorization_code"],
+            "grant_types_supported": ["authorization_code", "refresh_token"],
             "subject_types_supported": ["public"],
             "id_token_signing_alg_values_supported": ["none"],
             "scopes_supported": ["openid", "profile"],

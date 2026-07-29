@@ -5,11 +5,12 @@ from __future__ import annotations
 import secrets
 import time
 from datetime import UTC, datetime, timedelta
+from typing import ClassVar
 
 from authlib.oauth2 import AuthorizationServer
 from authlib.oauth2.rfc6749 import grants, list_to_scope, scope_to_list
 from authlib.oauth2.rfc7636 import CodeChallenge
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, insert, select, update
 
 from app.schema import (
     oauth2_authorization_codes,
@@ -19,7 +20,7 @@ from app.schema import (
 )
 
 # ---------------------------------------------------------------------------
-# Wrapper classes – adapt SQLAlchemy Core row dicts to Authlib interfaces
+# Wrapper classes - adapt SQLAlchemy Core row dicts to Authlib interfaces
 # ---------------------------------------------------------------------------
 
 
@@ -105,6 +106,23 @@ class OAuth2AuthCodeWrapper:
         return True
 
 
+class OAuth2RefreshTokenWrapper:
+    """Adapt a persisted refresh token to Authlib's token interface."""
+
+    def __init__(self, row: dict):
+        self._row = dict(row)
+
+    def check_client(self, client):
+        return self._row["client_id"] == client.get_client_id()
+
+    def get_scope(self):
+        return self._row["scope"]
+
+    @property
+    def user_id(self):
+        return self._row["user_id"]
+
+
 # ---------------------------------------------------------------------------
 # Authorization Code Grant implementation
 # ---------------------------------------------------------------------------
@@ -113,7 +131,11 @@ CODE_LIFETIME = timedelta(minutes=5)
 
 
 class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
-    TOKEN_ENDPOINT_AUTH_METHODS = ["client_secret_basic", "client_secret_post", "none"]
+    TOKEN_ENDPOINT_AUTH_METHODS: ClassVar[list[str]] = [
+        "client_secret_basic",
+        "client_secret_post",
+        "none",
+    ]
 
     def save_authorization_code(self, code, request):
         client = request.client
@@ -172,6 +194,50 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
                 delete(oauth2_authorization_codes).where(
                     oauth2_authorization_codes.c.code == authorization_code._row["code"]
                 )
+            )
+
+
+class RefreshTokenGrant(grants.RefreshTokenGrant):
+    """Refresh access tokens and rotate the refresh credential."""
+
+    TOKEN_ENDPOINT_AUTH_METHODS: ClassVar[list[str]] = [
+        "none",
+        "client_secret_basic",
+        "client_secret_post",
+    ]
+    INCLUDE_NEW_REFRESH_TOKEN = True
+
+    def authenticate_refresh_token(self, refresh_token):
+        with self.server.engine.begin() as conn:
+            row = (
+                conn.execute(
+                    select(oauth2_tokens).where(
+                        oauth2_tokens.c.refresh_token == refresh_token,
+                        oauth2_tokens.c.revoked.is_(False),
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        return OAuth2RefreshTokenWrapper(row) if row else None
+
+    def authenticate_user(self, refresh_token):
+        with self.server.engine.begin() as conn:
+            row = (
+                conn.execute(select(users).where(users.c.id == refresh_token.user_id))
+                .mappings()
+                .first()
+            )
+        return dict(row) if row and not row["is_disabled"] else None
+
+    def revoke_old_credential(self, refresh_token):
+        with self.server.engine.begin() as conn:
+            conn.execute(
+                update(oauth2_tokens)
+                .where(
+                    oauth2_tokens.c.refresh_token == refresh_token._row["refresh_token"]
+                )
+                .values(revoked=True)
             )
 
 
@@ -267,5 +333,6 @@ def create_authorization_server(engine) -> OAuth2Server:
 
     # --- register the authorization code grant with PKCE ---
     server.register_grant(AuthorizationCodeGrant, [CodeChallenge(required=True)])
+    server.register_grant(RefreshTokenGrant)
 
     return server

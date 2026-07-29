@@ -75,6 +75,45 @@ def get_user_page(conn: Connection, user_id: int, slug: str):
     return conn.execute(q).mappings().first()
 
 
+def upsert_user_page(
+    conn: Connection,
+    user_id: int,
+    slug: str,
+    *,
+    title: str,
+    content: str,
+    content_format: str = "html",
+    layout: str = "default",
+    is_public: bool = True,
+):
+    """Create or replace a page and return its current row."""
+    existing = get_user_page(conn, user_id, slug)
+    if existing:
+        update_user_page(
+            conn,
+            user_id,
+            slug,
+            slug=slug,
+            title=title,
+            content=content,
+            content_format=content_format,
+            layout=layout,
+            is_public=is_public,
+        )
+    else:
+        create_page(
+            conn,
+            user_id,
+            slug,
+            title,
+            content,
+            content_format,
+            layout,
+            is_public,
+        )
+    return get_user_page(conn, user_id, slug)
+
+
 def delete_user_page(conn: Connection, user_id: int, slug: str):
     conn.execute(delete(pages).where(pages.c.user_id == user_id, pages.c.slug == slug))
 

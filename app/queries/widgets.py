@@ -62,7 +62,9 @@ def get_playlist(conn: Connection, user_id: int):
     )
 
 
-def add_to_playlist(conn: Connection, user_id: int, media_id: int, title: str = None):
+def add_to_playlist(
+    conn: Connection, user_id: int, media_id: int, title: str | None = None
+):
     """Add a track to the end of the playlist."""
     max_pos = conn.execute(
         select(func.coalesce(func.max(playlist_items.c.position), -1)).where(
