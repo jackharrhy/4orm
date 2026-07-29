@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 # --- Auth ---
 
@@ -51,6 +51,40 @@ class PageDetail(BaseModel):
     display_name: str
     custom_css: str
     custom_html: str
+
+
+class PageWriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=140)
+    content: str = ""
+    content_format: str = Field(default="html", max_length=20)
+    layout: str = Field(default="default", max_length=20)
+    is_public: bool = True
+
+
+class ApiPage(BaseModel):
+    slug: str
+    title: str
+    content: str
+    content_format: str
+    layout: str
+    is_public: bool
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ApiPageList(BaseModel):
+    pages: list[ApiPage]
+
+
+class MeResponse(BaseModel):
+    username: str
+    display_name: str
+
+
+class ApiError(BaseModel):
+    error: dict[str, str]
 
 
 # --- Homepage ---

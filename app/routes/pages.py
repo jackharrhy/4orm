@@ -4,7 +4,7 @@ import time as _time
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 import app.deps as deps
 from app.deps import current_user, get_engine, json_response, templates, wants_json
@@ -28,12 +28,39 @@ from app.rendering import build_raw_html, render_content
 
 router = APIRouter(tags=["profiles"])
 
+_CLI_RELEASE_URL = "https://github.com/jackharrhy/4orm/releases/latest/download"
+_CLI_DOWNLOADS = {
+    "macos-arm64": "4orm-darwin-arm64.tar.gz",
+    "macos-amd64": "4orm-darwin-amd64.tar.gz",
+    "linux-arm64": "4orm-linux-arm64.tar.gz",
+    "linux-amd64": "4orm-linux-amd64.tar.gz",
+    "windows-arm64": "4orm-windows-arm64.zip",
+    "windows-amd64": "4orm-windows-amd64.zip",
+}
+
 
 @router.get("/how-to", response_class=HTMLResponse, summary="How-to guide")
 def how_to(request: Request):
     return templates.TemplateResponse(
         request, "how_to.html", {"me": current_user(request)}
     )
+
+
+@router.get("/cli", response_class=HTMLResponse, summary="4orm CLI")
+def cli_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "cli.html",
+        {"me": current_user(request), "downloads": _CLI_DOWNLOADS},
+    )
+
+
+@router.get("/cli/download/{target}", include_in_schema=False)
+def cli_download(target: str):
+    filename = _CLI_DOWNLOADS.get(target)
+    if not filename:
+        raise HTTPException(404)
+    return RedirectResponse(url=f"{_CLI_RELEASE_URL}/{filename}", status_code=302)
 
 
 @router.get("/u/{username}", response_class=HTMLResponse, summary="User profile")

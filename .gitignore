@@ -7,3 +7,4 @@ uploads/*
 docs/
 node_modules/
 backups
+dist/

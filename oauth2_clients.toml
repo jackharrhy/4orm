@@ -24,3 +24,11 @@ redirect_uris = [
     "http://localhost:5173/auth/4orm/callback",
 ]
 scope = "openid profile"
+
+[clients.cli]
+client_name = "4orm CLI"
+redirect_uris = [
+	"http://localhost:4444/auth/cli/callback",
+]
+scope = "openid profile"
+grant_types = "authorization_code refresh_token"

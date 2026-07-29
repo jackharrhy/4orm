@@ -296,6 +296,25 @@ def require_user_dep(request: Request):
     return me
 
 
+def require_api_user(request: Request):
+    """Authenticate a versioned API request with a bearer token."""
+    from app.auth import get_user_for_access_token
+
+    authorization = request.headers.get("authorization", "")
+    if not authorization.lower().startswith("bearer "):
+        raise HTTPException(401, detail="missing or invalid bearer token")
+
+    token = authorization[7:].strip()
+    if not token:
+        raise HTTPException(401, detail="missing or invalid bearer token")
+
+    with get_engine(request).begin() as conn:
+        user = get_user_for_access_token(conn, token)
+    if not user:
+        raise HTTPException(401, detail="invalid or expired bearer token")
+    return user
+
+
 class LoginRequired(Exception):
     pass
 

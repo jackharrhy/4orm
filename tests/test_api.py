@@ -1,15 +1,16 @@
-"""Tests for JSON API content negotiation.
+"""Tests for JSON API content negotiation and the stable v1 API."""
 
-Every non-admin GET and POST route should return JSON when the request
-includes ``Accept: application/json``.  This header must be included
-explicitly in each call.
-"""
+import time
+from pathlib import Path
+
+from sqlalchemy import insert
+
+from app.schema import oauth2_tokens
 
 _JSON = {"Accept": "application/json"}
 
 
 def _json_headers():
-    """Fresh copy so callers can't mutate the shared dict."""
     return dict(_JSON)
 
 
@@ -20,13 +21,7 @@ def get_json(client, url):
 
 
 def post_json(client, url, data=None):
-    r = client.post(url, data=data or {}, headers=_json_headers())
-    return r
-
-
-# ---------------------------------------------------------------------------
-# Profile & Pages
-# ---------------------------------------------------------------------------
+    return client.post(url, data=data or {}, headers=_json_headers())
 
 
 def test_api_homepage(client, seed_user):
@@ -50,7 +45,6 @@ def test_api_profile_404(client):
 
 
 def test_api_create_page_and_view(authed_client, seed_user):
-    # Create via JSON-accepting POST
     r = post_json(
         authed_client,
         "/settings/pages",
@@ -66,17 +60,10 @@ def test_api_create_page_and_view(authed_client, seed_user):
     body = r.json()
     assert body["ok"] is True
     assert body["slug"] == "api-test"
-
-    # View the page
     data = get_json(authed_client, f"/u/{seed_user['username']}/page/api-test")
     assert data["title"] == "API Test Page"
     assert data["rendered_content"] == "hello from api"
     assert data["content_format"] == "html"
-
-
-# ---------------------------------------------------------------------------
-# Forum
-# ---------------------------------------------------------------------------
 
 
 def test_api_forum_list(client, seed_user, test_engine):
@@ -105,16 +92,11 @@ def test_api_forum_create_thread(authed_client, seed_user):
     r = post_json(
         authed_client,
         "/forum/new",
-        {
-            "title": "API Thread",
-            "content": "thread body",
-            "content_format": "bbcode",
-        },
+        {"title": "API Thread", "content": "thread body", "content_format": "bbcode"},
     )
     assert r.status_code == 200
-    body = r.json()
-    assert body["ok"] is True
-    assert body["id"] is not None
+    assert r.json()["ok"] is True
+    assert r.json()["id"] is not None
 
 
 def test_api_forum_reply(authed_client, seed_user, test_engine):
@@ -125,59 +107,29 @@ def test_api_forum_reply(authed_client, seed_user, test_engine):
     r = post_json(
         authed_client,
         f"/forum/{tid}/reply",
-        {
-            "content": "a reply",
-            "content_format": "bbcode",
-        },
+        {"content": "a reply", "content_format": "bbcode"},
     )
     assert r.status_code == 200
-    body = r.json()
-    assert body["ok"] is True
-
-
-# ---------------------------------------------------------------------------
-# Auth
-# ---------------------------------------------------------------------------
+    assert r.json()["ok"] is True
 
 
 def test_api_login(client, seed_user):
-    r = post_json(
-        client,
-        "/login",
-        {
-            "username": "testuser",
-            "password": "testpass",
-        },
-    )
+    r = post_json(client, "/login", {"username": "testuser", "password": "testpass"})
     assert r.status_code == 200
-    body = r.json()
-    assert body["username"] == "testuser"
-    assert "redirect" in body
+    assert r.json()["username"] == "testuser"
+    assert "redirect" in r.json()
 
 
 def test_api_login_fail(client, seed_user):
-    r = post_json(
-        client,
-        "/login",
-        {
-            "username": "testuser",
-            "password": "wrong",
-        },
-    )
+    r = post_json(client, "/login", {"username": "testuser", "password": "wrong"})
     assert r.status_code == 400
-    body = r.json()
-    assert body["ok"] is False
+    assert r.json()["ok"] is False
 
 
 def test_api_logout(authed_client):
     r = post_json(authed_client, "/logout")
     assert r.status_code == 200
     assert r.json()["ok"] is True
-
-
-# ---------------------------------------------------------------------------
-# Settings
-# ---------------------------------------------------------------------------
 
 
 def test_api_settings(authed_client):
@@ -209,11 +161,6 @@ def test_api_save_css(authed_client):
     assert r.json()["ok"] is True
 
 
-# ---------------------------------------------------------------------------
-# Widgets
-# ---------------------------------------------------------------------------
-
-
 def test_api_counter(client, seed_user):
     data = get_json(client, f"/u/{seed_user['username']}/counter")
     assert data["username"] == "testuser"
@@ -243,20 +190,10 @@ def test_api_webring(client, seed_user):
     assert data["username"] == "testuser"
 
 
-# ---------------------------------------------------------------------------
-# Lineage
-# ---------------------------------------------------------------------------
-
-
 def test_api_lineage(client, seed_user):
     data = get_json(client, "/lineage")
     assert "tree" in data
     assert isinstance(data["tree"], list)
-
-
-# ---------------------------------------------------------------------------
-# Media
-# ---------------------------------------------------------------------------
 
 
 def test_api_media_list(authed_client):
@@ -266,13 +203,81 @@ def test_api_media_list(authed_client):
     assert "storage_limit" in data
 
 
-# ---------------------------------------------------------------------------
-# HTML still works
-# ---------------------------------------------------------------------------
-
-
 def test_html_still_works(client, seed_user):
-    """Requests without Accept: application/json still get HTML."""
     r = client.get(f"/u/{seed_user['username']}")
     assert r.status_code == 200
     assert "<html" in r.text or "<!doctype" in r.text.lower() or "panel" in r.text
+
+
+def api_token(test_engine, seed_user):
+    token = "test-access-token"
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(oauth2_tokens).values(
+                client_id="test",
+                user_id=seed_user["id"],
+                access_token=token,
+                issued_at=int(time.time()),
+                expires_in=3600,
+                scope="openid profile",
+            )
+        )
+    return token
+
+
+def auth_headers(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_api_v1_requires_bearer_token(client):
+    response = client.get("/api/v1/me")
+    assert response.status_code == 401
+    assert response.json() == {
+        "error": {"code": "unauthorized", "message": "missing or invalid bearer token"}
+    }
+
+
+def test_api_v1_pages_are_idempotent(client, test_engine, seed_user):
+    token = api_token(test_engine, seed_user)
+    headers = {**auth_headers(token), "Accept": "application/json"}
+    payload = {
+        "title": "About me",
+        "content": "<h1>Hello</h1>",
+        "content_format": "html",
+    }
+    first = client.put("/api/v1/pages/about", json=payload, headers=headers)
+    second = client.put(
+        "/api/v1/pages/about",
+        json={**payload, "content": "updated"},
+        headers=headers,
+    )
+    assert first.status_code == 200
+    assert first.json()["slug"] == "about"
+    assert second.status_code == 200
+    assert second.json()["content"] == "updated"
+    listed = client.get("/api/v1/pages", headers=headers)
+    assert [page["slug"] for page in listed.json()["pages"]] == ["about"]
+
+
+def test_api_v1_page_delete(client, test_engine, seed_user):
+    token = api_token(test_engine, seed_user)
+    headers = auth_headers(token)
+    client.put("/api/v1/pages/remove-me", json={"title": "Remove me"}, headers=headers)
+    response = client.delete("/api/v1/pages/remove-me", headers=headers)
+    missing = client.get("/api/v1/pages/remove-me", headers=headers)
+    assert response.status_code == 200
+    assert missing.status_code == 404
+
+
+def test_api_v1_media_upload_sanitizes_filename(client, test_engine, seed_user):
+    token = api_token(test_engine, seed_user)
+    response = client.post(
+        "/api/v1/media",
+        files={"file": ("../avatar image.PNG", b"image data", "image/png")},
+        headers=auth_headers(token),
+    )
+    assert response.status_code == 200
+    storage_path = response.json()["storage_path"]
+    assert storage_path.startswith("testuser/avatar-image")
+    assert storage_path.endswith(".png")
+    Path("uploads", storage_path).unlink(missing_ok=True)

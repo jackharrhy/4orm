@@ -5,30 +5,31 @@ description = "4orm software"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi==0.135.3",
-  "uvicorn[standard]==0.44.0",
-  "sqlalchemy==2.0.49",
+  "fastapi==0.141.0",
+  "uvicorn[standard]==0.52.0",
+  "sqlalchemy==2.0.51",
   "jinja2==3.1.6",
-  "python-multipart==0.0.24",
+  "python-multipart==0.0.32",
   "itsdangerous==2.2.0",
-  "alembic==1.18.4",
+  "alembic==1.18.5",
   "markdown==3.10.2",
   "bbcode==1.1.0",
-  "bleach==6.3.0",
+  "bleach==6.4.0",
   "pywebpush==2.3.0",
   "loguru==0.7.3",
-  "authlib==1.7.0",
+  "authlib==1.7.2",
 ]
 
 [dependency-groups]
 dev = [
-  "ruff==0.15.12",
-  "pytest==9.0.3",
-  "httpx==0.28.1",
+  "ruff==0.16.0",
+  "pytest==9.1.1",
+  "httpx2==2.9.1",
 ]
 
 [tool.uv]
 package = false
+required-version = ">=0.12.0"
 
 
 [tool.pytest.ini_options]
@@ -43,5 +44,5 @@ target-version = "py312"
 line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["B008"] # FastAPI uses File(...), Form(...) etc. in defaults

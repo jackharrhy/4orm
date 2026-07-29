@@ -73,7 +73,7 @@ def delete_user_reparent(conn: Connection, user_id: int, uploads_dir: Path):
 def delete_user_prune(conn: Connection, user_id: int, uploads_dir: Path) -> int:
     """Delete a user and all users they invited (recursively). Returns count deleted."""
     descendant_ids = _get_descendant_ids(conn, user_id)
-    all_ids = [user_id] + descendant_ids
+    all_ids = [user_id, *descendant_ids]
 
     # Clean up files for all users in the subtree
     for uid in all_ids:

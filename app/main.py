@@ -35,6 +35,7 @@ from app.queries.users import list_profile_cards
 from app.rendering import render_content, render_forum_post
 from app.routes import (
     admin,
+    api,
     auth,
     chat,
     feeds,
@@ -180,6 +181,7 @@ tags_metadata = [
     },
     {"name": "feeds", "description": "RSS feeds for pages and forum"},
     {"name": "push", "description": "Web Push notification subscriptions"},
+    {"name": "api-v1", "description": "Stable machine-oriented API"},
     {"name": "export", "description": "Export user sites and full site snapshots"},
 ]
 
@@ -223,6 +225,7 @@ app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads
 
 # Include all route modules
 app.include_router(auth.router)
+app.include_router(api.router)
 app.include_router(chat.router)
 app.include_router(pages.router)
 app.include_router(settings.router)
@@ -258,6 +261,25 @@ ERROR_MESSAGES = {
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if request.url.path.startswith("/api/v1"):
+        detail = exc.detail if isinstance(exc.detail, str) else "request failed"
+        code_by_status = {
+            400: "bad_request",
+            401: "unauthorized",
+            403: "forbidden",
+            404: "not_found",
+            409: "conflict",
+            422: "invalid_request",
+        }
+        return JSONResponse(
+            {
+                "error": {
+                    "code": code_by_status.get(exc.status_code, "request_failed"),
+                    "message": detail,
+                }
+            },
+            status_code=exc.status_code,
+        )
     message = ERROR_MESSAGES.get(exc.status_code, exc.detail)
     if wants_json(request):
         return JSONResponse(

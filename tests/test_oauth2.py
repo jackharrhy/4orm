@@ -85,7 +85,7 @@ def test_full_oauth2_flow(client, test_engine):
                 client_name="Test App",
                 redirect_uris="http://localhost:3000/callback",
                 scope="openid profile",
-                grant_types="authorization_code",
+                grant_types="authorization_code refresh_token",
                 response_types="code",
                 token_endpoint_auth_method="none",
             )
@@ -147,7 +147,7 @@ def test_full_oauth2_flow(client, test_engine):
     assert r.headers["pragma"] == "no-cache"
     token_data = r.json()
     assert "access_token" in token_data
-    assert "refresh_token" not in token_data
+    assert "refresh_token" in token_data
     assert token_data["token_type"].lower() == "bearer"
 
     access_token = token_data["access_token"]
@@ -159,6 +159,29 @@ def test_full_oauth2_flow(client, test_engine):
     userinfo = r.json()
     assert userinfo["username"] == "oauthuser"
     assert userinfo["is_admin"] is False
+
+    refreshed = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": token_data["refresh_token"],
+            "client_id": "test-app",
+        },
+    )
+    assert refreshed.status_code == 200
+    refreshed_data = refreshed.json()
+    assert refreshed_data["access_token"] != access_token
+    assert refreshed_data["refresh_token"] != token_data["refresh_token"]
+
+    old_refresh = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": token_data["refresh_token"],
+            "client_id": "test-app",
+        },
+    )
+    assert old_refresh.status_code == 400
 
 
 def test_authorize_requires_login(client, test_engine):
@@ -210,14 +233,14 @@ def test_token_rejects_bad_verifier(client, test_engine):
                 client_name="PKCE App",
                 redirect_uris="http://localhost:3000/callback",
                 scope="openid profile",
-                grant_types="authorization_code",
+                grant_types="authorization_code refresh_token",
                 response_types="code",
                 token_endpoint_auth_method="none",
             )
         )
     client.post("/login", data={"username": "pkceuser", "password": "pass"})
 
-    verifier, challenge = _create_pkce()
+    _verifier, challenge = _create_pkce()
     client.get(
         "/oauth/authorize",
         params={
@@ -515,7 +538,7 @@ def test_token_rejects_missing_verifier(client, test_engine):
     _seed_client_and_user(test_engine)
     client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
 
-    verifier, challenge = _create_pkce()
+    _verifier, challenge = _create_pkce()
     code = _get_auth_code(client, challenge)
 
     r = client.post(
@@ -688,7 +711,7 @@ def test_consent_denial_redirects_with_error(client, test_engine):
     _seed_client_and_user(test_engine)
     client.post("/login", data={"username": "oauthuser", "password": "oauthpass"})
 
-    verifier, challenge = _create_pkce()
+    _verifier, challenge = _create_pkce()
     r = client.post(
         "/oauth/authorize",
         data={
@@ -755,7 +778,7 @@ def test_authorize_unauthenticated_stashes_and_resumes(client, test_engine):
     _seed_client_and_user(test_engine)
 
     # 1. Hit authorize without being logged in
-    verifier, challenge = _create_pkce()
+    _verifier, challenge = _create_pkce()
     r = client.get(
         "/oauth/authorize",
         params={
