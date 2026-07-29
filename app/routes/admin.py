@@ -256,10 +256,7 @@ def admin_randomize_default_card_colors(request: Request):
             conn.execute(
                 update(profile_cards)
                 .where(profile_cards.c.user_id == user_id)
-                .values(
-                    accent_color=colors[index % len(colors)],
-                    updated_at=func.now(),
-                )
+                .values(accent_color=colors[index % len(colors)])
             )
 
     return RedirectResponse(
