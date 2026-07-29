@@ -1,5 +1,7 @@
 """Admin dashboard routes."""
 
+import random
+
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func, select, update
@@ -18,6 +20,21 @@ from app.queries.users import create_password_reset_token, get_user_by_id
 from app.schema import forum_posts, forum_threads, media, pages, profile_cards, users
 
 router = APIRouter(tags=["admin"])
+
+_CARD_COLORS = (
+    "#ffd6a5",
+    "#fdffb6",
+    "#caffbf",
+    "#9bf6ff",
+    "#a0c4ff",
+    "#bdb2ff",
+    "#ffc6ff",
+    "#ffadad",
+    "#d0f4de",
+    "#fefae0",
+    "#fbc4ab",
+    "#cdeac0",
+)
 
 
 @router.get("/admin", response_class=HTMLResponse, summary="Admin dashboard")
@@ -216,6 +233,34 @@ def admin_update_user_card(
             )
         )
     return RedirectResponse(url="/admin", status_code=303)
+
+
+@router.post("/admin/cards/randomize-default-colors")
+def admin_randomize_default_card_colors(request: Request):
+    """Give cards still using the default cyan background a curated color."""
+    require_admin(request)
+    with get_engine(request).begin() as conn:
+        card_ids = conn.execute(
+            select(profile_cards.c.user_id).where(
+                profile_cards.c.accent_color == "#00ffff"
+            )
+        ).scalars().all()
+
+        colors = list(_CARD_COLORS)
+        random.SystemRandom().shuffle(colors)
+        for index, user_id in enumerate(card_ids):
+            conn.execute(
+                update(profile_cards)
+                .where(profile_cards.c.user_id == user_id)
+                .values(
+                    accent_color=colors[index % len(colors)],
+                    updated_at=func.now(),
+                )
+            )
+
+    return RedirectResponse(
+        url=f"/admin?randomized_cards={len(card_ids)}", status_code=303
+    )
 
 
 @router.post("/admin/pages/{page_id}")

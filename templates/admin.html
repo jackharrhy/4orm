@@ -14,6 +14,12 @@
       record(s) from database.
     </p>
   {% endif %}
+  {% if request.query_params.get('randomized_cards') %}
+    <p class="ok">
+      randomized colors for {{ request.query_params.get('randomized_cards') }}
+      default card(s).
+    </p>
+  {% endif %}
 
   <details class="panel" open>
     <summary><h2>users ({{ all_users|length }})</h2></summary>
@@ -21,6 +27,17 @@
       {% set stats = storage_by_user.get(u.id, {}) %}
       {% include 'fragments/admin_user_row.html' %}
     {% endfor %}
+    <form
+      method="post"
+      action="/admin/cards/randomize-default-colors"
+      style="margin-top: 12px"
+      onsubmit="return confirm('Randomize colors for cards still using the default cyan background?')"
+    >
+      <button type="submit">randomize default card colors</button>
+      <span class="muted"
+        >Only cards with a <code>#00ffff</code> background will change.</span
+      >
+    </form>
   </details>
 
   <details class="panel">

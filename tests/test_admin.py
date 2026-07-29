@@ -1,6 +1,7 @@
 from sqlalchemy import insert, select, update
 
 from app.schema import pages, password_reset_tokens, profile_cards, users
+from tests.conftest import make_test_user
 
 
 def test_admin_requires_login(client):
@@ -85,6 +86,33 @@ def test_admin_can_edit_card(authed_client, test_engine, seed_user):
     assert card["headline"] == "new headline"
     assert card["content"] == "new card content"
     assert card["accent_color"] == "#123456"
+
+
+def test_admin_randomizes_only_default_card_colors(
+    authed_client, test_engine, seed_user
+):
+    _promote_admin(test_engine, seed_user["id"])
+    with test_engine.begin() as conn:
+        custom_id = make_test_user(conn, "custom-color")
+        conn.execute(
+            update(profile_cards)
+            .where(profile_cards.c.user_id == custom_id)
+            .values(accent_color="#123456")
+        )
+
+    r = authed_client.post(
+        "/admin/cards/randomize-default-colors", follow_redirects=False
+    )
+    assert r.status_code == 303
+    assert "randomized_cards=1" in r.headers["location"]
+
+    with test_engine.begin() as conn:
+        cards = {
+            row["user_id"]: row["accent_color"]
+            for row in conn.execute(select(profile_cards)).mappings()
+        }
+    assert cards[seed_user["id"]] != "#00ffff"
+    assert cards[custom_id] == "#123456"
 
 
 def test_admin_can_edit_page(authed_client, test_engine, seed_user):
