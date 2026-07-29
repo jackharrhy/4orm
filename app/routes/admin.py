@@ -240,11 +240,15 @@ def admin_randomize_default_card_colors(request: Request):
     """Give cards still using the default cyan background a curated color."""
     require_admin(request)
     with get_engine(request).begin() as conn:
-        card_ids = conn.execute(
-            select(profile_cards.c.user_id).where(
-                profile_cards.c.accent_color == "#00ffff"
+        card_ids = (
+            conn.execute(
+                select(profile_cards.c.user_id).where(
+                    profile_cards.c.accent_color == "#00ffff"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         colors = list(_CARD_COLORS)
         random.SystemRandom().shuffle(colors)
