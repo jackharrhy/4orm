@@ -1,6 +1,6 @@
 from sqlalchemy import insert, select, update
 
-from app.schema import pages, password_reset_tokens, profile_cards, users
+from app.schema import pages, password_reset_tokens, profile_cards, site_settings, users
 from tests.conftest import make_test_user
 
 
@@ -86,6 +86,38 @@ def test_admin_can_edit_card(authed_client, test_engine, seed_user):
     assert card["headline"] == "new headline"
     assert card["content"] == "new card content"
     assert card["accent_color"] == "#123456"
+
+
+def test_admin_can_edit_site_banner(authed_client, test_engine, seed_user):
+    _promote_admin(test_engine, seed_user["id"])
+
+    response = authed_client.post(
+        "/admin/site-banner",
+        data={
+            "banner_enabled": "on",
+            "banner_html": "<strong>new feature</strong>",
+            "banner_css": ".site-banner { background: pink; }",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with test_engine.begin() as conn:
+        banner = conn.execute(select(site_settings)).mappings().one()
+    assert banner["banner_enabled"] is True
+    assert banner["banner_html"] == "<strong>new feature</strong>"
+    assert banner["banner_css"] == ".site-banner { background: pink; }"
+
+    for path in ("/", "/forum", "/settings"):
+        page = authed_client.get(path)
+        assert page.status_code == 200
+        assert '<aside class="site-banner"' in page.text
+        assert "new feature" in page.text
+
+    for path in ("/forum/new", f"/u/{seed_user['username']}", "/admin"):
+        page = authed_client.get(path)
+        assert page.status_code == 200
+        assert '<aside class="site-banner" role="status"' not in page.text
 
 
 def test_admin_randomizes_only_default_card_colors(

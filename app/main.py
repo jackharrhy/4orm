@@ -31,6 +31,7 @@ from app.deps import (
 )
 from app.models import ForumPostPreview, HomepageResponse, ProfileCard
 from app.queries.forum import recent_forum_posts
+from app.queries.site import get_site_banner
 from app.queries.users import list_profile_cards
 from app.rendering import render_content, render_forum_post
 from app.routes import (
@@ -315,6 +316,7 @@ def home(request: Request):
     with get_engine(request).begin() as conn:
         raw_cards = list_profile_cards(conn)
         raw_recent = recent_forum_posts(conn, hours=2, limit=5)
+        site_banner = get_site_banner(conn)
     cards = [
         {
             **card,
@@ -415,5 +417,6 @@ def home(request: Request):
             "recent_posts": recent_posts,
             "me": current_user(request),
             "chat_style": chat_style,
+            "site_banner": site_banner,
         },
     )

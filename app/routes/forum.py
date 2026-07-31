@@ -46,6 +46,7 @@ from app.queries.forum import (
     watch_thread,
 )
 from app.queries.media import list_media_for_user
+from app.queries.site import get_site_banner
 from app.rendering import render_forum_post, render_signature
 from app.schema import forum_posts
 
@@ -116,6 +117,7 @@ def forum_index(request: Request, page: int = 1):
         threads, total = list_threads(
             conn, page=current_page, per_page=THREADS_PER_PAGE
         )
+        site_banner = get_site_banner(conn)
     total_pages = max(1, math.ceil(total / THREADS_PER_PAGE))
     if wants_json(request):
         return json_response(
@@ -148,6 +150,7 @@ def forum_index(request: Request, page: int = 1):
             "current_page": current_page,
             "total_pages": total_pages,
             "me": current_user(request),
+            "site_banner": site_banner,
         },
     )
 

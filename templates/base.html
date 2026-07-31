@@ -37,6 +37,14 @@
         {% endif %}
       </nav>
     </header>
+    {% if site_banner and site_banner.banner_enabled %}
+      <style>
+        {{ site_banner.banner_css|safe }}
+      </style>
+      <aside class="site-banner" role="status">
+        {{ site_banner.banner_html|safe }}
+      </aside>
+    {% endif %}
     <main class="wrap">{% block content %}{% endblock %}</main>
     <script src="/static/app.js?v={{ app_hash }}"></script>
   </body>

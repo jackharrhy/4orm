@@ -1,20 +1,26 @@
-"""Test that alembic migrations produce a schema matching create_all.
-
-Uses a simpler approach: create two databases (one via migrations
-from the prod-like path, one via create_all), then compare their
-table structures. Since our migration chain can't run from scratch
-on SQLite (it assumes base tables exist), we use create_all + stamp
-+ upgrade for the migrations DB, which mirrors the actual prod flow.
-
-This catches: missing columns, missing server_defaults, nullable
-mismatches, and missing tables in migrations.
-"""
+"""Test that Alembic migrations and the SQLAlchemy schema stay aligned."""
 
 from alembic.config import Config
+from alembic.migration import MigrationContext
 from sqlalchemy import create_engine, inspect
 
 from alembic import command
 from app.schema import metadata
+
+
+def test_alembic_upgrade_runs_initial_migration(tmp_path):
+    """A direct Alembic upgrade works against a completely empty database."""
+    engine = create_engine(f"sqlite:///{tmp_path / 'empty.db'}")
+    alembic_cfg = Config("alembic.ini")
+
+    with engine.begin() as conn:
+        alembic_cfg.attributes["connection"] = conn
+        command.upgrade(alembic_cfg, "head")
+        assert MigrationContext.configure(conn).get_current_revision() == "8f7a1c2d3e4f"
+
+    actual_tables = set(inspect(engine).get_table_names())
+    actual_tables.discard("alembic_version")
+    assert actual_tables == set(metadata.tables)
 
 
 def test_migrations_match_schema(tmp_path):

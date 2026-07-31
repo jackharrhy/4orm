@@ -34,6 +34,7 @@ from app.queries.pages import (
     list_pages_for_user,
     update_user_page,
 )
+from app.queries.site import get_site_banner
 from app.queries.users import (
     create_invite,
     delete_invite,
@@ -68,6 +69,7 @@ def settings_get(request: Request):
         media_items = list_media_for_user(conn, me["id"])
         my_invites = get_invites_for_user(conn, me["id"])
         playlist = get_playlist(conn, me["id"])
+        site_banner = get_site_banner(conn)
         audio_items = (
             conn.execute(
                 select(media)
@@ -157,6 +159,7 @@ def settings_get(request: Request):
             "playlist": playlist,
             "audio_items": audio_items,
             "error": None,
+            "site_banner": site_banner,
         },
     )
 

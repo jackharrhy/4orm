@@ -4,7 +4,7 @@ import random
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from sqlalchemy import func, select, update
+from sqlalchemy import func, insert, select, update
 
 import app.deps as deps
 from app.deps import (
@@ -16,8 +16,17 @@ from app.deps import (
     templates,
 )
 from app.queries.admin import delete_user_prune, delete_user_reparent
+from app.queries.site import get_site_banner
 from app.queries.users import create_password_reset_token, get_user_by_id
-from app.schema import forum_posts, forum_threads, media, pages, profile_cards, users
+from app.schema import (
+    forum_posts,
+    forum_threads,
+    media,
+    pages,
+    profile_cards,
+    site_settings,
+    users,
+)
 
 router = APIRouter(tags=["admin"])
 
@@ -142,6 +151,7 @@ def admin_dashboard(request: Request):
             .mappings()
             .all()
         )
+        site_banner = get_site_banner(conn)
 
     scheduler = getattr(request.app.state, "backup_scheduler", None)
     backup_summary = None
@@ -167,8 +177,33 @@ def admin_dashboard(request: Request):
             "all_threads": all_threads,
             "recent_posts": recent_posts,
             "backup_summary": backup_summary,
+            "site_banner_settings": site_banner,
         },
     )
+
+
+@router.post("/admin/site-banner")
+def admin_update_site_banner(
+    request: Request,
+    banner_enabled: str = Form(""),
+    banner_html: str = Form(""),
+    banner_css: str = Form(""),
+):
+    require_admin(request)
+    with get_engine(request).begin() as conn:
+        existing = get_site_banner(conn)
+        values = {
+            "banner_enabled": bool(banner_enabled),
+            "banner_html": banner_html,
+            "banner_css": banner_css,
+        }
+        if existing:
+            conn.execute(
+                update(site_settings).where(site_settings.c.id == 1).values(**values)
+            )
+        else:
+            conn.execute(insert(site_settings).values(id=1, **values))
+    return RedirectResponse(url="/admin", status_code=303)
 
 
 @router.post("/admin/users/{user_id}/profile")

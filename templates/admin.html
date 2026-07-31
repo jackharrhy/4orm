@@ -22,6 +22,57 @@
   {% endif %}
 
   <details class="panel" open>
+    <summary><h2>site banner</h2></summary>
+    <p class="muted">
+      show a site-wide message on the home page, forum index, and settings. the
+      html and css are trusted admin content.
+    </p>
+    <form method="post" action="/admin/site-banner" class="stack">
+      <label
+        ><input
+          type="checkbox"
+          name="banner_enabled"
+          {% if site_banner_settings and site_banner_settings.banner_enabled %}checked{% endif %}
+        />
+        show banner</label
+      >
+      <label
+        >banner HTML
+        <textarea id="site-banner-html" name="banner_html" rows="4">{{ site_banner_settings.banner_html if site_banner_settings else '' }}</textarea>
+      </label>
+      <label
+        >banner CSS
+        <textarea id="site-banner-css" name="banner_css" rows="6">{{ site_banner_settings.banner_css if site_banner_settings else '' }}</textarea>
+      </label>
+      <button type="submit">save site banner</button>
+    </form>
+    <h3>preview</h3>
+    <iframe
+      id="site-banner-preview"
+      title="site banner preview"
+      sandbox
+      style="width: 100%; min-height: 100px; border: 2px inset #ccc"
+    ></iframe>
+    <script>
+      (() => {
+        const html = document.getElementById('site-banner-html');
+        const css = document.getElementById('site-banner-css');
+        const preview = document.getElementById('site-banner-preview');
+        const update = () => {
+          preview.srcdoc = `<!doctype html><style>
+            body { margin: 0; padding: 10px; }
+            .site-banner { padding: 10px 14px; border: 2px solid #333; background: #ffffcc; color: #111; text-align: center; }
+            ${css.value}
+          </style><aside class="site-banner">${html.value}</aside>`;
+        };
+        html.addEventListener('input', update);
+        css.addEventListener('input', update);
+        update();
+      })();
+    </script>
+  </details>
+
+  <details class="panel" open>
     <summary><h2>users ({{ all_users|length }})</h2></summary>
     {% for u in all_users %}
       {% set stats = storage_by_user.get(u.id, {}) %}

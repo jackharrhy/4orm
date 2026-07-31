@@ -24,7 +24,11 @@ users = Table(
     Column("display_name", String(80), nullable=False),
     Column("content", Text, nullable=False, server_default=""),
     Column("content_format", String(20), nullable=False, server_default="html"),
-    Column("avatar_media_id", Integer, ForeignKey("media.id", ondelete="SET NULL")),
+    Column(
+        "avatar_media_id",
+        Integer,
+        ForeignKey("media.id", ondelete="SET NULL", use_alter=True),
+    ),
     Column("custom_css", Text, nullable=False, server_default=""),
     Column("custom_html", Text, nullable=False, server_default=""),
     Column("layout", String(20), nullable=False, server_default="default"),
@@ -47,7 +51,11 @@ users = Table(
     Column("watch_all_threads", Boolean, nullable=False, server_default="0"),
     Column("is_disabled", Boolean, nullable=False, server_default="0"),
     Column("invited_by_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
-    Column("invite_id", Integer, ForeignKey("invites.id", ondelete="SET NULL")),
+    Column(
+        "invite_id",
+        Integer,
+        ForeignKey("invites.id", ondelete="SET NULL", use_alter=True),
+    ),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
@@ -353,6 +361,15 @@ oauth2_tokens = Table(
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
+)
+
+site_settings = Table(
+    "site_settings",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("banner_enabled", Boolean, nullable=False, server_default="0"),
+    Column("banner_html", Text, nullable=False, server_default=""),
+    Column("banner_css", Text, nullable=False, server_default=""),
 )
 
 

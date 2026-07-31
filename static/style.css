@@ -124,6 +124,15 @@ nav {
   color: #333;
   font-size: 0.9rem;
 }
+.site-banner {
+  margin: 10px auto 0;
+  max-width: 900px;
+  padding: 10px 14px;
+  border: 2px solid #333;
+  background: #ffffcc;
+  color: #111;
+  text-align: center;
+}
 .error {
   background: #ffdddd;
   border: 2px solid #c00;
