@@ -281,3 +281,28 @@ def test_api_v1_media_upload_sanitizes_filename(client, test_engine, seed_user):
     assert storage_path.startswith("testuser/avatar-image")
     assert storage_path.endswith(".png")
     Path("uploads", storage_path).unlink(missing_ok=True)
+
+
+def test_api_v1_media_list_and_delete(client, test_engine, seed_user):
+    token = api_token(test_engine, seed_user)
+    headers = auth_headers(token)
+    uploaded = client.post(
+        "/api/v1/media",
+        files={"file": ("notes.txt", b"media content", "text/plain")},
+        headers=headers,
+    )
+    assert uploaded.status_code == 200
+    item = uploaded.json()
+
+    listed = client.get("/api/v1/media", headers=headers)
+    assert listed.status_code == 200
+    assert [entry["id"] for entry in listed.json()["items"]] == [item["id"]]
+    assert listed.json()["storage_used"] == len(b"media content")
+
+    deleted = client.delete(f"/api/v1/media/{item['id']}", headers=headers)
+    assert deleted.status_code == 200
+    assert deleted.json()["message"] == "media deleted"
+    assert not Path("uploads", item["storage_path"]).exists()
+
+    missing = client.delete(f"/api/v1/media/{item['id']}", headers=headers)
+    assert missing.status_code == 404

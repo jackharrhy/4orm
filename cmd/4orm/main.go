@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -32,6 +33,7 @@ type credentials struct {
 }
 
 const cliCallbackAddress = "localhost:4444"
+const cliVersion = "0.2.0"
 
 type page struct {
 	Slug          string `json:"slug"`
@@ -52,6 +54,21 @@ type pageWriteRequest struct {
 
 type pageList struct {
 	Pages []page `json:"pages"`
+}
+
+type mediaItem struct {
+	ID          int    `json:"id"`
+	StoragePath string `json:"storage_path"`
+	MimeType    string `json:"mime_type"`
+	SizeBytes   int    `json:"size_bytes"`
+	AltText     string `json:"alt_text"`
+}
+
+type mediaList struct {
+	Items        []mediaItem `json:"items"`
+	StorageUsed  int         `json:"storage_used"`
+	StorageLimit int         `json:"storage_limit"`
+	StoragePct   float64     `json:"storage_pct"`
 }
 
 func main() {
@@ -84,6 +101,8 @@ func main() {
 			return
 		}
 		err = c.whoami()
+	case "version", "--version":
+		fmt.Println(cliVersion)
 	case "page":
 		err = c.pageCommand(os.Args[2:])
 	case "media":
@@ -209,14 +228,34 @@ func (c client) deletePage(args []string) error {
 }
 
 func (c client) mediaCommand(args []string) error {
+	if len(args) == 0 {
+		printMediaUsage(os.Stderr)
+		return nil
+	}
 	if hasHelpArg(args) {
 		printMediaUsage(os.Stdout)
 		return nil
 	}
-	if len(args) != 2 || args[0] != "upload" {
+	switch args[0] {
+	case "list":
+		if len(args) != 1 {
+			return errors.New("usage: 4orm media list")
+		}
+		return c.listMedia()
+	case "upload":
+		return c.uploadMedia(args[1:])
+	case "delete":
+		return c.deleteMedia(args[1:])
+	default:
+		return fmt.Errorf("unknown media command %q; run `4orm media --help`", args[0])
+	}
+}
+
+func (c client) uploadMedia(args []string) error {
+	if len(args) != 1 {
 		return errors.New("usage: 4orm media upload <file>; run `4orm media --help`")
 	}
-	file, err := os.Open(args[1])
+	file, err := os.Open(args[0])
 	if err != nil {
 		return err
 	}
@@ -224,7 +263,7 @@ func (c client) mediaCommand(args []string) error {
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	part, err := writer.CreateFormFile("file", filepath.Base(args[1]))
+	part, err := writer.CreateFormFile("file", filepath.Base(args[0]))
 	if err != nil {
 		return err
 	}
@@ -240,6 +279,36 @@ func (c client) mediaCommand(args []string) error {
 		return err
 	}
 	fmt.Println("uploaded", result["storage_path"])
+	return nil
+}
+
+func (c client) listMedia() error {
+	var result mediaList
+	if err := c.doJSON(http.MethodGet, "/api/v1/media", nil, &result); err != nil {
+		return err
+	}
+	for _, item := range result.Items {
+		fmt.Printf("%-6d %-40s %s (%d bytes)\n", item.ID, item.StoragePath, item.MimeType, item.SizeBytes)
+	}
+	return nil
+}
+
+func (c client) deleteMedia(args []string) error {
+	if len(args) == 1 && (args[0] == "-h" || args[0] == "--help") {
+		fmt.Println("usage: 4orm media delete <id>\n\nDelete a media item by its numeric ID.")
+		return nil
+	}
+	if len(args) != 1 {
+		return errors.New("usage: 4orm media delete <id>; run `4orm media --help`")
+	}
+	mediaID, err := strconv.Atoi(args[0])
+	if err != nil || mediaID < 1 {
+		return errors.New("media ID must be a positive integer")
+	}
+	if err := c.doJSON(http.MethodDelete, "/api/v1/media/"+strconv.Itoa(mediaID), nil, nil); err != nil {
+		return err
+	}
+	fmt.Println("deleted media", mediaID)
 	return nil
 }
 
@@ -532,11 +601,14 @@ func printUsage(w io.Writer) {
 
 usage:
   4orm login                         Sign in through the browser using OAuth.
+  4orm version                       Show the CLI version.
   4orm whoami                        Show the currently authenticated account.
   4orm page list                     List your published pages.
   4orm page publish [flags] FILE     Publish or replace a page from a file.
   4orm page delete SLUG              Delete a published page.
   4orm media upload FILE             Upload an image or other media file.
+  4orm media list                    List your media files.
+  4orm media delete ID               Delete a media file by ID.
 
 page publish:
   The slug defaults to the filename without its extension. The title defaults
@@ -603,8 +675,13 @@ examples:
 }
 
 func printMediaUsage(w io.Writer) {
-	fmt.Fprintln(w, `usage: 4orm media upload FILE
+	fmt.Fprintln(w, `usage:
+  4orm media upload FILE
+  4orm media list
+  4orm media delete ID
 
-Upload FILE to 4orm media storage. The resulting storage path is printed after
-the upload completes. Use the returned path in page content where appropriate.`)
+Commands:
+  upload     Upload FILE to 4orm media storage.
+  list       List media files belonging to the authenticated account.
+  delete     Delete a media file by its numeric ID.`)
 }

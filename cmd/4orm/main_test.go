@@ -39,3 +39,19 @@ func TestPageWriteRequestOmitsSlug(t *testing.T) {
 		t.Fatalf("publish request missing expected fields: %s", data)
 	}
 }
+
+func TestMediaListResponse(t *testing.T) {
+	var result mediaList
+	if err := json.Unmarshal([]byte(`{"items":[{"id":7,"storage_path":"testuser/photo.png","mime_type":"image/png","size_bytes":42}],"storage_used":42,"storage_limit":100,"storage_pct":42}`), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Items) != 1 || result.Items[0].ID != 7 || result.StoragePct != 42 {
+		t.Fatalf("unexpected media response: %+v", result)
+	}
+}
+
+func TestCLIVersion(t *testing.T) {
+	if cliVersion != "0.2.0" {
+		t.Fatalf("cliVersion = %q", cliVersion)
+	}
+}
