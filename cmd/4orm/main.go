@@ -1,10 +1,14 @@
 package main
 
 import (
+	"archive/tar"
+	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -18,6 +22,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
+
+	selfupdate "github.com/minio/selfupdate"
 )
 
 type client struct {
@@ -33,7 +40,8 @@ type credentials struct {
 }
 
 const cliCallbackAddress = "localhost:4444"
-const cliVersion = "0.2.0"
+const cliVersion = "0.3.0"
+const githubRepo = "jackharrhy/4orm"
 
 type page struct {
 	Slug          string `json:"slug"`
@@ -79,7 +87,7 @@ func main() {
 	c := client{
 		baseURL:     strings.TrimRight(envOr("4ORM_URL", "https://4orm.harrhy.xyz"), "/"),
 		accessToken: os.Getenv("4ORM_TOKEN"),
-		http:        http.DefaultClient,
+		http:        &http.Client{Timeout: 2 * time.Minute},
 	}
 	if c.accessToken == "" {
 		stored := loadCredentials()
@@ -103,6 +111,8 @@ func main() {
 		err = c.whoami()
 	case "version", "--version":
 		fmt.Println(cliVersion)
+	case "update", "self-update":
+		err = c.update()
 	case "page":
 		err = c.pageCommand(os.Args[2:])
 	case "media":
@@ -310,6 +320,237 @@ func (c client) deleteMedia(args []string) error {
 	}
 	fmt.Println("deleted media", mediaID)
 	return nil
+}
+
+type githubAsset struct {
+	Name        string `json:"name"`
+	DownloadURL string `json:"browser_download_url"`
+}
+
+type githubRelease struct {
+	TagName string        `json:"tag_name"`
+	Assets  []githubAsset `json:"assets"`
+}
+
+func (c client) update() error {
+	if c.http == nil {
+		c.http = &http.Client{Timeout: 2 * time.Minute}
+	}
+	release, err := c.latestRelease()
+	if err != nil {
+		return err
+	}
+	latestVersion, err := parseCLIVersion(release.TagName)
+	if err != nil {
+		return err
+	}
+	currentVersion, err := parseCLIVersion("cli-v" + cliVersion)
+	if err != nil {
+		return err
+	}
+	if compareVersions(latestVersion, currentVersion) <= 0 {
+		fmt.Printf("already up to date (%s)\n", cliVersion)
+		return nil
+	}
+
+	assetName, archive := releaseAssetName()
+	asset := findGitHubAsset(release.Assets, assetName)
+	checksums := findGitHubAsset(release.Assets, "4orm_checksums.txt")
+	if asset == nil || checksums == nil {
+		return fmt.Errorf("release %s is missing the %s or checksum asset", release.TagName, assetName)
+	}
+
+	archiveBytes, err := c.download(asset.DownloadURL)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", assetName, err)
+	}
+	checksumBytes, err := c.download(checksums.DownloadURL)
+	if err != nil {
+		return fmt.Errorf("download checksums: %w", err)
+	}
+	if err := verifyChecksum(archiveBytes, assetName, checksumBytes); err != nil {
+		return err
+	}
+
+	binary, err := extractBinary(archiveBytes, archive)
+	if err != nil {
+		return err
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate current executable: %w", err)
+	}
+	info, err := os.Stat(executable)
+	if err != nil {
+		return fmt.Errorf("stat current executable: %w", err)
+	}
+
+	if err := selfupdate.Apply(bytes.NewReader(binary), selfupdate.Options{
+		TargetPath: executable,
+		TargetMode: info.Mode(),
+	}); err != nil {
+		if rollbackErr := selfupdate.RollbackError(err); rollbackErr != nil {
+			return fmt.Errorf("update failed and rollback failed: %v (original: %w)", rollbackErr, err)
+		}
+		return fmt.Errorf("update failed: %w", err)
+	}
+	fmt.Printf("updated 4orm from %s to %s\n", cliVersion, strings.TrimPrefix(release.TagName, "cli-v"))
+	return nil
+}
+
+func (c client) latestRelease() (githubRelease, error) {
+	request, err := http.NewRequest(
+		http.MethodGet,
+		"https://api.github.com/repos/"+githubRepo+"/releases/latest",
+		nil,
+	)
+	if err != nil {
+		return githubRelease{}, err
+	}
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("User-Agent", "4orm/"+cliVersion)
+	response, err := c.http.Do(request)
+	if err != nil {
+		return githubRelease{}, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		data, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		return githubRelease{}, fmt.Errorf("GitHub returned %s: %s", response.Status, strings.TrimSpace(string(data)))
+	}
+	var release githubRelease
+	if err := json.NewDecoder(response.Body).Decode(&release); err != nil {
+		return githubRelease{}, fmt.Errorf("decode GitHub release: %w", err)
+	}
+	return release, nil
+}
+
+func (c client) download(downloadURL string) ([]byte, error) {
+	response, err := c.http.Get(downloadURL)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("download returned %s", response.Status)
+	}
+	return io.ReadAll(io.LimitReader(response.Body, 100<<20))
+}
+
+func releaseAssetName() (name string, archive archiveFormat) {
+	target := runtime.GOOS + "-" + runtime.GOARCH
+	if runtime.GOOS == "windows" {
+		return "4orm-" + target + ".zip", archiveZip
+	}
+	return "4orm-" + target + ".tar.gz", archiveTarGz
+}
+
+type archiveFormat int
+
+const (
+	archiveTarGz archiveFormat = iota
+	archiveZip
+)
+
+func findGitHubAsset(assets []githubAsset, name string) *githubAsset {
+	for i := range assets {
+		if assets[i].Name == name {
+			return &assets[i]
+		}
+	}
+	return nil
+}
+
+func parseCLIVersion(tag string) ([3]int, error) {
+	var version [3]int
+	tag = strings.TrimPrefix(tag, "cli-v")
+	parts := strings.Split(tag, ".")
+	if len(parts) != 3 {
+		return version, fmt.Errorf("invalid CLI version %q", tag)
+	}
+	for i, part := range parts {
+		value, err := strconv.Atoi(part)
+		if err != nil || value < 0 {
+			return version, fmt.Errorf("invalid CLI version %q", tag)
+		}
+		version[i] = value
+	}
+	return version, nil
+}
+
+func compareVersions(left, right [3]int) int {
+	for i := range left {
+		if left[i] < right[i] {
+			return -1
+		}
+		if left[i] > right[i] {
+			return 1
+		}
+	}
+	return 0
+}
+
+func verifyChecksum(data []byte, filename string, checksums []byte) error {
+	for _, line := range strings.Split(string(checksums), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && filepath.Base(fields[len(fields)-1]) == filename {
+			expected, err := hex.DecodeString(fields[0])
+			if err != nil {
+				return fmt.Errorf("invalid checksum for %s: %w", filename, err)
+			}
+			actual := sha256.Sum256(data)
+			if !bytes.Equal(actual[:], expected) {
+				return fmt.Errorf("checksum mismatch for %s", filename)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("checksum for %s not found", filename)
+}
+
+func extractBinary(data []byte, archive archiveFormat) ([]byte, error) {
+	binaryName := "4orm"
+	if runtime.GOOS == "windows" {
+		binaryName = "4orm.exe"
+	}
+	if archive == archiveZip {
+		reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			return nil, fmt.Errorf("read update archive: %w", err)
+		}
+		for _, file := range reader.File {
+			if filepath.Base(file.Name) != binaryName {
+				continue
+			}
+			opened, err := file.Open()
+			if err != nil {
+				return nil, err
+			}
+			binary, readErr := io.ReadAll(io.LimitReader(opened, 100<<20))
+			opened.Close()
+			return binary, readErr
+		}
+	} else {
+		compressed, err := gzip.NewReader(bytes.NewReader(data))
+		if err != nil {
+			return nil, fmt.Errorf("read update archive: %w", err)
+		}
+		defer compressed.Close()
+		reader := tar.NewReader(compressed)
+		for {
+			header, err := reader.Next()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return nil, fmt.Errorf("read update archive: %w", err)
+			}
+			if filepath.Base(header.Name) == binaryName {
+				return io.ReadAll(io.LimitReader(reader, 100<<20))
+			}
+		}
+	}
+	return nil, fmt.Errorf("%s not found in update archive", binaryName)
 }
 
 func hasHelpArg(args []string) bool {
@@ -602,6 +843,7 @@ func printUsage(w io.Writer) {
 usage:
   4orm login                         Sign in through the browser using OAuth.
   4orm version                       Show the CLI version.
+  4orm update                        Check for and install the latest CLI release.
   4orm whoami                        Show the currently authenticated account.
   4orm page list                     List your published pages.
   4orm page publish [flags] FILE     Publish or replace a page from a file.

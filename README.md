@@ -18,4 +18,5 @@ Open http://127.0.0.1:8000
 
 Download the portable CLI at <https://4orm.harrhy.xyz/cli>.
 
-The CLI supports publishing pages and uploading, listing, and deleting media.
+The CLI supports publishing pages, managing media, and updating itself with
+`4orm update`.
