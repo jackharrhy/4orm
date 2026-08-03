@@ -19,6 +19,7 @@ from app.deps import (
 )
 from app.models import (
     CreatedResponse,
+    ErrorResponse,
     InviteInfo,
     MediaItem,
     PageSummary,
@@ -573,8 +574,8 @@ def settings_invite_delete(request: Request, invite_id: int):
 @router.post("/settings/pages", summary="Create a new page")
 def settings_pages(
     request: Request,
-    slug: str = Form(...),
-    title: str = Form(...),
+    slug: str = Form(""),
+    title: str = Form(""),
     content: str = Form(""),
     content_format: str = Form("html"),
     layout: str = Form("default"),
@@ -583,6 +584,15 @@ def settings_pages(
     if redirect:
         return redirect
 
+    cleaned_slug = slug.strip()
+    cleaned_title = title.strip()
+    if not cleaned_slug or not cleaned_title:
+        if wants_json(request):
+            return ErrorResponse(error="a page needs both a slug and a title")
+        return RedirectResponse(
+            url="/settings?error=missing_page_fields", status_code=303
+        )
+
     from sqlalchemy.exc import IntegrityError
 
     try:
@@ -590,24 +600,26 @@ def settings_pages(
             create_page(
                 conn,
                 user_id=me["id"],
-                slug=slug.strip(),
-                title=title.strip(),
+                slug=cleaned_slug,
+                title=cleaned_title,
                 content=content,
                 content_format=content_format,
                 layout=layout,
                 is_public=True,
             )
     except IntegrityError:
+        if wants_json(request):
+            return ErrorResponse(error="a page with that slug already exists")
         return RedirectResponse(url="/settings?error=slug_taken", status_code=303)
 
     if wants_json(request):
         return CreatedResponse(
             ok=True,
-            slug=slug.strip(),
-            redirect=f"/u/{me['username']}/page/{slug.strip()}",
+            slug=cleaned_slug,
+            redirect=f"/u/{me['username']}/page/{cleaned_slug}",
         )
     return RedirectResponse(
-        url=f"/u/{me['username']}/page/{slug.strip()}", status_code=303
+        url=f"/u/{me['username']}/page/{cleaned_slug}", status_code=303
     )
 
 

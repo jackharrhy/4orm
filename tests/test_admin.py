@@ -229,6 +229,35 @@ def test_admin_can_toggle_user_disabled(authed_client, test_engine, seed_user):
     assert user["is_disabled"] is False
 
 
+def test_admin_can_toggle_user_webring(authed_client, test_engine, seed_user):
+    _promote_admin(test_engine, seed_user["id"])
+
+    response = authed_client.post(
+        f"/admin/users/{seed_user['id']}/toggle-webring",
+        data={"in_webring": "on"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with test_engine.begin() as conn:
+        enabled = conn.execute(
+            select(users.c.in_webring).where(users.c.id == seed_user["id"])
+        ).scalar_one()
+    assert enabled is True
+
+    response = authed_client.post(
+        f"/admin/users/{seed_user['id']}/toggle-webring",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with test_engine.begin() as conn:
+        enabled = conn.execute(
+            select(users.c.in_webring).where(users.c.id == seed_user["id"])
+        ).scalar_one()
+    assert enabled is False
+
+
 def test_admin_can_create_password_reset_link(authed_client, test_engine, seed_user):
     _promote_admin(test_engine, seed_user["id"])
 

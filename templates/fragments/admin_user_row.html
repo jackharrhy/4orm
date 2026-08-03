@@ -5,6 +5,22 @@
 >
   <summary>
     <strong>@{{ u.username }}</strong>
+    <label
+      title="Only include users who embed the webring widget on a page"
+      onclick="event.stopPropagation()"
+    >
+      <input
+        type="checkbox"
+        name="in_webring"
+        value="on"
+        {% if u.in_webring %}checked{% endif %}
+        hx-post="/admin/users/{{ u.id }}/toggle-webring"
+        hx-trigger="change"
+        hx-target="#user-row-{{ u.id }}"
+        hx-swap="outerHTML"
+      />
+      webring
+    </label>
     <span class="muted">
       · {{ u.display_name }} · {{ stats.get('file_count', 0) }} files ·
       {{ stats.get('total_bytes', 0)|human_bytes }} ·

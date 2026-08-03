@@ -36,6 +36,33 @@ def test_create_page_markdown(authed_client, seed_user):
     assert "<strong>bold</strong>" in r2.text
 
 
+def test_create_page_missing_fields_returns_inline_validation(authed_client):
+    response = authed_client.post(
+        "/settings/pages",
+        data={"slug": "", "title": ""},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/settings?error=missing_page_fields"
+
+    settings = authed_client.get(response.headers["location"])
+    assert settings.status_code == 200
+    assert "a page needs both a slug and a title" in settings.text
+
+
+def test_create_page_missing_fields_returns_json_error(authed_client):
+    response = authed_client.post(
+        "/settings/pages",
+        data={"slug": "", "title": ""},
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": False,
+        "error": "a page needs both a slug and a title",
+    }
+
+
 def test_edit_page(authed_client, seed_user):
     # Create a page first
     authed_client.post(

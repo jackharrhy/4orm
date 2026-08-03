@@ -58,6 +58,7 @@ def admin_dashboard(request: Request):
                     users.c.display_name,
                     users.c.is_admin,
                     users.c.is_disabled,
+                    users.c.in_webring,
                     users.c.created_at,
                 ).order_by(users.c.created_at)
             )
@@ -426,6 +427,7 @@ def admin_toggle_admin(request: Request, user_id: int):
                     users.c.display_name,
                     users.c.is_admin,
                     users.c.is_disabled,
+                    users.c.in_webring,
                     users.c.created_at,
                 ).where(users.c.id == user_id)
             )
@@ -462,6 +464,7 @@ def _admin_user_row_response(request, conn, user_id, reset_url=None):
                 users.c.display_name,
                 users.c.is_admin,
                 users.c.is_disabled,
+                users.c.in_webring,
                 users.c.created_at,
             ).where(users.c.id == user_id)
         )
@@ -490,6 +493,25 @@ def _admin_user_row_response(request, conn, user_id, reset_url=None):
             },
         )
     return RedirectResponse(url="/admin", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/toggle-webring")
+def admin_toggle_webring(
+    request: Request,
+    user_id: int,
+    in_webring: str | None = Form(None),
+):
+    require_admin(request)
+    with get_engine(request).begin() as conn:
+        user = get_user_by_id(conn, user_id)
+        if not user:
+            raise HTTPException(404)
+        conn.execute(
+            update(users)
+            .where(users.c.id == user_id)
+            .values(in_webring=in_webring == "on")
+        )
+        return _admin_user_row_response(request, conn, user_id)
 
 
 @router.post("/admin/users/{user_id}/password-reset-link")
@@ -680,6 +702,7 @@ def admin_toggle_disabled(request: Request, user_id: int):
                     users.c.display_name,
                     users.c.is_admin,
                     users.c.is_disabled,
+                    users.c.in_webring,
                     users.c.created_at,
                 ).where(users.c.id == user_id)
             )

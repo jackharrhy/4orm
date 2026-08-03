@@ -15,6 +15,9 @@
       a page with that slug already exists. try a different one.
     </p>
   {% endif %}
+  {% if request.query_params.get('error') == 'missing_page_fields' %}
+    <p class="error">a page needs both a slug and a title.</p>
+  {% endif %}
   <p>
     <a href="/settings/media">manage media library →</a>
     · <a href="/how-to">how-to guide →</a> ·
@@ -156,8 +159,8 @@
     <details>
       <summary><strong>create page</strong></summary>
       <form method="post" action="/settings/pages" class="stack">
-        <label>slug <input name="slug" placeholder="about" /></label>
-        <label>title <input name="title" placeholder="about me" /></label>
+        <label>slug <input name="slug" placeholder="about" required /></label>
+        <label>title <input name="title" placeholder="about me" required /></label>
         <label>content</label>
         {{ content_editor('content', 'create_content', rows=12, placeholder='<marquee>hello world</marquee>') }}
         {{ layout_select() }}
@@ -235,6 +238,11 @@
       <summary><strong>webring</strong></summary>
       <p class="muted">
         join the 4orm webring to be discoverable by other members.
+      </p>
+      <p class="muted">
+        <strong>important:</strong> enabling this only opts you in. You must also
+        paste the iframe below into one of your public pages, or the webring
+        navigation will not appear on your site.
       </p>
       <form
         method="post"
