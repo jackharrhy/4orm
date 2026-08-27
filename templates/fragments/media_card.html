@@ -10,23 +10,23 @@
       <img
         src="/uploads/{{ item.storage_path }}"
         alt="{{ item.alt_text }}"
-        class="4orm-media-preview"
+        class="fourm-media-preview"
       />
     {% elif item.mime_type.startswith('video/') %}
       <video
         controls
         src="/uploads/{{ item.storage_path }}"
-        class="4orm-media-preview"
+        class="fourm-media-preview"
       ></video>
     {% elif item.mime_type.startswith('audio/') %}
       <audio controls src="/uploads/{{ item.storage_path }}"></audio>
     {% else %}
       <p><a href="/uploads/{{ item.storage_path }}">download file</a></p>
     {% endif %}
-    <p class="muted 4orm-space-xs">
+    <p class="muted fourm-space-xs">
       <code>/uploads/{{ item.storage_path }}</code>
     </p>
-    <div class="stack 4orm-space-xs">
+    <div class="stack fourm-space-xs">
       <form
         method="post"
         action="/settings/media/{{ item.id }}/rename"
@@ -39,7 +39,7 @@
           name="filename"
           value="{{ item.storage_path.split('/')[-1] }}"
           required
-          class="4orm-field-medium"
+          class="fourm-field-medium"
         />
         <button type="submit" class="btn-sm">rename</button>
       </form>
@@ -55,7 +55,7 @@
           name="alt_text"
           value="{{ item.alt_text }}"
           placeholder="alt text"
-          class="4orm-field-medium"
+          class="fourm-field-medium"
         />
         <button type="submit" class="btn-sm">save alt</button>
       </form>

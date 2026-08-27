@@ -11,16 +11,16 @@
     <thead>
       <tr>
         <th>snapshot</th>
-        <th class="4orm-text-right">db size</th>
-        <th class="4orm-text-right">files</th>
+        <th class="fourm-text-right">db size</th>
+        <th class="fourm-text-right">files</th>
       </tr>
     </thead>
     <tbody>
       {% for b in backups %}
         <tr>
           <td>{{ b.name }}</td>
-          <td class="4orm-text-right">{{ b.db_size|human_bytes }}</td>
-          <td class="4orm-text-right">{{ b.file_count }}</td>
+          <td class="fourm-text-right">{{ b.db_size|human_bytes }}</td>
+          <td class="fourm-text-right">{{ b.file_count }}</td>
         </tr>
       {% endfor %}
     </tbody>

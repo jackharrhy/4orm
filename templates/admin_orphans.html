@@ -1,18 +1,18 @@
 <h3>orphaned files</h3>
 <p class="muted">files on disk with no database record</p>
 {% if orphaned_files %}
-  <table class="4orm-data-table">
+  <table class="fourm-data-table">
     <thead>
       <tr>
         <th>path</th>
-        <th class="4orm-text-right">size</th>
+        <th class="fourm-text-right">size</th>
       </tr>
     </thead>
     <tbody>
       {% for f in orphaned_files %}
         <tr>
           <td><code>{{ f.path }}</code></td>
-          <td class="4orm-text-right">{{ f.size|human_bytes }}</td>
+          <td class="fourm-text-right">{{ f.size|human_bytes }}</td>
         </tr>
       {% endfor %}
     </tbody>
@@ -20,7 +20,7 @@
   <form
     method="post"
     action="/admin/cleanup/files"
-    class="inline 4orm-space-md"
+    class="inline fourm-space-md"
     hx-post="/admin/cleanup/files"
     hx-target="#orphan-results"
     hx-swap="innerHTML"
@@ -44,7 +44,7 @@
   <form
     method="post"
     action="/admin/cleanup/records"
-    class="inline 4orm-space-md"
+    class="inline fourm-space-md"
     hx-post="/admin/cleanup/records"
     hx-target="#orphan-results"
     hx-swap="innerHTML"

@@ -1,6 +1,6 @@
 <details
   id="user-row-{{ u.id }}"
-  class="4orm-admin-row"
+  class="fourm-admin-row"
   {% if detail_open %}open{% endif %}
 >
   <summary>
@@ -29,7 +29,7 @@
       {% if u.is_disabled %}· disabled{% endif %}
     </span>
   </summary>
-  <div class="stack 4orm-admin-row-body">
+  <div class="stack fourm-admin-row-body">
     {% if reset_url %}
       <p class="ok">
         reset link ready
@@ -46,11 +46,11 @@
 
     {% if not u.is_admin %}
       <div>
-        <strong class="4orm-action-label">rename</strong>
+        <strong class="fourm-action-label">rename</strong>
         <form
           method="post"
           action="/admin/users/{{ u.id }}/rename"
-          class="inline 4orm-space-xs"
+          class="inline fourm-space-xs"
           hx-post="/admin/users/{{ u.id }}/rename"
           hx-target="#user-row-{{ u.id }}"
           hx-swap="outerHTML"
@@ -58,14 +58,14 @@
           <input
             name="new_username"
             value="{{ u.username }}"
-            class="4orm-field-admin"
+            class="fourm-field-admin"
             required
             placeholder="username"
           />
           <input
             name="new_display_name"
             value="{{ u.display_name }}"
-            class="4orm-field-admin"
+            class="fourm-field-admin"
             placeholder="display name"
           />
           <button type="submit" class="btn-sm">save</button>
@@ -74,8 +74,8 @@
     {% endif %}
 
     <div>
-      <strong class="4orm-action-label">account</strong>
-      <div class="4orm-actions 4orm-space-xs">
+      <strong class="fourm-action-label">account</strong>
+      <div class="fourm-actions fourm-space-xs">
         <form
           method="post"
           action="/admin/users/{{ u.id }}/password-reset-link"
@@ -118,8 +118,8 @@
 
     {% if not u.is_admin %}
       <div>
-        <strong class="4orm-action-label 4orm-text-danger">danger</strong>
-        <div class="4orm-actions 4orm-space-xs">
+        <strong class="fourm-action-label fourm-text-danger">danger</strong>
+        <div class="fourm-actions fourm-space-xs">
           <form
             method="post"
             action="/admin/users/{{ u.id }}/delete"

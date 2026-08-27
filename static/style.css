@@ -189,125 +189,125 @@ button:active {
 
 /* 4orm application layout helpers. Keep these namespaced: user-authored pages
    share this stylesheet in framed layouts and should retain ordinary class names. */
-.4orm-shell .4orm-actions {
+.fourm-shell .fourm-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
 }
-.4orm-shell .4orm-actions-spaced {
+.fourm-shell .fourm-actions-spaced {
   justify-content: space-between;
 }
-.4orm-shell .4orm-inline-form {
+.fourm-shell .fourm-inline-form {
   display: inline;
 }
-.4orm-shell .4orm-panel-compact {
+.fourm-shell .fourm-panel-compact {
   margin: 0 0 6px;
 }
-.4orm-shell .4orm-panel-nested {
+.fourm-shell .fourm-panel-nested {
   margin: 0 0 10px;
 }
-.4orm-shell .4orm-panel-flush {
+.fourm-shell .fourm-panel-flush {
   margin: 0;
 }
-.4orm-shell .4orm-form-section {
+.fourm-shell .fourm-form-section {
   margin-top: 10px;
 }
-.4orm-shell .4orm-space-xs {
+.fourm-shell .fourm-space-xs {
   margin-top: 4px;
 }
-.4orm-shell .4orm-space-sm {
+.fourm-shell .fourm-space-sm {
   margin-top: 8px;
 }
-.4orm-shell .4orm-space-md {
+.fourm-shell .fourm-space-md {
   margin-top: 10px;
 }
-.4orm-shell .4orm-space-lg {
+.fourm-shell .fourm-space-lg {
   margin-top: 16px;
 }
-.4orm-shell .4orm-hidden {
+.fourm-shell .fourm-hidden {
   display: none;
 }
-.4orm-shell .4orm-text-right {
+.fourm-shell .fourm-text-right {
   text-align: right;
 }
-.4orm-shell .4orm-text-danger {
+.fourm-shell .fourm-text-danger {
   color: #c00;
 }
-.4orm-shell .4orm-field-short {
+.fourm-shell .fourm-field-short {
   width: 80px;
 }
-.4orm-shell .4orm-field-medium {
+.fourm-shell .fourm-field-medium {
   width: 200px;
 }
-.4orm-shell .4orm-button-link {
+.fourm-shell .fourm-button-link {
   padding: 0;
   border: 0;
   background: none;
   color: #0000ee;
   text-decoration: underline;
 }
-.4orm-shell .4orm-button-link:hover {
+.fourm-shell .fourm-button-link:hover {
   color: #f00;
 }
-.4orm-shell .4orm-preview-frame {
+.fourm-shell .fourm-preview-frame {
   width: 100%;
   min-height: 100px;
   border: 2px inset #ccc;
 }
-.4orm-shell .4orm-media-preview {
+.fourm-shell .fourm-media-preview {
   max-width: 100%;
   max-height: 300px;
   border: 1px solid #ddd;
 }
-.4orm-shell .4orm-admin-row {
+.fourm-shell .fourm-admin-row {
   padding: 6px 0;
   border-top: 1px solid #ddd;
 }
-.4orm-shell .4orm-admin-row-body {
+.fourm-shell .fourm-admin-row-body {
   padding: 8px 0 4px;
 }
-.4orm-shell .4orm-action-label {
+.fourm-shell .fourm-action-label {
   font-size: 0.85rem;
 }
-.4orm-shell .4orm-field-admin {
+.fourm-shell .fourm-field-admin {
   width: 140px;
 }
-.4orm-shell .4orm-field-upload {
+.fourm-shell .fourm-field-upload {
   width: 180px;
 }
-.4orm-shell .4orm-editor-toolbar {
+.fourm-shell .fourm-editor-toolbar {
   margin-bottom: 6px;
 }
-.4orm-shell .4orm-empty-compact {
+.fourm-shell .fourm-empty-compact {
   margin: 0;
   font-size: 0.85rem;
 }
-.4orm-shell .4orm-file-compact {
+.fourm-shell .fourm-file-compact {
   max-width: 160px;
   font-size: 0.8rem;
 }
-.4orm-shell .4orm-data-table {
+.fourm-shell .fourm-data-table {
   width: 100%;
   border-collapse: collapse;
 }
-.4orm-shell .4orm-chat-empty {
+.fourm-shell .fourm-chat-empty {
   padding: 8px;
   text-align: center;
 }
-.4orm-shell :focus-visible {
+.fourm-shell :focus-visible {
   outline: 3px solid #ff00ff;
   outline-offset: 2px;
 }
-.4orm-shell .4orm-home-chat {
+.fourm-shell .fourm-home-chat {
   margin-bottom: 12px;
   text-align: center;
 }
-.4orm-shell .4orm-activity-item {
+.fourm-shell .fourm-activity-item {
   margin-bottom: 6px;
   padding: 6px 8px;
 }
-.4orm-shell .4orm-activity-preview {
+.fourm-shell .fourm-activity-preview {
   margin-top: 2px;
   font-size: 0.9rem;
   white-space: pre-line;

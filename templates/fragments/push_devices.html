@@ -1,7 +1,7 @@
 {% if devices %}
   <div class="stack">
     {% for d in devices %}
-      <div class="4orm-actions">
+      <div class="fourm-actions">
         <strong>{{ d.device_name or d.device_id[:12] }}</strong>
         <span class="muted">{{ d.created_at|localtime('full') }}</span>
         <form

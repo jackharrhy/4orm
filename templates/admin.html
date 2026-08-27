@@ -55,7 +55,7 @@
       id="site-banner-preview"
       title="site banner preview"
       sandbox
-      class="4orm-preview-frame"
+      class="fourm-preview-frame"
     ></iframe>
     <script>
       (() => {
@@ -85,7 +85,7 @@
     <form
       method="post"
       action="/admin/cards/randomize-default-colors"
-      class="4orm-space-md"
+      class="fourm-space-md"
       onsubmit="return confirm('Randomize colors for cards still using the default cyan background?')"
     >
       <button type="submit">randomize default card colors</button>
@@ -98,12 +98,12 @@
   <details class="panel">
     <summary><h2>edit user profiles</h2></summary>
     {% for u in all_users %}
-      <details class="panel 4orm-panel-nested">
+      <details class="panel fourm-panel-nested">
         <summary><strong>@{{ u.username }}</strong> profile</summary>
         <form
           method="post"
           action="/admin/users/{{ u.id }}/profile"
-          class="stack 4orm-form-section"
+          class="stack fourm-form-section"
         >
           <label
             >display name
@@ -166,12 +166,12 @@
     {% for u in all_users %}
       {% set card = cards_by_user.get(u.id) %}
       {% if card %}
-        <details class="panel 4orm-panel-nested">
+        <details class="panel fourm-panel-nested">
           <summary><strong>@{{ u.username }}</strong> card</summary>
           <form
             method="post"
             action="/admin/users/{{ u.id }}/card"
-            class="stack 4orm-form-section"
+            class="stack fourm-form-section"
           >
             <label
               >headline
@@ -236,7 +236,7 @@
   <details class="panel">
     <summary><h2>edit pages</h2></summary>
     {% for p in all_pages %}
-      <details class="panel 4orm-panel-nested">
+      <details class="panel fourm-panel-nested">
         <summary>
           <strong>@{{ p.username }}</strong> / {{ p.slug }}
           <span class="muted"
@@ -246,7 +246,7 @@
         <form
           method="post"
           action="/admin/pages/{{ p.id }}"
-          class="stack 4orm-form-section"
+          class="stack fourm-form-section"
         >
           <label
             >slug <input name="slug" value="{{ p.slug }}" required
@@ -292,8 +292,8 @@
   <details class="panel">
     <summary><h2>forum threads ({{ all_threads|length }})</h2></summary>
     {% for t in all_threads %}
-      <div class="panel 4orm-panel-compact">
-        <div class="4orm-actions">
+      <div class="panel fourm-panel-compact">
+        <div class="fourm-actions">
           <strong>{{ t.title }}</strong>
           <span class="muted"
             >by @{{ t.author_username }} · {{ t.reply_count }} replies</span
@@ -339,7 +339,7 @@
   <details class="panel">
     <summary><h2>recent forum posts ({{ recent_posts|length }})</h2></summary>
     {% for p in recent_posts %}
-      <div class="panel 4orm-panel-compact">
+      <div class="panel fourm-panel-compact">
         <div class="forum-post-meta">
           <strong>@{{ p.author_username }}</strong> in
           <a href="/forum/{{ p.thread_id }}#post-{{ p.id }}"
@@ -348,10 +348,10 @@
           · {{ p.created_at|localtime('full') }}
           {% if p.is_edited %}· <em>(edited)</em>{% endif %}
         </div>
-        <p class="muted 4orm-space-xs">
+        <p class="muted fourm-space-xs">
           {{ p.content[:200] }}{% if p.content|length > 200 %}...{% endif %}
         </p>
-        <div class="4orm-actions">
+        <div class="fourm-actions">
           <a href="/forum/posts/{{ p.id }}/edit" class="btn-sm">edit</a>
           <form
             method="post"
@@ -412,7 +412,7 @@
     <form
       method="post"
       action="/admin/backups/run"
-      class="inline 4orm-space-sm"
+      class="inline fourm-space-sm"
       hx-post="/admin/backups/run"
       hx-target="#backup-status"
       hx-swap="innerHTML"

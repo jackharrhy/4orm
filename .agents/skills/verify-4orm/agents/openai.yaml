@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify 4orm"
+  short_description: "Drive 4orm UI flows and capture visual evidence"
+  default_prompt: "Use $verify-4orm to validate the affected 4orm flows and preserve screenshots and logs."

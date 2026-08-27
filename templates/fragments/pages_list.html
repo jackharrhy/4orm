@@ -7,13 +7,13 @@
       <form
         method="post"
         action="/settings/pages/{{ p.slug }}/delete"
-        class="4orm-inline-form"
+        class="fourm-inline-form"
         hx-post="/settings/pages/{{ p.slug }}/delete"
         hx-target="#pages-section"
         hx-swap="innerHTML"
         hx-confirm="Delete page '{{ p.title }}'?"
       >
-        <button type="submit" class="4orm-button-link">delete</button>
+        <button type="submit" class="fourm-button-link">delete</button>
       </form>
     </li>
   {% else %}

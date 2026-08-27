@@ -13,7 +13,7 @@
               >{{ item.storage_path.split('/')[-1] }}</option>
             {% endfor %}
           </select>
-          <div class="4orm-actions 4orm-space-xs" id="media-buttons-{{ textarea_id }}">
+          <div class="fourm-actions fourm-space-xs" id="media-buttons-{{ textarea_id }}">
             <button type="button" class="btn-sm media-btn-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'img')">img</button>
             <button type="button" class="btn-sm media-btn-linked-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'linked-img')">linked img</button>
             <button type="button" class="btn-sm media-btn-video" onclick="insertMediaSnippet('{{ textarea_id }}', 'video')">video</button>
@@ -21,12 +21,12 @@
             <button type="button" class="btn-sm" onclick="insertMediaSnippet('{{ textarea_id }}', 'link')">link</button>
           </div>
         {% else %}
-          <p class="muted 4orm-empty-compact">no media yet · upload one →</p>
+          <p class="muted fourm-empty-compact">no media yet · upload one →</p>
         {% endif %}
       </div>
       <div class="media-picker-upload">
-        <input type="file" id="media-upload-file-{{ textarea_id }}" class="4orm-file-compact" />
-        <button type="button" class="btn-sm 4orm-space-xs" onclick="quickUploadMedia('{{ textarea_id }}', '{{ format }}')">upload</button>
+        <input type="file" id="media-upload-file-{{ textarea_id }}" class="fourm-file-compact" />
+        <button type="button" class="btn-sm fourm-space-xs" onclick="quickUploadMedia('{{ textarea_id }}', '{{ format }}')">upload</button>
       </div>
     </div>
   </div>

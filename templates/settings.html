@@ -50,7 +50,7 @@
       <form
         method="post"
         action="/settings/username"
-        class="stack 4orm-form-section"
+        class="stack fourm-form-section"
         hx-post="/settings/username"
         hx-target="#username-status"
         hx-swap="innerHTML"
@@ -264,7 +264,7 @@
         <button>save</button>
         <span id="webring-status"></span>
       </form>
-      <p class="muted 4orm-space-sm">embed on your page:</p>
+      <p class="muted fourm-space-sm">embed on your page:</p>
       <pre><code>&lt;iframe src="/u/{{ me.username }}/webring" style="width:100%;height:32px;border:none;"&gt;&lt;/iframe&gt;</code></pre>
     </details>
     <details>
@@ -286,7 +286,7 @@
             name="status_emoji"
             value="{{ me.status_emoji }}"
             maxlength="10"
-            class="4orm-field-short"
+            class="fourm-field-short"
         /></label>
         <label
           >status text (max 140 chars)
@@ -306,7 +306,7 @@
         <button>save status</button>
         <span id="status-status"></span>
       </form>
-      <p class="muted 4orm-space-sm">embed on your page:</p>
+      <p class="muted fourm-space-sm">embed on your page:</p>
       <pre><code>&lt;iframe src="/u/{{ me.username }}/status" style="width:300px;height:32px;border:none;"&gt;&lt;/iframe&gt;</code></pre>
     </details>
     <details>
@@ -316,7 +316,7 @@
       <form
         method="post"
         action="/settings/player"
-        class="stack 4orm-form-section"
+        class="stack fourm-form-section"
         hx-post="/settings/player"
         hx-target="#player-status"
         hx-swap="innerHTML"
@@ -332,7 +332,7 @@
         <button>save player styling</button>
         <span id="player-status"></span>
       </form>
-      <p class="muted 4orm-space-sm">embed on your page:</p>
+      <p class="muted fourm-space-sm">embed on your page:</p>
       <pre><code>&lt;iframe src="/u/{{ me.username }}/player" style="width:300px;height:200px;border:2px inset #ccc;"&gt;&lt;/iframe&gt;</code></pre>
     </details>
   </section>
@@ -379,7 +379,7 @@
       <form
         method="post"
         action="/settings/notifications/test"
-        class="inline 4orm-space-sm"
+        class="inline fourm-space-sm"
         hx-post="/settings/notifications/test"
         hx-target="#notif-test-status"
         hx-swap="innerHTML"
@@ -387,7 +387,7 @@
         <button type="submit" class="btn-sm">send test notification</button>
         <span id="notif-test-status"></span>
       </form>
-      <h3 class="4orm-space-md">registered devices</h3>
+      <h3 class="fourm-space-md">registered devices</h3>
       <div id="push-devices">
         <button
           class="btn-sm"

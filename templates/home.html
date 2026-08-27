@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 {% block title %}4orm · home{% endblock %}
 {% block content %}
-  <p class="4orm-home-chat">
+  <p class="fourm-home-chat">
     <a href="/chat" style="{{ chat_style }}">chat</a>
   </p>
   {% if recent_posts %}
     <section class="panel">
       <h2>recent forum activity</h2>
       {% for post in recent_posts %}
-        <div class="forum-post 4orm-activity-item">
+        <div class="forum-post fourm-activity-item">
           <div class="forum-post-meta">
             <a href="/u/{{ post.author_username }}"
               ><strong
@@ -26,11 +26,11 @@
             · {{ post.created_at|localtime('relative') }}
           </div>
           <!-- prettier-ignore-start -->
-          <div class="4orm-activity-preview">{{ post.rendered_content|preview_text(200) }}</div>
+          <div class="fourm-activity-preview">{{ post.rendered_content|preview_text(200) }}</div>
           <!-- prettier-ignore-end -->
         </div>
       {% endfor %}
-      <p class="4orm-space-xs"><a href="/forum">view all threads →</a></p>
+      <p class="fourm-space-xs"><a href="/forum">view all threads →</a></p>
     </section>
   {% endif %}
   <div class="cards">
