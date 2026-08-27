@@ -1,6 +1,6 @@
 <details
   id="user-row-{{ u.id }}"
-  style="border-top: 1px solid #ddd; padding: 6px 0"
+  class="4orm-admin-row"
   {% if detail_open %}open{% endif %}
 >
   <summary>
@@ -29,7 +29,7 @@
       {% if u.is_disabled %}· disabled{% endif %}
     </span>
   </summary>
-  <div class="stack" style="gap: 8px; padding: 8px 0 4px">
+  <div class="stack 4orm-admin-row-body">
     {% if reset_url %}
       <p class="ok">
         reset link ready
@@ -46,12 +46,11 @@
 
     {% if not u.is_admin %}
       <div>
-        <strong style="font-size: 0.85rem">rename</strong>
+        <strong class="4orm-action-label">rename</strong>
         <form
           method="post"
           action="/admin/users/{{ u.id }}/rename"
-          class="inline"
-          style="margin-top: 4px"
+          class="inline 4orm-space-xs"
           hx-post="/admin/users/{{ u.id }}/rename"
           hx-target="#user-row-{{ u.id }}"
           hx-swap="outerHTML"
@@ -59,14 +58,14 @@
           <input
             name="new_username"
             value="{{ u.username }}"
-            style="width: 140px"
+            class="4orm-field-admin"
             required
             placeholder="username"
           />
           <input
             name="new_display_name"
             value="{{ u.display_name }}"
-            style="width: 140px"
+            class="4orm-field-admin"
             placeholder="display name"
           />
           <button type="submit" class="btn-sm">save</button>
@@ -75,8 +74,8 @@
     {% endif %}
 
     <div>
-      <strong style="font-size: 0.85rem">account</strong>
-      <div class="inline" style="flex-wrap: wrap; gap: 4px; margin-top: 4px">
+      <strong class="4orm-action-label">account</strong>
+      <div class="4orm-actions 4orm-space-xs">
         <form
           method="post"
           action="/admin/users/{{ u.id }}/password-reset-link"
@@ -113,16 +112,14 @@
             <button type="submit" class="btn-sm">make admin</button>
           </form>
         {% endif %}
-        <a href="/u/{{ u.username }}/export"
-          ><button type="button" class="btn-sm">export</button></a
-        >
+        <a href="/u/{{ u.username }}/export" class="btn-sm">export</a>
       </div>
     </div>
 
     {% if not u.is_admin %}
       <div>
-        <strong style="font-size: 0.85rem; color: #cc0000">danger</strong>
-        <div class="inline" style="flex-wrap: wrap; gap: 4px; margin-top: 4px">
+        <strong class="4orm-action-label 4orm-text-danger">danger</strong>
+        <div class="4orm-actions 4orm-space-xs">
           <form
             method="post"
             action="/admin/users/{{ u.id }}/delete"

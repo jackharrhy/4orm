@@ -38,11 +38,15 @@
       >
       <label
         >banner HTML
-        <textarea id="site-banner-html" name="banner_html" rows="4">{{ site_banner_settings.banner_html if site_banner_settings else '' }}</textarea>
+        <textarea id="site-banner-html" name="banner_html" rows="4">
+{{ site_banner_settings.banner_html if site_banner_settings else '' }}</textarea
+        >
       </label>
       <label
         >banner CSS
-        <textarea id="site-banner-css" name="banner_css" rows="6">{{ site_banner_settings.banner_css if site_banner_settings else '' }}</textarea>
+        <textarea id="site-banner-css" name="banner_css" rows="6">
+{{ site_banner_settings.banner_css if site_banner_settings else '' }}</textarea
+        >
       </label>
       <button type="submit">save site banner</button>
     </form>
@@ -51,13 +55,13 @@
       id="site-banner-preview"
       title="site banner preview"
       sandbox
-      style="width: 100%; min-height: 100px; border: 2px inset #ccc"
+      class="4orm-preview-frame"
     ></iframe>
     <script>
       (() => {
-        const html = document.getElementById('site-banner-html');
-        const css = document.getElementById('site-banner-css');
-        const preview = document.getElementById('site-banner-preview');
+        const html = document.getElementById("site-banner-html");
+        const css = document.getElementById("site-banner-css");
+        const preview = document.getElementById("site-banner-preview");
         const update = () => {
           preview.srcdoc = `<!doctype html><style>
             body { margin: 0; padding: 10px; }
@@ -65,8 +69,8 @@
             ${css.value}
           </style><aside class="site-banner">${html.value}</aside>`;
         };
-        html.addEventListener('input', update);
-        css.addEventListener('input', update);
+        html.addEventListener("input", update);
+        css.addEventListener("input", update);
         update();
       })();
     </script>
@@ -81,7 +85,7 @@
     <form
       method="post"
       action="/admin/cards/randomize-default-colors"
-      style="margin-top: 12px"
+      class="4orm-space-md"
       onsubmit="return confirm('Randomize colors for cards still using the default cyan background?')"
     >
       <button type="submit">randomize default card colors</button>
@@ -94,13 +98,12 @@
   <details class="panel">
     <summary><h2>edit user profiles</h2></summary>
     {% for u in all_users %}
-      <details class="panel" style="margin: 0 0 10px">
+      <details class="panel 4orm-panel-nested">
         <summary><strong>@{{ u.username }}</strong> profile</summary>
         <form
           method="post"
           action="/admin/users/{{ u.id }}/profile"
-          class="stack"
-          style="margin-top: 10px"
+          class="stack 4orm-form-section"
         >
           <label
             >display name
@@ -163,13 +166,12 @@
     {% for u in all_users %}
       {% set card = cards_by_user.get(u.id) %}
       {% if card %}
-        <details class="panel" style="margin: 0 0 10px">
+        <details class="panel 4orm-panel-nested">
           <summary><strong>@{{ u.username }}</strong> card</summary>
           <form
             method="post"
             action="/admin/users/{{ u.id }}/card"
-            class="stack"
-            style="margin-top: 10px"
+            class="stack 4orm-form-section"
           >
             <label
               >headline
@@ -234,7 +236,7 @@
   <details class="panel">
     <summary><h2>edit pages</h2></summary>
     {% for p in all_pages %}
-      <details class="panel" style="margin: 0 0 10px">
+      <details class="panel 4orm-panel-nested">
         <summary>
           <strong>@{{ p.username }}</strong> / {{ p.slug }}
           <span class="muted"
@@ -244,8 +246,7 @@
         <form
           method="post"
           action="/admin/pages/{{ p.id }}"
-          class="stack"
-          style="margin-top: 10px"
+          class="stack 4orm-form-section"
         >
           <label
             >slug <input name="slug" value="{{ p.slug }}" required
@@ -291,17 +292,15 @@
   <details class="panel">
     <summary><h2>forum threads ({{ all_threads|length }})</h2></summary>
     {% for t in all_threads %}
-      <div class="panel" style="margin: 0 0 6px">
-        <div class="inline" style="flex-wrap: wrap; gap: 4px">
+      <div class="panel 4orm-panel-compact">
+        <div class="4orm-actions">
           <strong>{{ t.title }}</strong>
           <span class="muted"
             >by @{{ t.author_username }} · {{ t.reply_count }} replies</span
           >
           {% if t.is_pinned %}📌{% endif %}
           {% if t.is_locked %}🔒{% endif %}
-          <a href="/forum/{{ t.id }}/edit"
-            ><button type="button" class="btn-sm">edit</button></a
-          >
+          <a href="/forum/{{ t.id }}/edit" class="btn-sm">edit</a>
           <form
             method="post"
             action="/forum/{{ t.id }}/delete"
@@ -340,7 +339,7 @@
   <details class="panel">
     <summary><h2>recent forum posts ({{ recent_posts|length }})</h2></summary>
     {% for p in recent_posts %}
-      <div class="panel" style="margin: 0 0 6px">
+      <div class="panel 4orm-panel-compact">
         <div class="forum-post-meta">
           <strong>@{{ p.author_username }}</strong> in
           <a href="/forum/{{ p.thread_id }}#post-{{ p.id }}"
@@ -349,13 +348,11 @@
           · {{ p.created_at|localtime('full') }}
           {% if p.is_edited %}· <em>(edited)</em>{% endif %}
         </div>
-        <p style="font-size: 0.9rem; margin: 4px 0">
+        <p class="muted 4orm-space-xs">
           {{ p.content[:200] }}{% if p.content|length > 200 %}...{% endif %}
         </p>
-        <div class="inline" style="gap: 4px">
-          <a href="/forum/posts/{{ p.id }}/edit"
-            ><button type="button" class="btn-sm">edit</button></a
-          >
+        <div class="4orm-actions">
+          <a href="/forum/posts/{{ p.id }}/edit" class="btn-sm">edit</a>
           <form
             method="post"
             action="/forum/posts/{{ p.id }}/delete"
@@ -381,9 +378,7 @@
       media, and forum threads.
     </p>
     <p>
-      <a href="/admin/export"
-        ><button type="button">download 4orm-export.zip</button></a
-      >
+      <a href="/admin/export" class="btn-sm">download 4orm-export.zip</a>
     </p>
   </details>
   <details class="panel">
@@ -417,8 +412,7 @@
     <form
       method="post"
       action="/admin/backups/run"
-      class="inline"
-      style="margin-top: 8px"
+      class="inline 4orm-space-sm"
       hx-post="/admin/backups/run"
       hx-target="#backup-status"
       hx-swap="innerHTML"

@@ -19,6 +19,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.backup import BackupScheduler
+from app.config import session_config
 from app.db import engine as default_engine
 from app.deps import (
     BASE_DIR,
@@ -186,6 +187,7 @@ tags_metadata = [
     {"name": "export", "description": "Export user sites and full site snapshots"},
 ]
 
+
 app = FastAPI(
     title="4orm",
     summary="a retro community platform",
@@ -218,7 +220,7 @@ app.state.engine = default_engine
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ.get("SECRET_KEY", "dev-key-change-in-production"),
+    **session_config(),
 )
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")

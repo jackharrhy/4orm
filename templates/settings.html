@@ -50,11 +50,10 @@
       <form
         method="post"
         action="/settings/username"
-        class="stack"
+        class="stack 4orm-form-section"
         hx-post="/settings/username"
         hx-target="#username-status"
         hx-swap="innerHTML"
-        style="margin-top: 10px"
       >
         <label
           >username <input name="username" value="{{ me.username }}" required
@@ -160,7 +159,9 @@
       <summary><strong>create page</strong></summary>
       <form method="post" action="/settings/pages" class="stack">
         <label>slug <input name="slug" placeholder="about" required /></label>
-        <label>title <input name="title" placeholder="about me" required /></label>
+        <label
+          >title <input name="title" placeholder="about me" required
+        /></label>
         <label>content</label>
         {{ content_editor('content', 'create_content', rows=12, placeholder='<marquee>hello world</marquee>') }}
         {{ layout_select() }}
@@ -240,9 +241,9 @@
         join the 4orm webring to be discoverable by other members.
       </p>
       <p class="muted">
-        <strong>important:</strong> enabling this only opts you in. You must also
-        paste the iframe below into one of your public pages, or the webring
-        navigation will not appear on your site.
+        <strong>important:</strong> enabling this only opts you in. You must
+        also paste the iframe below into one of your public pages, or the
+        webring navigation will not appear on your site.
       </p>
       <form
         method="post"
@@ -263,7 +264,7 @@
         <button>save</button>
         <span id="webring-status"></span>
       </form>
-      <p class="muted" style="margin-top: 8px">embed on your page:</p>
+      <p class="muted 4orm-space-sm">embed on your page:</p>
       <pre><code>&lt;iframe src="/u/{{ me.username }}/webring" style="width:100%;height:32px;border:none;"&gt;&lt;/iframe&gt;</code></pre>
     </details>
     <details>
@@ -285,7 +286,7 @@
             name="status_emoji"
             value="{{ me.status_emoji }}"
             maxlength="10"
-            style="width: 80px"
+            class="4orm-field-short"
         /></label>
         <label
           >status text (max 140 chars)
@@ -305,7 +306,7 @@
         <button>save status</button>
         <span id="status-status"></span>
       </form>
-      <p class="muted" style="margin-top: 8px">embed on your page:</p>
+      <p class="muted 4orm-space-sm">embed on your page:</p>
       <pre><code>&lt;iframe src="/u/{{ me.username }}/status" style="width:300px;height:32px;border:none;"&gt;&lt;/iframe&gt;</code></pre>
     </details>
     <details>
@@ -315,8 +316,7 @@
       <form
         method="post"
         action="/settings/player"
-        class="stack"
-        style="margin-top: 10px"
+        class="stack 4orm-form-section"
         hx-post="/settings/player"
         hx-target="#player-status"
         hx-swap="innerHTML"
@@ -332,7 +332,7 @@
         <button>save player styling</button>
         <span id="player-status"></span>
       </form>
-      <p class="muted" style="margin-top: 8px">embed on your page:</p>
+      <p class="muted 4orm-space-sm">embed on your page:</p>
       <pre><code>&lt;iframe src="/u/{{ me.username }}/player" style="width:300px;height:200px;border:2px inset #ccc;"&gt;&lt;/iframe&gt;</code></pre>
     </details>
   </section>
@@ -379,8 +379,7 @@
       <form
         method="post"
         action="/settings/notifications/test"
-        class="inline"
-        style="margin-top: 8px"
+        class="inline 4orm-space-sm"
         hx-post="/settings/notifications/test"
         hx-target="#notif-test-status"
         hx-swap="innerHTML"
@@ -388,7 +387,7 @@
         <button type="submit" class="btn-sm">send test notification</button>
         <span id="notif-test-status"></span>
       </form>
-      <h3 style="margin-top: 10px">registered devices</h3>
+      <h3 class="4orm-space-md">registered devices</h3>
       <div id="push-devices">
         <button
           class="btn-sm"

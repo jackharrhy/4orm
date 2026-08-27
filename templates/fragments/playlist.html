@@ -2,7 +2,7 @@
   <h3>current playlist</h3>
   <div class="stack">
     {% for t in playlist %}
-      <div class="inline" style="flex-wrap: wrap; gap: 4px">
+      <div class="4orm-actions">
         <span>{{ t.title or t.storage_path.split('/')[-1] }}</span>
         <form
           method="post"

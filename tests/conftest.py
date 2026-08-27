@@ -1,4 +1,9 @@
+import os
 from contextlib import asynccontextmanager
+
+# Application imports validate deployment configuration. Tests intentionally use
+# the local-only session key rather than requiring a production secret.
+os.environ.setdefault("FOURM_ENV", "test")
 
 import pytest
 from fastapi.testclient import TestClient

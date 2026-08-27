@@ -187,6 +187,132 @@ button:active {
   border-style: inset;
 }
 
+/* 4orm application layout helpers. Keep these namespaced: user-authored pages
+   share this stylesheet in framed layouts and should retain ordinary class names. */
+.4orm-shell .4orm-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.4orm-shell .4orm-actions-spaced {
+  justify-content: space-between;
+}
+.4orm-shell .4orm-inline-form {
+  display: inline;
+}
+.4orm-shell .4orm-panel-compact {
+  margin: 0 0 6px;
+}
+.4orm-shell .4orm-panel-nested {
+  margin: 0 0 10px;
+}
+.4orm-shell .4orm-panel-flush {
+  margin: 0;
+}
+.4orm-shell .4orm-form-section {
+  margin-top: 10px;
+}
+.4orm-shell .4orm-space-xs {
+  margin-top: 4px;
+}
+.4orm-shell .4orm-space-sm {
+  margin-top: 8px;
+}
+.4orm-shell .4orm-space-md {
+  margin-top: 10px;
+}
+.4orm-shell .4orm-space-lg {
+  margin-top: 16px;
+}
+.4orm-shell .4orm-hidden {
+  display: none;
+}
+.4orm-shell .4orm-text-right {
+  text-align: right;
+}
+.4orm-shell .4orm-text-danger {
+  color: #c00;
+}
+.4orm-shell .4orm-field-short {
+  width: 80px;
+}
+.4orm-shell .4orm-field-medium {
+  width: 200px;
+}
+.4orm-shell .4orm-button-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #0000ee;
+  text-decoration: underline;
+}
+.4orm-shell .4orm-button-link:hover {
+  color: #f00;
+}
+.4orm-shell .4orm-preview-frame {
+  width: 100%;
+  min-height: 100px;
+  border: 2px inset #ccc;
+}
+.4orm-shell .4orm-media-preview {
+  max-width: 100%;
+  max-height: 300px;
+  border: 1px solid #ddd;
+}
+.4orm-shell .4orm-admin-row {
+  padding: 6px 0;
+  border-top: 1px solid #ddd;
+}
+.4orm-shell .4orm-admin-row-body {
+  padding: 8px 0 4px;
+}
+.4orm-shell .4orm-action-label {
+  font-size: 0.85rem;
+}
+.4orm-shell .4orm-field-admin {
+  width: 140px;
+}
+.4orm-shell .4orm-field-upload {
+  width: 180px;
+}
+.4orm-shell .4orm-editor-toolbar {
+  margin-bottom: 6px;
+}
+.4orm-shell .4orm-empty-compact {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.4orm-shell .4orm-file-compact {
+  max-width: 160px;
+  font-size: 0.8rem;
+}
+.4orm-shell .4orm-data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.4orm-shell .4orm-chat-empty {
+  padding: 8px;
+  text-align: center;
+}
+.4orm-shell :focus-visible {
+  outline: 3px solid #ff00ff;
+  outline-offset: 2px;
+}
+.4orm-shell .4orm-home-chat {
+  margin-bottom: 12px;
+  text-align: center;
+}
+.4orm-shell .4orm-activity-item {
+  margin-bottom: 6px;
+  padding: 6px 8px;
+}
+.4orm-shell .4orm-activity-preview {
+  margin-top: 2px;
+  font-size: 0.9rem;
+  white-space: pre-line;
+}
+
 code {
   background: #f4f4f4;
   padding: 1px 4px;
@@ -402,12 +528,15 @@ details.panel[open] > summary > h2::before {
   gap: 4px;
 }
 .btn-sm {
+  display: inline-block;
   font-size: 0.75rem;
   padding: 1px 6px;
   border: 1px solid #999;
   background: #f0f0f0;
   cursor: pointer;
   width: auto;
+  color: #111;
+  text-decoration: none;
 }
 .forum-post-content img,
 .forum-post-content video,

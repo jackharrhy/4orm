@@ -18,28 +18,28 @@
     {% if thread.is_locked %} · 🔒 locked{% endif %}
   </p>
 
-  <div class="inline" style="margin: 8px 0; flex-wrap: wrap; gap: 4px">
+  <div class="4orm-actions 4orm-space-sm">
     {% if is_author or (me and me.is_admin) %}
-      <a href="/forum/{{ thread.id }}/edit"><button type="button" class="btn-sm">edit thread</button></a>
+      <a href="/forum/{{ thread.id }}/edit" class="btn-sm">edit thread</a>
     {% endif %}
     {% if is_author or (me and me.is_admin) %}
-      <form method="post" action="/forum/{{ thread.id }}/delete" style="display:inline" hx-post="/forum/{{ thread.id }}/delete" hx-confirm="Delete this thread and all its posts?">
+      <form method="post" action="/forum/{{ thread.id }}/delete" class="4orm-inline-form" hx-post="/forum/{{ thread.id }}/delete" hx-confirm="Delete this thread and all its posts?">
 
         <button class="btn-sm">delete thread</button>
       </form>
     {% endif %}
     {% if me and me.is_admin %}
-      <form method="post" action="/forum/{{ thread.id }}/pin" style="display:inline" hx-post="/forum/{{ thread.id }}/pin">
+      <form method="post" action="/forum/{{ thread.id }}/pin" class="4orm-inline-form" hx-post="/forum/{{ thread.id }}/pin">
 
         <button class="btn-sm">{{ 'unpin' if thread.is_pinned else 'pin' }}</button>
       </form>
-      <form method="post" action="/forum/{{ thread.id }}/lock" style="display:inline" hx-post="/forum/{{ thread.id }}/lock">
+      <form method="post" action="/forum/{{ thread.id }}/lock" class="4orm-inline-form" hx-post="/forum/{{ thread.id }}/lock">
 
         <button class="btn-sm">{{ 'unlock' if thread.is_locked else 'lock' }}</button>
       </form>
     {% endif %}
     {% if me %}
-      <form method="post" action="/forum/{{ thread.id }}/watch" style="display:inline"
+      <form method="post" action="/forum/{{ thread.id }}/watch" class="4orm-inline-form"
             hx-post="/forum/{{ thread.id }}/watch">
 
         <button class="btn-sm">{{ '👁 unwatch' if watching else '👁 watch' }}</button>
@@ -60,7 +60,7 @@
   {{ pagination(current_page, total_pages, '/forum/' ~ thread.id) }}
 
   {% if me and not thread.is_locked %}
-    <details class="panel" style="margin-top: 16px" id="reply-details">
+    <details class="panel 4orm-space-lg" id="reply-details">
       <summary><h2>reply</h2></summary>
       <form method="post" action="/forum/{{ thread.id }}/reply" hx-post="/forum/{{ thread.id }}/reply" class="stack">
 
@@ -68,12 +68,12 @@
         <input type="hidden" name="quoted_content" id="quoted_content" value="">
         <input type="hidden" name="quoted_author" id="quoted_author" value="">
 
-        <div id="quote-preview" style="display:none" class="forum-quote">
-          <div class="inline" style="justify-content: space-between">
+        <div id="quote-preview" class="forum-quote 4orm-hidden">
+          <div class="4orm-actions 4orm-actions-spaced">
             <strong>quoting <span id="quote-preview-author"></span>:</strong>
             <button type="button" class="btn-sm" onclick="clearQuote()">remove</button>
           </div>
-          <p id="quote-preview-text" class="muted" style="margin-top: 4px"></p>
+          <p id="quote-preview-text" class="muted 4orm-space-xs"></p>
         </div>
 
         <label>
@@ -88,17 +88,17 @@
 
         {{ media_snippet_picker(media_items, 'reply-content', format='bbcode') }}
 
-        <div class="inline" style="gap: 6px; margin-top: 4px">
+        <div class="4orm-actions 4orm-space-xs">
           <button type="submit">post reply</button>
           <button type="button" class="btn-sm" onclick="previewPost('reply-content')">preview</button>
         </div>
-        <div id="preview-reply-content" class="forum-preview" style="display: none"></div>
+        <div id="preview-reply-content" class="forum-preview 4orm-hidden"></div>
       </form>
     </details>
   {% elif not me %}
-    <p class="muted" style="margin-top: 12px"><a href="/login">log in</a> to reply</p>
+    <p class="muted 4orm-space-md"><a href="/login">log in</a> to reply</p>
   {% elif thread.is_locked %}
-    <p class="muted" style="margin-top: 12px">🔒 this thread is locked</p>
+    <p class="muted 4orm-space-md">🔒 this thread is locked</p>
   {% endif %}
 
 {% endblock %}

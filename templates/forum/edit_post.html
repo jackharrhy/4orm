@@ -41,7 +41,7 @@
 
     {{ media_snippet_picker(media_items, 'edit-post-content', format='bbcode') }}
 
-    <div class="inline" style="gap: 6px; margin-top: 4px">
+    <div class="4orm-actions 4orm-space-xs">
       <button type="submit">save</button>
       <button
         type="button"
@@ -51,14 +51,10 @@
         preview
       </button>
     </div>
-    <div
-      id="preview-edit-post-content"
-      class="forum-preview"
-      style="display: none"
-    ></div>
+    <div id="preview-edit-post-content" class="forum-preview 4orm-hidden"></div>
   </form>
 
-  <p style="margin-top: 8px">
+  <p class="4orm-space-sm">
     <a href="/forum/{{ post.thread_id }}">back to thread</a>
   </p>
 {% endblock %}
