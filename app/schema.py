@@ -306,8 +306,11 @@ oauth2_clients = Table(
     metadata,
     Column("id", Integer, primary_key=True),
     Column("client_id", String(48), nullable=False, unique=True),
-    Column("client_secret", String(120), nullable=False, server_default=""),
+    Column("client_secret_hash", Text, nullable=False, server_default=""),
+    Column("previous_client_secret_hash", Text, nullable=False, server_default=""),
     Column("client_name", String(120), nullable=False),
+    Column("principal_type", String(20), nullable=False, server_default="user"),
+    Column("subject", String(120), nullable=False, server_default=""),
     Column("redirect_uris", Text, nullable=False, server_default=""),
     Column("scope", Text, nullable=False, server_default=""),
     Column("grant_types", Text, nullable=False, server_default="authorization_code"),
@@ -318,8 +321,16 @@ oauth2_clients = Table(
         nullable=False,
         server_default="client_secret_basic",
     ),
+    Column("is_enabled", Boolean, nullable=False, server_default="1"),
+    Column("can_introspect", Boolean, nullable=False, server_default="0"),
+    Column("access_token_lifetime", Integer, nullable=False, server_default="3600"),
+    Column("secret_rotated_at", DateTime(timezone=True)),
+    Column("disabled_at", DateTime(timezone=True)),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+    Column(
+        "updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()
     ),
 )
 
@@ -343,13 +354,37 @@ oauth2_authorization_codes = Table(
     ),
 )
 
+oauth2_audit_events = Table(
+    "oauth2_audit_events",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("event_type", String(48), nullable=False),
+    Column("client_id", String(48)),
+    Column("token_id", Integer),
+    Column("actor_user_id", Integer, ForeignKey("users.id", ondelete="SET NULL")),
+    Column("success", Boolean, nullable=False, server_default="1"),
+    Column("detail", Text, nullable=False, server_default=""),
+    Column("source_ip", String(64), nullable=False, server_default=""),
+    Column(
+        "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+)
+
 oauth2_tokens = Table(
     "oauth2_tokens",
     metadata,
     Column("id", Integer, primary_key=True),
     Column("client_id", String(48), nullable=False),
     Column(
-        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        "user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    ),
+    Column("principal_type", String(20), nullable=False, server_default="user"),
+    Column("subject", String(120), nullable=False, server_default=""),
+    Column(
+        "grant_type",
+        String(40),
+        nullable=False,
+        server_default="authorization_code",
     ),
     Column("token_type", String(40), nullable=False, server_default="bearer"),
     Column("access_token", String(255), nullable=False, unique=True),

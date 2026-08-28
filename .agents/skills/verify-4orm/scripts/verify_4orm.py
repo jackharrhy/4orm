@@ -76,6 +76,7 @@ def seed_database(database_url: str) -> None:
                 display_name="Visual Check",
                 content="A small profile used only for browser verification.",
                 has_accepted_trust=True,
+                is_admin=True,
             )
         ).inserted_primary_key[0]
         connection.execute(
@@ -273,6 +274,44 @@ def main() -> int:
 
                 flow("page management layout", page_management)
 
+                def oauth_admin():
+                    page.goto(
+                        f"{base_url}/admin#oauth-clients",
+                        wait_until="domcontentloaded",
+                    )
+                    panel = page.locator("#oauth-clients")
+                    panel.get_by_role(
+                        "heading", name="OAuth clients", exact=False
+                    ).wait_for()
+                    worldview = panel.locator("article").filter(
+                        has_text="worldview-service"
+                    )
+                    worldview.get_by_role(
+                        "button", name="generate secret", exact=True
+                    ).click()
+                    secret = worldview.locator(".fourm-secret-value")
+                    secret.wait_for()
+                    check(
+                        len(secret.inner_text()) >= 48,
+                        "generated secret is unexpectedly short",
+                    )
+                    page.screenshot(
+                        path=evidence / "03-oauth-admin-desktop.png", full_page=True
+                    )
+                    check(
+                        page.evaluate(
+                            "document.documentElement.scrollWidth <= innerWidth"
+                        ),
+                        "OAuth admin has horizontal overflow",
+                    )
+                    return [
+                        "OAuth clients panel visible",
+                        "one-time secret result visible",
+                        "no horizontal overflow",
+                    ]
+
+                flow("OAuth client administration", oauth_admin)
+
                 def mobile_layouts():
                     page.set_viewport_size({"width": 390, "height": 844})
                     page.goto(base_url, wait_until="domcontentloaded")
@@ -296,9 +335,23 @@ def main() -> int:
                     page.screenshot(
                         path=evidence / "04-settings-mobile.png", full_page=True
                     )
+                    page.goto(
+                        f"{base_url}/admin#oauth-clients",
+                        wait_until="domcontentloaded",
+                    )
+                    check(
+                        page.evaluate(
+                            "document.documentElement.scrollWidth <= innerWidth"
+                        ),
+                        "mobile OAuth admin has horizontal overflow",
+                    )
+                    page.screenshot(
+                        path=evidence / "05-oauth-admin-mobile.png", full_page=True
+                    )
                     return [
                         "mobile homepage fits viewport",
                         "mobile settings fits viewport",
+                        "mobile OAuth admin fits viewport",
                     ]
 
                 flow("mobile layouts", mobile_layouts)

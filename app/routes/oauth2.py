@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import warnings
 from urllib.parse import urlparse, urlunparse
@@ -12,10 +13,12 @@ from authlib.oauth2.rfc6749.errors import OAuth2Error
 from authlib.oauth2.rfc6749.requests import BasicOAuth2Payload
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import insert
 
 from app.auth import get_access_token_context
 from app.deps import SITE_URL, current_user, get_engine, templates
 from app.oauth2 import create_authorization_server
+from app.schema import oauth2_audit_events
 
 
 def _configure_authlib_transport(site_url: str) -> None:
@@ -210,15 +213,59 @@ async def token_endpoint(request: Request):
         grant.validate_token_request()
         status, token, response_headers = grant.create_token_response()
     except OAuth2Error as error:
+        _audit_oauth_request(
+            request,
+            "token_request_failed",
+            _request_client_id(request, form_data),
+            False,
+            error.error,
+        )
         return JSONResponse(
             {"error": error.error, "error_description": error.description or ""},
             status_code=error.status_code or 400,
+            headers=dict(error.get_headers()),
         )
 
     headers = dict(response_headers)
     headers.setdefault("Cache-Control", "no-store")
     headers.setdefault("Pragma", "no-cache")
     return JSONResponse(token, status_code=status, headers=headers)
+
+
+@router.post("/oauth/introspect")
+async def introspection_endpoint(request: Request):
+    form = await request.form()
+    form_data = dict(form)
+    server = _get_server(request)
+    oauth2_req = _make_authlib_request(
+        "POST", str(request.url), form_data, dict(request.headers)
+    )
+    endpoint = server._endpoints["introspection"][0]
+
+    try:
+        status, body, response_headers = endpoint.create_endpoint_response(oauth2_req)
+    except OAuth2Error as error:
+        _audit_oauth_request(
+            request,
+            "introspection_failed",
+            _request_client_id(request, form_data),
+            False,
+            error.error,
+        )
+        return JSONResponse(
+            {"error": error.error, "error_description": error.description or ""},
+            status_code=error.status_code or 400,
+            headers=dict(error.get_headers()),
+        )
+
+    _audit_oauth_request(
+        request,
+        "token_introspected",
+        oauth2_req.client.get_client_id(),
+        True,
+        "active" if body.get("active") else "inactive",
+    )
+    return JSONResponse(body, status_code=status, headers=dict(response_headers))
 
 
 # ---------------------------------------------------------------------------
@@ -265,12 +312,23 @@ def openid_configuration():
             "issuer": SITE_URL,
             "authorization_endpoint": f"{SITE_URL}/oauth/authorize",
             "token_endpoint": f"{SITE_URL}/oauth/token",
+            "introspection_endpoint": f"{SITE_URL}/oauth/introspect",
             "userinfo_endpoint": f"{SITE_URL}/oauth/userinfo",
             "response_types_supported": ["code"],
-            "grant_types_supported": ["authorization_code", "refresh_token"],
+            "grant_types_supported": [
+                "authorization_code",
+                "refresh_token",
+                "client_credentials",
+            ],
             "subject_types_supported": ["public"],
             "id_token_signing_alg_values_supported": ["none"],
-            "scopes_supported": ["openid", "profile"],
+            "scopes_supported": [
+                "openid",
+                "profile",
+                "artbin:assets:read",
+                "artbin:assets:content",
+                "artbin:wads:inspect",
+            ],
             "token_endpoint_auth_methods_supported": [
                 "none",
                 "client_secret_basic",
@@ -291,6 +349,9 @@ def _make_authlib_request(
 ) -> AuthlibOAuth2Request:
     """Build an Authlib OAuth2Request with both payload and legacy body set."""
     uri = _public_oauth_uri(uri)
+    headers = dict(headers or {})
+    if "authorization" in headers and "Authorization" not in headers:
+        headers["Authorization"] = headers["authorization"]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         req = AuthlibOAuth2Request(method, uri, body=form_data, headers=headers)
@@ -307,3 +368,34 @@ def _public_oauth_uri(uri: str) -> str:
             netloc=public.netloc,
         )
     )
+
+
+def _request_client_id(request: Request, form_data: dict) -> str:
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("basic "):
+        try:
+            decoded = base64.b64decode(authorization[6:], validate=True).decode()
+            return decoded.split(":", 1)[0][:48]
+        except (ValueError, UnicodeDecodeError):
+            return ""
+    return str(form_data.get("client_id", ""))[:48]
+
+
+def _audit_oauth_request(
+    request: Request,
+    event_type: str,
+    client_id: str,
+    success: bool,
+    detail: str,
+) -> None:
+    source_ip = request.client.host if request.client else ""
+    with get_engine(request).begin() as conn:
+        conn.execute(
+            insert(oauth2_audit_events).values(
+                event_type=event_type,
+                client_id=client_id or None,
+                success=success,
+                detail=detail[:200],
+                source_ip=source_ip[:64],
+            )
+        )

@@ -1,10 +1,11 @@
 """Admin dashboard routes."""
 
 import random
+import secrets
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import Integer, func, insert, select, update
 
 import app.deps as deps
 from app.deps import (
@@ -22,11 +23,15 @@ from app.schema import (
     forum_posts,
     forum_threads,
     media,
+    oauth2_audit_events,
+    oauth2_clients,
+    oauth2_tokens,
     pages,
     profile_cards,
     site_settings,
     users,
 )
+from app.security import hash_client_secret
 
 router = APIRouter(tags=["admin"])
 
@@ -154,6 +159,29 @@ def admin_dashboard(request: Request):
         )
         site_banner = get_site_banner(conn)
 
+        oauth_clients = (
+            conn.execute(
+                select(
+                    oauth2_clients,
+                    func.count(oauth2_tokens.c.id).label("token_count"),
+                    func.sum(
+                        func.cast(oauth2_tokens.c.revoked.is_(False), Integer)
+                    ).label("active_token_count"),
+                    func.max(oauth2_tokens.c.issued_at).label("last_token_issued_at"),
+                )
+                .select_from(
+                    oauth2_clients.outerjoin(
+                        oauth2_tokens,
+                        oauth2_tokens.c.client_id == oauth2_clients.c.client_id,
+                    )
+                )
+                .group_by(oauth2_clients.c.id)
+                .order_by(oauth2_clients.c.client_name)
+            )
+            .mappings()
+            .all()
+        )
+
     scheduler = getattr(request.app.state, "backup_scheduler", None)
     backup_summary = None
     if scheduler:
@@ -179,8 +207,150 @@ def admin_dashboard(request: Request):
             "recent_posts": recent_posts,
             "backup_summary": backup_summary,
             "site_banner_settings": site_banner,
+            "oauth_clients": oauth_clients,
         },
     )
+
+
+def _oauth_client_or_404(conn, client_id: str):
+    client = (
+        conn.execute(
+            select(oauth2_clients).where(oauth2_clients.c.client_id == client_id)
+        )
+        .mappings()
+        .first()
+    )
+    if not client:
+        raise HTTPException(404, "OAuth client not found")
+    return client
+
+
+def _oauth_audit(conn, event_type: str, client_id: str, actor_id: int, detail=""):
+    conn.execute(
+        insert(oauth2_audit_events).values(
+            event_type=event_type,
+            client_id=client_id,
+            actor_user_id=actor_id,
+            detail=detail,
+        )
+    )
+
+
+def _secret_response(request: Request, secret: str, client_id: str) -> HTMLResponse:
+    response = templates.TemplateResponse(
+        request,
+        "fragments/oauth_client_secret.html",
+        {"client_id": client_id, "client_secret": secret},
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
+
+@router.post("/admin/oauth/clients/{client_id}/secret/generate")
+def admin_generate_oauth_secret(request: Request, client_id: str):
+    me = require_admin(request)
+    secret = secrets.token_urlsafe(48)
+    with get_engine(request).begin() as conn:
+        client = _oauth_client_or_404(conn, client_id)
+        if client["token_endpoint_auth_method"] == "none":
+            raise HTTPException(400, "Public clients do not use a client secret")
+        if client["client_secret_hash"]:
+            raise HTTPException(
+                409, "This client already has a secret; rotate it instead"
+            )
+        conn.execute(
+            update(oauth2_clients)
+            .where(oauth2_clients.c.client_id == client_id)
+            .values(
+                client_secret_hash=hash_client_secret(secret), updated_at=func.now()
+            )
+        )
+        _oauth_audit(conn, "client_secret_generated", client_id, me["id"])
+    return _secret_response(request, secret, client_id)
+
+
+@router.post("/admin/oauth/clients/{client_id}/secret/rotate")
+def admin_rotate_oauth_secret(request: Request, client_id: str):
+    me = require_admin(request)
+    secret = secrets.token_urlsafe(48)
+    with get_engine(request).begin() as conn:
+        client = _oauth_client_or_404(conn, client_id)
+        if not client["client_secret_hash"]:
+            raise HTTPException(409, "Generate the first secret before rotating it")
+        conn.execute(
+            update(oauth2_clients)
+            .where(oauth2_clients.c.client_id == client_id)
+            .values(
+                previous_client_secret_hash=client["client_secret_hash"],
+                client_secret_hash=hash_client_secret(secret),
+                secret_rotated_at=func.now(),
+                updated_at=func.now(),
+            )
+        )
+        _oauth_audit(conn, "client_secret_rotated", client_id, me["id"])
+    return _secret_response(request, secret, client_id)
+
+
+@router.post("/admin/oauth/clients/{client_id}/secret/finish-rotation")
+def admin_finish_oauth_secret_rotation(request: Request, client_id: str):
+    me = require_admin(request)
+    with get_engine(request).begin() as conn:
+        _oauth_client_or_404(conn, client_id)
+        conn.execute(
+            update(oauth2_clients)
+            .where(oauth2_clients.c.client_id == client_id)
+            .values(previous_client_secret_hash="", updated_at=func.now())
+        )
+        _oauth_audit(conn, "client_secret_rotation_finished", client_id, me["id"])
+    return RedirectResponse("/admin#oauth-clients", status_code=303)
+
+
+@router.post("/admin/oauth/clients/{client_id}/revoke-tokens")
+def admin_revoke_oauth_tokens(request: Request, client_id: str):
+    me = require_admin(request)
+    with get_engine(request).begin() as conn:
+        _oauth_client_or_404(conn, client_id)
+        result = conn.execute(
+            update(oauth2_tokens)
+            .where(
+                oauth2_tokens.c.client_id == client_id,
+                oauth2_tokens.c.revoked.is_(False),
+            )
+            .values(revoked=True)
+        )
+        _oauth_audit(conn, "tokens_revoked", client_id, me["id"], str(result.rowcount))
+    return RedirectResponse("/admin#oauth-clients", status_code=303)
+
+
+@router.post("/admin/oauth/clients/{client_id}/toggle-enabled")
+def admin_toggle_oauth_client(request: Request, client_id: str):
+    me = require_admin(request)
+    with get_engine(request).begin() as conn:
+        client = _oauth_client_or_404(conn, client_id)
+        enabled = not client["is_enabled"]
+        conn.execute(
+            update(oauth2_clients)
+            .where(oauth2_clients.c.client_id == client_id)
+            .values(
+                is_enabled=enabled,
+                disabled_at=None if enabled else func.now(),
+                updated_at=func.now(),
+            )
+        )
+        if not enabled:
+            conn.execute(
+                update(oauth2_tokens)
+                .where(oauth2_tokens.c.client_id == client_id)
+                .values(revoked=True)
+            )
+        _oauth_audit(
+            conn,
+            "client_enabled" if enabled else "client_disabled",
+            client_id,
+            me["id"],
+        )
+    return RedirectResponse("/admin#oauth-clients", status_code=303)
 
 
 @router.post("/admin/site-banner")

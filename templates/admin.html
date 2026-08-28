@@ -76,6 +76,65 @@
     </script>
   </details>
 
+  <details class="panel" id="oauth-clients" open>
+    <summary><h2>OAuth clients ({{ oauth_clients|length }})</h2></summary>
+    <p class="muted">
+      client capabilities come from <code>oauth2_clients.toml</code>. secrets
+      are stored as hashes and a newly generated secret is shown only once.
+    </p>
+    <div class="fourm-oauth-clients">
+      {% for client in oauth_clients %}
+        <article class="fourm-admin-row fourm-panel-nested">
+          <div class="fourm-admin-row-body">
+            <strong>{{ client.client_name }}</strong>
+            <code>{{ client.client_id }}</code>
+            <span class="muted">
+              {{ client.principal_type }} ·
+              {{ 'enabled' if client.is_enabled else 'disabled' }} ·
+              {{ client.active_token_count or 0 }} active token(s)
+            </span>
+            {% if client.scope %}<div class="muted">{{ client.scope }}</div>{% endif %}
+            {% if client.previous_client_secret_hash %}
+              <div class="ok">rotation overlap is active</div>
+            {% endif %}
+            <div id="oauth-secret-{{ client.id }}"></div>
+          </div>
+          <div class="fourm-actions">
+            {% if client.token_endpoint_auth_method != 'none' %}
+              {% if not client.client_secret_hash %}
+                <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/secret/generate"
+                      hx-post="/admin/oauth/clients/{{ client.client_id }}/secret/generate"
+                      hx-target="this" hx-swap="outerHTML">
+                  <button type="submit">generate secret</button>
+                </form>
+              {% else %}
+                <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/secret/rotate"
+                      hx-post="/admin/oauth/clients/{{ client.client_id }}/secret/rotate"
+                      hx-target="this" hx-swap="outerHTML"
+                      onsubmit="return confirm('Start a secret rotation? The old secret remains valid until you finish the rotation.')">
+                  <button type="submit">rotate secret</button>
+                </form>
+              {% endif %}
+            {% endif %}
+            {% if client.previous_client_secret_hash %}
+              <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/secret/finish-rotation"
+                    onsubmit="return confirm('Stop accepting the previous secret?')">
+                <button type="submit">finish rotation</button>
+              </form>
+            {% endif %}
+            <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/revoke-tokens"
+                  onsubmit="return confirm('Revoke every active token for this client?')">
+              <button type="submit">revoke tokens</button>
+            </form>
+            <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/toggle-enabled">
+              <button type="submit">{{ 'disable' if client.is_enabled else 'enable' }}</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </details>
+
   <details class="panel" open>
     <summary><h2>users ({{ all_users|length }})</h2></summary>
     {% for u in all_users %}
