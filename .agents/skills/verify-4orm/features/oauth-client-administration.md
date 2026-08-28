@@ -2,9 +2,9 @@
 
 ## Sub-features
 
-Configured OAuth client status, recent token principals and lifecycle, one-time
-secret generation, overlapping secret rotation, token revocation, and client
-enablement.
+Configured OAuth client status, complete token usage grouped by principal,
+one-time secret generation, overlapping secret rotation, token revocation, and
+client enablement.
 
 ## How to get to it (user POV)
 
@@ -15,9 +15,10 @@ Sign in as an administrator, open `admin`, and expand the OAuth clients panel.
 Use the isolated seeded administrator. Confirm the configured
 `worldview-service` client is visible, generate its first secret through the
 visible button, and check that the one-time secret notice appears without
-horizontal overflow. Expand recent token activity and confirm it identifies the
-issuing human or service principal without displaying a raw token. Capture the
-panel at desktop and mobile widths.
+horizontal overflow. Expand token usage and confirm it identifies the issuing
+human or service principal, granted scopes, aggregate mint count, active count,
+and last mint time without displaying a raw token. Capture the panel at desktop
+and mobile widths.
 
 ## Gotchas
 

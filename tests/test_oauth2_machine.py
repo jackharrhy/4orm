@@ -4,6 +4,7 @@ import time
 
 from sqlalchemy import insert, select
 
+from app.oauth_client_admin import list_oauth_clients
 from app.schema import oauth2_clients, oauth2_tokens
 from app.security import hash_client_secret, verify_client_secret
 from tests.conftest import login_as, make_admin_user
@@ -190,7 +191,29 @@ def test_admin_token_activity_identifies_human_and_service_principals(
                     "issued_at": now - 30,
                     "expires_in": 600,
                 },
+                {
+                    "client_id": "worldview-service",
+                    "user_id": None,
+                    "principal_type": "service",
+                    "subject": "worldview-service",
+                    "grant_type": "client_credentials",
+                    "access_token": "older-service-secret-token",
+                    "scope": "artbin:assets:content",
+                    "issued_at": now - 900,
+                    "expires_in": 600,
+                },
             ],
+        )
+        clients = {
+            oauth_client["client_id"]: oauth_client
+            for oauth_client in list_oauth_clients(conn)
+        }
+        service_usage = clients["worldview-service"]["principal_usage"]
+        assert len(service_usage) == 1
+        assert service_usage[0]["tokens_minted"] == 2
+        assert service_usage[0]["active_tokens"] == 1
+        assert service_usage[0]["scopes"] == (
+            "artbin:assets:content artbin:assets:read"
         )
     login_as(client, "admin")
 
@@ -199,7 +222,7 @@ def test_admin_token_activity_identifies_human_and_service_principals(
     assert response.status_code == 200
     assert "admin (@admin)" in response.text
     assert "worldview-service" in response.text
-    assert "client_credentials" in response.text
     assert "artbin:assets:read" in response.text
     assert "human-secret-token" not in response.text
     assert "service-secret-token" not in response.text
+    assert "older-service-secret-token" not in response.text
