@@ -1,11 +1,24 @@
 """Tests for the OAuth2 client TOML sync."""
 
 import textwrap
+import tomllib
+from pathlib import Path
 
 from sqlalchemy import insert, select
 
 from app.oauth2_clients_sync import sync_oauth2_clients
 from app.schema import oauth2_clients
+
+
+def test_repository_registers_worldview_client():
+    config = tomllib.loads((Path(__file__).parents[1] / "oauth2_clients.toml").read_text())
+    worldview = config["clients"]["worldview"]
+
+    assert worldview["client_name"] == "Worldview"
+    assert worldview["scope"] == "openid profile"
+    assert worldview["grant_types"] == "authorization_code"
+    assert worldview["token_endpoint_auth_method"] == "none"
+    assert "http://localhost:8789/auth/callback" in worldview["redirect_uris"]
 
 
 def test_sync_creates_new_client(test_engine, tmp_path):

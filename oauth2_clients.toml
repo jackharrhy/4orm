@@ -25,6 +25,17 @@ redirect_uris = [
 ]
 scope = "openid profile"
 
+[clients.worldview]
+client_name = "Worldview"
+redirect_uris = [
+    "https://worldview.jackharrhy.dev/auth/callback",
+    "https://newport.hedgehog-python.ts.net:8444/auth/callback",
+    "http://localhost:8789/auth/callback",
+]
+scope = "openid profile"
+grant_types = "authorization_code"
+token_endpoint_auth_method = "none"
+
 [clients.cli]
 client_name = "4orm CLI"
 redirect_uris = [
