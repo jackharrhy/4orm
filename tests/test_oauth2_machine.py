@@ -1,5 +1,7 @@
 """Machine OAuth and administrator credential lifecycle tests."""
 
+import time
+
 from sqlalchemy import insert, select
 
 from app.schema import oauth2_clients, oauth2_tokens
@@ -136,3 +138,68 @@ def test_admin_secret_rotation_is_one_time_and_overlapping(client, test_engine):
         row = conn.execute(select(oauth2_clients)).mappings().one()
         assert row["previous_client_secret_hash"] == ""
         assert conn.execute(select(oauth2_tokens)).first() is None
+
+
+def test_admin_token_activity_identifies_human_and_service_principals(
+    client, test_engine
+):
+    with test_engine.begin() as conn:
+        admin_id = make_admin_user(conn, "admin")
+        conn.execute(
+            insert(oauth2_clients),
+            [
+                {
+                    "client_id": "worldview",
+                    "client_name": "Worldview",
+                    "token_endpoint_auth_method": "none",
+                },
+                {
+                    "client_id": "worldview-service",
+                    "client_name": "Worldview service",
+                    "client_kind": "service",
+                    "subject": "worldview-service",
+                    "grant_types": "client_credentials",
+                    "response_types": "",
+                    "token_endpoint_auth_method": "client_secret_basic",
+                },
+            ],
+        )
+        now = int(time.time())
+        conn.execute(
+            insert(oauth2_tokens),
+            [
+                {
+                    "client_id": "worldview",
+                    "user_id": admin_id,
+                    "principal_type": "user",
+                    "subject": str(admin_id),
+                    "grant_type": "authorization_code",
+                    "access_token": "human-secret-token",
+                    "scope": "openid profile",
+                    "issued_at": now,
+                    "expires_in": 3600,
+                },
+                {
+                    "client_id": "worldview-service",
+                    "user_id": None,
+                    "principal_type": "service",
+                    "subject": "worldview-service",
+                    "grant_type": "client_credentials",
+                    "access_token": "service-secret-token",
+                    "scope": "artbin:assets:read",
+                    "issued_at": now - 30,
+                    "expires_in": 600,
+                },
+            ],
+        )
+    login_as(client, "admin")
+
+    response = client.get("/admin")
+
+    assert response.status_code == 200
+    assert "admin (@admin)" in response.text
+    assert "worldview-service" in response.text
+    assert "client_credentials" in response.text
+    assert "artbin:assets:read" in response.text
+    assert "human-secret-token" not in response.text
+    assert "service-secret-token" not in response.text

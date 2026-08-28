@@ -280,6 +280,13 @@ button:active {
   overflow-wrap: anywhere;
   user-select: all;
 }
+.fourm-shell .fourm-token-activity {
+  margin-top: 0.65rem;
+}
+.fourm-shell .fourm-data-table-wrap {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+}
 .fourm-shell .fourm-action-label {
   font-size: 0.85rem;
 }

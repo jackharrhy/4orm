@@ -97,6 +97,39 @@
             {% if client.previous_client_secret_hash %}
               <div class="ok">rotation overlap is active</div>
             {% endif %}
+            {% if client.token_activity %}
+              <details class="fourm-token-activity">
+                <summary>recent token activity</summary>
+                <div class="fourm-data-table-wrap">
+                  <table class="fourm-data-table">
+                    <thead>
+                      <tr>
+                        <th>principal</th>
+                        <th>issued</th>
+                        <th>expires</th>
+                        <th>grant</th>
+                        <th>status</th>
+                        <th>scopes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for token in client.token_activity %}
+                        <tr>
+                          <td>{{ token.principal_label }}</td>
+                          <td><time datetime="{{ token.issued_at_iso }}" data-fmt="relative">{{ token.issued_at_iso }}</time></td>
+                          <td><time datetime="{{ token.expires_at_iso }}">{{ token.expires_at_iso }}</time></td>
+                          <td><code>{{ token.grant_type }}</code></td>
+                          <td>{{ 'active' if token.is_active else ('revoked' if token.revoked else 'expired') }}</td>
+                          <td>{{ token.scope or '—' }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            {% else %}
+              <div class="muted fourm-space-xs">no tokens issued yet</div>
+            {% endif %}
             <div id="oauth-secret-{{ client.id }}"></div>
           </div>
           <div class="fourm-actions">
