@@ -7,7 +7,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import ClassVar
 
-from authlib.oauth2 import AuthorizationServer
+from authlib.oauth2 import AuthorizationServer, OAuth2Request
 from authlib.oauth2.rfc6749 import grants, list_to_scope, scope_to_list
 from authlib.oauth2.rfc6749.errors import (
     InvalidClientError,
@@ -77,17 +77,27 @@ class OAuth2ClientWrapper:
     def check_endpoint_auth_method(self, method, endpoint):
         if not self._row["is_enabled"]:
             return False
-        if endpoint in {"token", "introspection"}:
-            return self._row["token_endpoint_auth_method"] == method
+        kind = self._row["client_kind"]
+        if endpoint == "introspection":
+            return kind == "resource_server" and method == "client_secret_basic"
+        if endpoint == "token":
+            return kind != "resource_server" and (
+                self._row["token_endpoint_auth_method"] == method
+            )
         return True
 
     def check_response_type(self, response_type):
         return response_type in self._row["response_types"].split()
 
     def check_grant_type(self, grant_type):
-        return (
-            self._row["is_enabled"] and grant_type in self._row["grant_types"].split()
-        )
+        if not self._row["is_enabled"]:
+            return False
+        kind = self._row["client_kind"]
+        if kind == "service":
+            return grant_type == "client_credentials"
+        if kind == "resource_server":
+            return False
+        return grant_type in self._row["grant_types"].split()
 
 
 class OAuth2AuthCodeWrapper:
@@ -267,7 +277,7 @@ class ClientCredentialsGrant(grants.ClientCredentialsGrant):
     def validate_token_request(self):
         super().validate_token_request()
         client = self.request.client
-        if client._row["principal_type"] != "service":
+        if client._row["client_kind"] != "service":
             raise UnauthorizedClientError()
         requested = set(scope_to_list(self.request.payload.scope or ""))
         allowed = set(scope_to_list(client._row["scope"]))
@@ -301,7 +311,7 @@ class OAuth2IntrospectionEndpoint(IntrospectionEndpoint):
 
     def create_endpoint_response(self, request):
         client = self.authenticate_endpoint_client(request)
-        if not client._row["can_introspect"]:
+        if client._row["client_kind"] != "resource_server":
             raise InvalidClientError(
                 status_code=401,
                 description="This client is not allowed to introspect tokens.",
@@ -342,7 +352,10 @@ class OAuth2IntrospectionEndpoint(IntrospectionEndpoint):
         return OAuth2TokenWrapper(row) if row else None
 
     def check_permission(self, token, client, request):
-        return bool(client._row["is_enabled"] and client._row["can_introspect"])
+        return bool(
+            client._row["is_enabled"]
+            and client._row["client_kind"] == "resource_server"
+        )
 
     def introspect_token(self, token):
         row = token._row
@@ -373,13 +386,15 @@ class OAuth2Server(AuthorizationServer):
     # (we call the grant methods directly, not via framework integration).
 
     def create_oauth2_request(self, request):
-        raise NotImplementedError("Use framework-specific integration")
+        if isinstance(request, OAuth2Request):
+            return request
+        raise TypeError("OAuth2Server expects an Authlib OAuth2Request adapter")
 
     def create_json_request(self, request):
         raise NotImplementedError("Use framework-specific integration")
 
     def handle_response(self, status, body, headers):
-        raise NotImplementedError("Use framework-specific integration")
+        return status, body, headers
 
     def send_signal(self, name, *args, **kwargs):
         pass  # no-op; we don't use signals
@@ -431,7 +446,12 @@ def create_authorization_server(engine) -> OAuth2Server:
     def _save_token(token, request):
         with engine.begin() as conn:
             user = request.user
-            is_service = user is None
+            client_kind = request.client._row["client_kind"]
+            is_service = client_kind == "service"
+            if is_service and user is not None:
+                raise RuntimeError("Service token issuance cannot have a user")
+            if not is_service and user is None:
+                raise RuntimeError("User token issuance requires a user")
             result = conn.execute(
                 insert(oauth2_tokens).values(
                     client_id=request.client.get_client_id(),

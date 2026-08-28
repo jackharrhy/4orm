@@ -37,6 +37,7 @@ from app.queries.users import list_profile_cards
 from app.rendering import render_content, render_forum_post
 from app.routes import (
     admin,
+    admin_oauth,
     api,
     auth,
     chat,
@@ -234,6 +235,7 @@ app.include_router(pages.router)
 app.include_router(settings.router)
 app.include_router(media.router)
 app.include_router(admin.router)
+app.include_router(admin_oauth.router)
 app.include_router(guestbook.router)
 app.include_router(feeds.router)
 app.include_router(forum.router)

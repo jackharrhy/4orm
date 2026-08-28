@@ -89,7 +89,7 @@
             <strong>{{ client.client_name }}</strong>
             <code>{{ client.client_id }}</code>
             <span class="muted">
-              {{ client.principal_type }} ·
+              {{ client.client_kind.replace('_', ' ') }} ·
               {{ 'enabled' if client.is_enabled else 'disabled' }} ·
               {{ client.active_token_count or 0 }} active token(s)
             </span>

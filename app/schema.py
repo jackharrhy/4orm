@@ -309,7 +309,7 @@ oauth2_clients = Table(
     Column("client_secret_hash", Text, nullable=False, server_default=""),
     Column("previous_client_secret_hash", Text, nullable=False, server_default=""),
     Column("client_name", String(120), nullable=False),
-    Column("principal_type", String(20), nullable=False, server_default="user"),
+    Column("client_kind", String(24), nullable=False, server_default="public"),
     Column("subject", String(120), nullable=False, server_default=""),
     Column("redirect_uris", Text, nullable=False, server_default=""),
     Column("scope", Text, nullable=False, server_default=""),
@@ -322,7 +322,6 @@ oauth2_clients = Table(
         server_default="client_secret_basic",
     ),
     Column("is_enabled", Boolean, nullable=False, server_default="1"),
-    Column("can_introspect", Boolean, nullable=False, server_default="0"),
     Column("access_token_lifetime", Integer, nullable=False, server_default="3600"),
     Column("secret_rotated_at", DateTime(timezone=True)),
     Column("disabled_at", DateTime(timezone=True)),
@@ -331,6 +330,10 @@ oauth2_clients = Table(
     ),
     Column(
         "updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+    CheckConstraint(
+        "client_kind IN ('public', 'service', 'resource_server')",
+        name="ck_oauth2_clients_kind",
     ),
 )
 
@@ -395,6 +398,10 @@ oauth2_tokens = Table(
     Column("revoked", Boolean, nullable=False, server_default="0"),
     Column(
         "created_at", DateTime(timezone=True), nullable=False, server_default=func.now()
+    ),
+    CheckConstraint(
+        "principal_type IN ('user', 'service')",
+        name="ck_oauth2_tokens_principal_type",
     ),
 )
 

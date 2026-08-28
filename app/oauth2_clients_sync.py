@@ -14,9 +14,8 @@ The TOML format is:
     grant_types = "authorization_code"             # optional
     response_types = "code"                        # optional
     token_endpoint_auth_method = "none"            # optional
-    principal_type = "service"                    # optional, default "user"
+    client_kind = "service"                       # public, service, resource_server
     subject = "my-service"                        # required for service clients
-    can_introspect = false                         # optional
     access_token_lifetime = 600                    # optional
 
 Secrets are generated and rotated in the 4orm admin interface. Sync never reads
@@ -40,9 +39,8 @@ _DEFAULTS = {
     "grant_types": "authorization_code",
     "response_types": "code",
     "token_endpoint_auth_method": "none",
-    "principal_type": "user",
+    "client_kind": "public",
     "subject": "",
-    "can_introspect": False,
     "access_token_lifetime": 3600,
 }
 
@@ -71,8 +69,13 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
             else:
                 redirect_uris = str(redirect_uris_raw)
 
+            kind = cfg.get("client_kind", _DEFAULTS["client_kind"])
+            if kind not in {"public", "service", "resource_server"}:
+                raise ValueError(f"Invalid client_kind for OAuth client {client_id}")
+
             values = {
                 "client_name": cfg["client_name"],
+                "client_kind": kind,
                 "redirect_uris": redirect_uris,
                 "scope": cfg.get("scope", _DEFAULTS["scope"]),
                 "grant_types": cfg.get("grant_types", _DEFAULTS["grant_types"]),
@@ -83,13 +86,7 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
                     "token_endpoint_auth_method",
                     _DEFAULTS["token_endpoint_auth_method"],
                 ),
-                "principal_type": cfg.get(
-                    "principal_type", _DEFAULTS["principal_type"]
-                ),
                 "subject": cfg.get("subject", _DEFAULTS["subject"]),
-                "can_introspect": bool(
-                    cfg.get("can_introspect", _DEFAULTS["can_introspect"])
-                ),
                 "access_token_lifetime": int(
                     cfg.get(
                         "access_token_lifetime",
@@ -101,10 +98,24 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
                 "updated_at": func.now(),
             }
 
-            if values["principal_type"] not in {"user", "service"}:
-                raise ValueError(f"Invalid principal_type for OAuth client {client_id}")
-            if values["principal_type"] == "service" and not values["subject"]:
+            if kind == "service" and not values["subject"]:
                 raise ValueError(f"Service OAuth client {client_id} requires subject")
+            if kind == "service":
+                values.update(
+                    grant_types="client_credentials",
+                    response_types="",
+                    token_endpoint_auth_method="client_secret_basic",
+                )
+            elif kind == "resource_server":
+                values.update(
+                    subject="",
+                    scope="",
+                    grant_types="",
+                    response_types="",
+                    token_endpoint_auth_method="client_secret_basic",
+                )
+            elif values["token_endpoint_auth_method"] != "none":
+                raise ValueError(f"Public OAuth client {client_id} cannot use a secret")
             if not 60 <= values["access_token_lifetime"] <= 86400:
                 raise ValueError(
                     f"OAuth client {client_id} access_token_lifetime must be 60-86400"

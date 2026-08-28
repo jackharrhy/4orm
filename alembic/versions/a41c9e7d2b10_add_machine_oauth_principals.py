@@ -30,11 +30,15 @@ def upgrade() -> None:
                 nullable=False,
             )
         )
+        batch_op.create_check_constraint(
+            "ck_oauth2_clients_kind",
+            "client_kind IN ('public', 'service', 'resource_server')",
+        )
         batch_op.add_column(
             sa.Column(
-                "principal_type",
-                sa.String(length=20),
-                server_default="user",
+                "client_kind",
+                sa.String(length=24),
+                server_default="public",
                 nullable=False,
             )
         )
@@ -45,11 +49,6 @@ def upgrade() -> None:
         )
         batch_op.add_column(
             sa.Column("is_enabled", sa.Boolean(), server_default="1", nullable=False)
-        )
-        batch_op.add_column(
-            sa.Column(
-                "can_introspect", sa.Boolean(), server_default="0", nullable=False
-            )
         )
         batch_op.add_column(
             sa.Column(
@@ -88,6 +87,10 @@ def upgrade() -> None:
                 server_default="user",
                 nullable=False,
             )
+        )
+        batch_op.create_check_constraint(
+            "ck_oauth2_tokens_principal_type",
+            "principal_type IN ('user', 'service')",
         )
         batch_op.add_column(
             sa.Column(
@@ -129,20 +132,21 @@ def downgrade() -> None:
     op.drop_table("oauth2_audit_events")
 
     with op.batch_alter_table("oauth2_tokens") as batch_op:
+        batch_op.drop_constraint("ck_oauth2_tokens_principal_type", type_="check")
         batch_op.drop_column("grant_type")
         batch_op.drop_column("subject")
         batch_op.drop_column("principal_type")
         batch_op.alter_column("user_id", existing_type=sa.Integer(), nullable=False)
 
     with op.batch_alter_table("oauth2_clients") as batch_op:
+        batch_op.drop_constraint("ck_oauth2_clients_kind", type_="check")
         batch_op.drop_column("updated_at")
         batch_op.drop_column("disabled_at")
         batch_op.drop_column("secret_rotated_at")
         batch_op.drop_column("access_token_lifetime")
-        batch_op.drop_column("can_introspect")
         batch_op.drop_column("is_enabled")
         batch_op.drop_column("subject")
-        batch_op.drop_column("principal_type")
+        batch_op.drop_column("client_kind")
         batch_op.drop_column("previous_client_secret_hash")
         batch_op.alter_column(
             "client_secret_hash",

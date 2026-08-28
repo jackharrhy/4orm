@@ -23,6 +23,42 @@ def test_repository_registers_worldview_client():
     assert "https://worldview.harrhy.xyz/auth/callback" in worldview["redirect_uris"]
     assert "http://localhost:8789/auth/callback" in worldview["redirect_uris"]
 
+    service = config["clients"]["worldview-service"]
+    assert service["client_kind"] == "service"
+    assert service["scope"] == "artbin:assets:read artbin:assets:content"
+    assert "artbin:wads:inspect" not in service["scope"]
+
+    artbin = config["clients"]["artbin-server"]
+    assert artbin["client_kind"] == "resource_server"
+
+
+def test_sync_derives_service_and_resource_server_invariants(test_engine, tmp_path):
+    toml = tmp_path / "clients.toml"
+    toml.write_text(
+        textwrap.dedent("""\
+        [clients.service]
+        client_name = "Service"
+        client_kind = "service"
+        subject = "service"
+        scope = "assets:read"
+
+        [clients.resource]
+        client_name = "Resource"
+        client_kind = "resource_server"
+    """)
+    )
+    sync_oauth2_clients(test_engine, toml)
+    with test_engine.begin() as conn:
+        rows = {
+            row["client_id"]: row
+            for row in conn.execute(select(oauth2_clients)).mappings().all()
+        }
+    assert rows["service"]["grant_types"] == "client_credentials"
+    assert rows["service"]["token_endpoint_auth_method"] == "client_secret_basic"
+    assert rows["resource"]["grant_types"] == ""
+    assert rows["resource"]["scope"] == ""
+    assert rows["resource"]["token_endpoint_auth_method"] == "client_secret_basic"
+
 
 def test_sync_creates_new_client(test_engine, tmp_path):
     """A client in the TOML but not in the DB gets created."""

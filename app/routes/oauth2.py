@@ -240,23 +240,18 @@ async def introspection_endpoint(request: Request):
     oauth2_req = _make_authlib_request(
         "POST", str(request.url), form_data, dict(request.headers)
     )
-    endpoint = server._endpoints["introspection"][0]
-
-    try:
-        status, body, response_headers = endpoint.create_endpoint_response(oauth2_req)
-    except OAuth2Error as error:
+    status, body, response_headers = server.create_endpoint_response(
+        "introspection", oauth2_req
+    )
+    if status >= 400:
         _audit_oauth_request(
             request,
             "introspection_failed",
             _request_client_id(request, form_data),
             False,
-            error.error,
+            body.get("error", "invalid_request"),
         )
-        return JSONResponse(
-            {"error": error.error, "error_description": error.description or ""},
-            status_code=error.status_code or 400,
-            headers=dict(error.get_headers()),
-        )
+        return JSONResponse(body, status_code=status, headers=dict(response_headers))
 
     _audit_oauth_request(
         request,
@@ -327,7 +322,6 @@ def openid_configuration():
                 "profile",
                 "artbin:assets:read",
                 "artbin:assets:content",
-                "artbin:wads:inspect",
             ],
             "token_endpoint_auth_methods_supported": [
                 "none",

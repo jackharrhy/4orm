@@ -38,24 +38,22 @@ token_endpoint_auth_method = "none"
 [clients.worldview-service]
 client_name = "Worldview service"
 redirect_uris = []
-scope = "artbin:assets:read artbin:assets:content artbin:wads:inspect"
+scope = "artbin:assets:read artbin:assets:content"
 grant_types = "client_credentials"
 response_types = ""
 token_endpoint_auth_method = "client_secret_basic"
-principal_type = "service"
+client_kind = "service"
 subject = "worldview-service"
 access_token_lifetime = 600
 
-[clients.artbin-resource-server]
-client_name = "Artbin resource server"
+[clients.artbin-server]
+client_name = "Artbin server"
 redirect_uris = []
 scope = ""
 grant_types = ""
 response_types = ""
 token_endpoint_auth_method = "client_secret_basic"
-principal_type = "service"
-subject = "artbin-resource-server"
-can_introspect = true
+client_kind = "resource_server"
 access_token_lifetime = 600
 
 [clients.cli]

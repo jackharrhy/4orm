@@ -14,13 +14,26 @@ The existing public PKCE client remains `worldview`. The new registrations are:
 
 | Purpose | Client ID | Subject | Grant/auth | Allowed scopes | Lifetime |
 | --- | --- | --- | --- | --- | --- |
-| Worldview backend | `worldview-service` | `worldview-service` | `client_credentials`, `client_secret_basic` | `artbin:assets:read artbin:assets:content artbin:wads:inspect` | 600 seconds |
-| Artbin introspection | `artbin-resource-server` | `artbin-resource-server` | introspection only, `client_secret_basic` | none | n/a |
+| Worldview backend | `worldview-service` | `worldview-service` | `client_credentials`, `client_secret_basic` | `artbin:assets:read artbin:assets:content` | 600 seconds |
+| Artbin introspection | `artbin-server` | n/a | introspection only, `client_secret_basic` | none | n/a |
+
+Every registration has one `client_kind`, which fixes its security profile:
+
+- `public` uses authorization code/PKCE, has a human principal, and has no secret;
+- `service` uses client credentials, has a stable service subject, and may request
+  configured resource scopes;
+- `resource_server` has a secret used only to authenticate introspection and
+  cannot obtain access tokens.
+
+The sync derives the allowed grant and authentication methods for confidential
+kinds, so contradictory combinations are not configurable as independent flags.
 
 Requested scopes must be a subset of the client's configured scopes. An omitted
 scope grants the configured set. Unknown or disallowed scopes return
 `invalid_scope`; they are not silently removed or broadened. Machine grants do
-not issue refresh tokens.
+not issue refresh tokens. `artbin:assets:read` includes catalog data and parsed
+metadata for every supported asset format, including WAD inspection;
+`artbin:assets:content` covers original asset bytes and ranged delivery.
 
 ## Token request
 
@@ -50,7 +63,7 @@ cache an access token until shortly before `expires_in`.
 
 ```http
 POST https://4orm.harrhy.xyz/oauth/introspect
-Authorization: Basic base64(artbin-resource-server:<secret>)
+Authorization: Basic base64(artbin-server:<secret>)
 Content-Type: application/x-www-form-urlencoded
 
 token=<opaque-access-token>&token_type_hint=access_token
@@ -107,7 +120,7 @@ token values are never included in those events.
 1. Deploy 4orm and run `alembic upgrade head` before serving traffic. The new
    migration is `a41c9e7d2b10`.
 2. Start 4orm once so TOML sync creates `worldview-service` and
-   `artbin-resource-server`.
+   `artbin-server`.
 3. In `/admin`, generate one secret for each confidential client. Copy each at
    the one-time display.
 4. Add the values to the existing Newport 4orm SOPS deployment secret file at
@@ -117,7 +130,7 @@ token values are never included in those events.
    respective consumer containers, not in 4orm's TOML or environment.
 5. Configure Worldview with client ID `worldview-service`, token URL
    `https://4orm.harrhy.xyz/oauth/token`, and its allowed scopes.
-6. Configure Artbin with client ID `artbin-resource-server` and introspection URL
+6. Configure Artbin with client ID `artbin-server` and introspection URL
    `https://4orm.harrhy.xyz/oauth/introspect`.
 7. Verify issuance and introspection, then deploy both consumers.
 

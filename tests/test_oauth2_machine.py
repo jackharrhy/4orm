@@ -7,19 +7,18 @@ from app.security import hash_client_secret, verify_client_secret
 from tests.conftest import login_as, make_admin_user
 
 
-def _service_client(conn, client_id, secret, *, introspect=False):
+def _confidential_client(conn, client_id, secret, kind="service"):
     conn.execute(
         insert(oauth2_clients).values(
             client_id=client_id,
             client_name=client_id,
             client_secret_hash=hash_client_secret(secret),
-            principal_type="service",
-            subject=client_id,
+            client_kind=kind,
+            subject=client_id if kind == "service" else "",
             scope="artbin:assets:read artbin:assets:content",
-            grant_types="client_credentials" if not introspect else "",
+            grant_types="client_credentials" if kind == "service" else "",
             response_types="",
             token_endpoint_auth_method="client_secret_basic",
-            can_introspect=introspect,
             access_token_lifetime=600,
         )
     )
@@ -27,9 +26,9 @@ def _service_client(conn, client_id, secret, *, introspect=False):
 
 def test_client_credentials_and_introspection(client, test_engine):
     with test_engine.begin() as conn:
-        _service_client(conn, "worldview-service", "worldview-secret")
-        _service_client(
-            conn, "artbin-resource-server", "artbin-secret", introspect=True
+        _confidential_client(conn, "worldview-service", "worldview-secret")
+        _confidential_client(
+            conn, "artbin-server", "artbin-secret", kind="resource_server"
         )
 
     issued = client.post(
@@ -45,7 +44,7 @@ def test_client_credentials_and_introspection(client, test_engine):
     inspected = client.post(
         "/oauth/introspect",
         data={"token": payload["access_token"]},
-        auth=("artbin-resource-server", "artbin-secret"),
+        auth=("artbin-server", "artbin-secret"),
     )
     assert inspected.status_code == 200
     assert inspected.json() == {
@@ -65,7 +64,7 @@ def test_machine_oauth_rejects_bad_secret_scope_and_unauthorized_introspector(
     client, test_engine
 ):
     with test_engine.begin() as conn:
-        _service_client(conn, "worldview-service", "right-secret")
+        _confidential_client(conn, "worldview-service", "right-secret")
 
     bad_secret = client.post(
         "/oauth/token",
@@ -97,7 +96,7 @@ def test_admin_secret_rotation_is_one_time_and_overlapping(client, test_engine):
             insert(oauth2_clients).values(
                 client_id="worldview-service",
                 client_name="Worldview service",
-                principal_type="service",
+                client_kind="service",
                 subject="worldview-service",
                 grant_types="client_credentials",
                 response_types="",
