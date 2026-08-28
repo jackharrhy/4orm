@@ -15,6 +15,7 @@ from app.deps import (
     require_admin,
     templates,
 )
+from app.oauth_client_admin import list_oauth_clients
 from app.queries.admin import delete_user_prune, delete_user_reparent
 from app.queries.site import get_site_banner
 from app.queries.users import create_password_reset_token, get_user_by_id
@@ -154,6 +155,8 @@ def admin_dashboard(request: Request):
         )
         site_banner = get_site_banner(conn)
 
+        oauth_clients = list_oauth_clients(conn)
+
     scheduler = getattr(request.app.state, "backup_scheduler", None)
     backup_summary = None
     if scheduler:
@@ -179,6 +182,7 @@ def admin_dashboard(request: Request):
             "recent_posts": recent_posts,
             "backup_summary": backup_summary,
             "site_banner_settings": site_banner,
+            "oauth_clients": oauth_clients,
         },
     )
 

@@ -20,7 +20,44 @@ def test_repository_registers_worldview_client():
     assert worldview["scope"] == "openid profile"
     assert worldview["grant_types"] == "authorization_code"
     assert worldview["token_endpoint_auth_method"] == "none"
+    assert "https://worldview.harrhy.xyz/auth/callback" in worldview["redirect_uris"]
     assert "http://localhost:8789/auth/callback" in worldview["redirect_uris"]
+
+    service = config["clients"]["worldview-service"]
+    assert service["client_kind"] == "service"
+    assert service["scope"] == "artbin:assets:read artbin:assets:content"
+    assert "artbin:wads:inspect" not in service["scope"]
+
+    artbin = config["clients"]["artbin-server"]
+    assert artbin["client_kind"] == "resource_server"
+
+
+def test_sync_derives_service_and_resource_server_invariants(test_engine, tmp_path):
+    toml = tmp_path / "clients.toml"
+    toml.write_text(
+        textwrap.dedent("""\
+        [clients.service]
+        client_name = "Service"
+        client_kind = "service"
+        subject = "service"
+        scope = "assets:read"
+
+        [clients.resource]
+        client_name = "Resource"
+        client_kind = "resource_server"
+    """)
+    )
+    sync_oauth2_clients(test_engine, toml)
+    with test_engine.begin() as conn:
+        rows = {
+            row["client_id"]: row
+            for row in conn.execute(select(oauth2_clients)).mappings().all()
+        }
+    assert rows["service"]["grant_types"] == "client_credentials"
+    assert rows["service"]["token_endpoint_auth_method"] == "client_secret_basic"
+    assert rows["resource"]["grant_types"] == ""
+    assert rows["resource"]["scope"] == ""
+    assert rows["resource"]["token_endpoint_auth_method"] == "client_secret_basic"
 
 
 def test_sync_creates_new_client(test_engine, tmp_path):
@@ -90,8 +127,8 @@ def test_sync_updates_existing_client(test_engine, tmp_path):
     assert row["scope"] == "openid profile"
 
 
-def test_sync_removes_absent_client(test_engine, tmp_path):
-    """A client in the DB but not in the TOML gets deleted."""
+def test_sync_disables_absent_client(test_engine, tmp_path):
+    """A client absent from TOML is retained but disabled."""
     with test_engine.begin() as conn:
         conn.execute(
             insert(oauth2_clients).values(
@@ -128,7 +165,8 @@ def test_sync_removes_absent_client(test_engine, tmp_path):
             .mappings()
             .first()
         )
-    assert stale is None
+    assert stale is not None
+    assert stale["is_enabled"] is False
     assert fresh is not None
 
 
@@ -194,8 +232,8 @@ def test_sync_missing_file_is_noop(test_engine, tmp_path):
     sync_oauth2_clients(test_engine, missing)
 
 
-def test_sync_empty_clients_section_removes_all(test_engine, tmp_path):
-    """An empty [clients] section removes all existing clients."""
+def test_sync_empty_clients_section_disables_all(test_engine, tmp_path):
+    """An empty clients section disables every existing client."""
     with test_engine.begin() as conn:
         conn.execute(
             insert(oauth2_clients).values(
@@ -213,4 +251,5 @@ def test_sync_empty_clients_section_removes_all(test_engine, tmp_path):
 
     with test_engine.begin() as conn:
         rows = conn.execute(select(oauth2_clients)).mappings().all()
-    assert len(rows) == 0
+    assert len(rows) == 1
+    assert rows[0]["is_enabled"] is False

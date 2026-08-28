@@ -5,7 +5,7 @@ from pathlib import Path
 
 from sqlalchemy import insert
 
-from app.schema import oauth2_tokens
+from app.schema import oauth2_clients, oauth2_tokens
 
 _JSON = {"Accept": "application/json"}
 
@@ -212,6 +212,13 @@ def test_html_still_works(client, seed_user):
 def api_token(test_engine, seed_user):
     token = "test-access-token"
     with test_engine.begin() as conn:
+        conn.execute(
+            insert(oauth2_clients).values(
+                client_id="test",
+                client_name="Test API client",
+                token_endpoint_auth_method="none",
+            )
+        )
         conn.execute(
             insert(oauth2_tokens).values(
                 client_id="test",

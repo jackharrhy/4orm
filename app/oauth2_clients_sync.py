@@ -3,7 +3,7 @@
 On every app startup the declared clients are reconciled with the DB:
   - new clients are inserted
   - existing clients are updated to match the file
-  - clients in the DB but absent from the file are deleted
+  - clients in the DB but absent from the file are disabled and their tokens revoked
 
 The TOML format is:
 
@@ -14,7 +14,12 @@ The TOML format is:
     grant_types = "authorization_code"             # optional
     response_types = "code"                        # optional
     token_endpoint_auth_method = "none"            # optional
-    client_secret = ""                             # optional, default ""
+    client_kind = "service"                       # public, service, resource_server
+    subject = "my-service"                        # required for service clients
+    access_token_lifetime = 600                    # optional
+
+Secrets are generated and rotated in the 4orm admin interface. Sync never reads
+or overwrites secret hashes.
 """
 
 from __future__ import annotations
@@ -23,18 +28,20 @@ import tomllib
 from pathlib import Path
 
 from loguru import logger
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.engine import Engine
 
-from app.schema import oauth2_clients
+from app.schema import oauth2_audit_events, oauth2_clients, oauth2_tokens
 
 # Defaults for optional fields
 _DEFAULTS = {
-    "client_secret": "",
     "scope": "openid profile",
     "grant_types": "authorization_code",
     "response_types": "code",
     "token_endpoint_auth_method": "none",
+    "client_kind": "public",
+    "subject": "",
+    "access_token_lifetime": 3600,
 }
 
 
@@ -62,10 +69,14 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
             else:
                 redirect_uris = str(redirect_uris_raw)
 
+            kind = cfg.get("client_kind", _DEFAULTS["client_kind"])
+            if kind not in {"public", "service", "resource_server"}:
+                raise ValueError(f"Invalid client_kind for OAuth client {client_id}")
+
             values = {
                 "client_name": cfg["client_name"],
+                "client_kind": kind,
                 "redirect_uris": redirect_uris,
-                "client_secret": cfg.get("client_secret", _DEFAULTS["client_secret"]),
                 "scope": cfg.get("scope", _DEFAULTS["scope"]),
                 "grant_types": cfg.get("grant_types", _DEFAULTS["grant_types"]),
                 "response_types": cfg.get(
@@ -75,7 +86,40 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
                     "token_endpoint_auth_method",
                     _DEFAULTS["token_endpoint_auth_method"],
                 ),
+                "subject": cfg.get("subject", _DEFAULTS["subject"]),
+                "access_token_lifetime": int(
+                    cfg.get(
+                        "access_token_lifetime",
+                        _DEFAULTS["access_token_lifetime"],
+                    )
+                ),
+                "is_enabled": True,
+                "disabled_at": None,
+                "updated_at": func.now(),
             }
+
+            if kind == "service" and not values["subject"]:
+                raise ValueError(f"Service OAuth client {client_id} requires subject")
+            if kind == "service":
+                values.update(
+                    grant_types="client_credentials",
+                    response_types="",
+                    token_endpoint_auth_method="client_secret_basic",
+                )
+            elif kind == "resource_server":
+                values.update(
+                    subject="",
+                    scope="",
+                    grant_types="",
+                    response_types="",
+                    token_endpoint_auth_method="client_secret_basic",
+                )
+            elif values["token_endpoint_auth_method"] != "none":
+                raise ValueError(f"Public OAuth client {client_id} cannot use a secret")
+            if not 60 <= values["access_token_lifetime"] <= 86400:
+                raise ValueError(
+                    f"OAuth client {client_id} access_token_lifetime must be 60-86400"
+                )
 
             if client_id in existing:
                 # Check if anything changed
@@ -94,13 +138,25 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
                 )
                 logger.info("OAuth2 client '{}' created", client_id)
 
-        # --- remove clients not in the config ---
+        # --- disable clients not in the config ---
         declared_ids = set(declared.keys())
         for client_id in existing:
-            if client_id not in declared_ids:
+            if client_id not in declared_ids and existing[client_id]["is_enabled"]:
                 conn.execute(
-                    delete(oauth2_clients).where(
-                        oauth2_clients.c.client_id == client_id
+                    update(oauth2_clients)
+                    .where(oauth2_clients.c.client_id == client_id)
+                    .values(is_enabled=False, disabled_at=func.now())
+                )
+                conn.execute(
+                    update(oauth2_tokens)
+                    .where(oauth2_tokens.c.client_id == client_id)
+                    .values(revoked=True)
+                )
+                conn.execute(
+                    insert(oauth2_audit_events).values(
+                        event_type="client_disabled",
+                        client_id=client_id,
+                        detail="removed from declarative configuration",
                     )
                 )
-                logger.info("OAuth2 client '{}' removed (not in config)", client_id)
+                logger.info("OAuth2 client '{}' disabled (not in config)", client_id)

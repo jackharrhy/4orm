@@ -7,17 +7,25 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import ClassVar
 
-from authlib.oauth2 import AuthorizationServer
+from authlib.oauth2 import AuthorizationServer, OAuth2Request
 from authlib.oauth2.rfc6749 import grants, list_to_scope, scope_to_list
+from authlib.oauth2.rfc6749.errors import (
+    InvalidClientError,
+    InvalidScopeError,
+    UnauthorizedClientError,
+)
 from authlib.oauth2.rfc7636 import CodeChallenge
+from authlib.oauth2.rfc7662 import IntrospectionEndpoint
 from sqlalchemy import delete, insert, select, update
 
 from app.schema import (
+    oauth2_audit_events,
     oauth2_authorization_codes,
     oauth2_clients,
     oauth2_tokens,
     users,
 )
+from app.security import verify_client_secret
 
 # ---------------------------------------------------------------------------
 # Wrapper classes - adapt SQLAlchemy Core row dicts to Authlib interfaces
@@ -36,7 +44,7 @@ class OAuth2ClientWrapper:
 
     @property
     def client_secret(self):
-        return self._row["client_secret"]
+        return None
 
     def get_client_id(self):
         return self._row["client_id"]
@@ -58,17 +66,37 @@ class OAuth2ClientWrapper:
         return redirect_uri in uris
 
     def check_client_secret(self, client_secret):
-        return secrets.compare_digest(self._row["client_secret"], client_secret)
+        if not self._row["is_enabled"]:
+            return False
+        return verify_client_secret(
+            client_secret, self._row["client_secret_hash"]
+        ) or verify_client_secret(
+            client_secret, self._row["previous_client_secret_hash"]
+        )
 
     def check_endpoint_auth_method(self, method, endpoint):
+        if not self._row["is_enabled"]:
+            return False
+        kind = self._row["client_kind"]
+        if endpoint == "introspection":
+            return kind == "resource_server" and method == "client_secret_basic"
         if endpoint == "token":
-            return self._row["token_endpoint_auth_method"] == method
+            return kind != "resource_server" and (
+                self._row["token_endpoint_auth_method"] == method
+            )
         return True
 
     def check_response_type(self, response_type):
         return response_type in self._row["response_types"].split()
 
     def check_grant_type(self, grant_type):
+        if not self._row["is_enabled"]:
+            return False
+        kind = self._row["client_kind"]
+        if kind == "service":
+            return grant_type == "client_credentials"
+        if kind == "resource_server":
+            return False
         return grant_type in self._row["grant_types"].split()
 
 
@@ -241,6 +269,107 @@ class RefreshTokenGrant(grants.RefreshTokenGrant):
             )
 
 
+class ClientCredentialsGrant(grants.ClientCredentialsGrant):
+    """Issue short-lived service tokens to configured confidential clients."""
+
+    TOKEN_ENDPOINT_AUTH_METHODS: ClassVar[list[str]] = ["client_secret_basic"]
+
+    def validate_token_request(self):
+        super().validate_token_request()
+        client = self.request.client
+        if client._row["client_kind"] != "service":
+            raise UnauthorizedClientError()
+        requested = set(scope_to_list(self.request.payload.scope or ""))
+        allowed = set(scope_to_list(client._row["scope"]))
+        if requested and not requested.issubset(allowed):
+            raise InvalidScopeError()
+        if not requested:
+            self.request.payload.scope = client._row["scope"]
+
+
+class OAuth2TokenWrapper:
+    """Adapt a persisted token for RFC 7662 introspection."""
+
+    def __init__(self, row: dict):
+        self._row = dict(row)
+
+    def get_scope(self):
+        return self._row["scope"]
+
+    def is_expired(self):
+        return self._row["issued_at"] + self._row["expires_in"] <= int(time.time())
+
+    def is_revoked(self):
+        return bool(self._row["revoked"])
+
+
+class OAuth2IntrospectionEndpoint(IntrospectionEndpoint):
+    """Allow explicitly configured resource servers to inspect opaque tokens."""
+
+    CLIENT_AUTH_METHODS: ClassVar[list[str]] = ["client_secret_basic"]
+    SUPPORTED_TOKEN_TYPES: ClassVar[list[str]] = ["access_token"]
+
+    def create_endpoint_response(self, request):
+        client = self.authenticate_endpoint_client(request)
+        if client._row["client_kind"] != "resource_server":
+            raise InvalidClientError(
+                status_code=401,
+                description="This client is not allowed to introspect tokens.",
+            )
+        token = self.authenticate_token(request, client)
+        return (
+            200,
+            self.create_introspection_payload(token),
+            {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-store",
+            },
+        )
+
+    def query_token(self, token_string, token_type_hint):
+        with self.server.engine.begin() as conn:
+            row = (
+                conn.execute(
+                    select(oauth2_tokens)
+                    .join(
+                        oauth2_clients,
+                        oauth2_clients.c.client_id == oauth2_tokens.c.client_id,
+                    )
+                    .where(
+                        oauth2_tokens.c.access_token == token_string,
+                        oauth2_clients.c.is_enabled.is_(True),
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if row and row["principal_type"] == "user":
+                user = conn.execute(
+                    select(users.c.is_disabled).where(users.c.id == row["user_id"])
+                ).first()
+                if not user or user.is_disabled:
+                    row = None
+        return OAuth2TokenWrapper(row) if row else None
+
+    def check_permission(self, token, client, request):
+        return bool(
+            client._row["is_enabled"]
+            and client._row["client_kind"] == "resource_server"
+        )
+
+    def introspect_token(self, token):
+        row = token._row
+        return {
+            "client_id": row["client_id"],
+            "sub": row["subject"],
+            "principal_type": row["principal_type"],
+            "scope": row["scope"],
+            "token_type": row["token_type"],
+            "exp": row["issued_at"] + row["expires_in"],
+            "iat": row["issued_at"],
+        }
+
+
 # ---------------------------------------------------------------------------
 # Server subclass + factory
 # ---------------------------------------------------------------------------
@@ -257,13 +386,15 @@ class OAuth2Server(AuthorizationServer):
     # (we call the grant methods directly, not via framework integration).
 
     def create_oauth2_request(self, request):
-        raise NotImplementedError("Use framework-specific integration")
+        if isinstance(request, OAuth2Request):
+            return request
+        raise TypeError("OAuth2Server expects an Authlib OAuth2Request adapter")
 
     def create_json_request(self, request):
         raise NotImplementedError("Use framework-specific integration")
 
     def handle_response(self, status, body, headers):
-        raise NotImplementedError("Use framework-specific integration")
+        return status, body, headers
 
     def send_signal(self, name, *args, **kwargs):
         pass  # no-op; we don't use signals
@@ -281,7 +412,8 @@ def _generate_bearer_token(
         "token_type": "Bearer",
         "access_token": secrets.token_urlsafe(32),
         "scope": scope or "",
-        "expires_in": expires_in or 3600,
+        "expires_in": expires_in
+        or int(client._row.get("access_token_lifetime") or 3600),
     }
     if include_refresh_token:
         token["refresh_token"] = secrets.token_urlsafe(32)
@@ -313,16 +445,38 @@ def create_authorization_server(engine) -> OAuth2Server:
     # --- save_token: persist issued tokens ---
     def _save_token(token, request):
         with engine.begin() as conn:
-            conn.execute(
+            user = request.user
+            client_kind = request.client._row["client_kind"]
+            is_service = client_kind == "service"
+            if is_service and user is not None:
+                raise RuntimeError("Service token issuance cannot have a user")
+            if not is_service and user is None:
+                raise RuntimeError("User token issuance requires a user")
+            result = conn.execute(
                 insert(oauth2_tokens).values(
                     client_id=request.client.get_client_id(),
-                    user_id=request.user["id"],
+                    user_id=None if is_service else user["id"],
+                    principal_type="service" if is_service else "user",
+                    subject=(
+                        request.client._row["subject"] or request.client.get_client_id()
+                        if is_service
+                        else str(user["id"])
+                    ),
+                    grant_type=request.payload.grant_type,
                     token_type=token["token_type"],
                     access_token=token["access_token"],
                     refresh_token=token.get("refresh_token"),
                     scope=token.get("scope", ""),
                     issued_at=int(time.time()),
                     expires_in=token.get("expires_in", 3600),
+                )
+            )
+            conn.execute(
+                insert(oauth2_audit_events).values(
+                    event_type="token_issued",
+                    client_id=request.client.get_client_id(),
+                    token_id=result.inserted_primary_key[0],
+                    detail=request.payload.grant_type,
                 )
             )
 
@@ -334,5 +488,7 @@ def create_authorization_server(engine) -> OAuth2Server:
     # --- register the authorization code grant with PKCE ---
     server.register_grant(AuthorizationCodeGrant, [CodeChallenge(required=True)])
     server.register_grant(RefreshTokenGrant)
+    server.register_grant(ClientCredentialsGrant)
+    server.register_endpoint(OAuth2IntrospectionEndpoint)
 
     return server

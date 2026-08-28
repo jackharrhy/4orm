@@ -81,7 +81,7 @@ def test_full_oauth2_flow(client, test_engine):
         conn.execute(
             insert(oauth2_clients).values(
                 client_id="test-app",
-                client_secret="",
+                client_secret_hash="",
                 client_name="Test App",
                 redirect_uris="http://localhost:3000/callback",
                 scope="openid profile",
@@ -229,7 +229,7 @@ def test_token_rejects_bad_verifier(client, test_engine):
         conn.execute(
             insert(oauth2_clients).values(
                 client_id="pkce-app",
-                client_secret="",
+                client_secret_hash="",
                 client_name="PKCE App",
                 redirect_uris="http://localhost:3000/callback",
                 scope="openid profile",
@@ -355,7 +355,7 @@ def _seed_client_and_user(
         conn.execute(
             insert(oauth2_clients).values(
                 client_id=client_id,
-                client_secret="",
+                client_secret_hash="",
                 client_name="Test App",
                 redirect_uris="http://localhost:3000/callback",
                 scope="openid profile",
@@ -596,7 +596,7 @@ def test_code_rejected_for_wrong_client(client, test_engine):
         conn.execute(
             insert(oauth2_clients).values(
                 client_id="client-a",
-                client_secret="",
+                client_secret_hash="",
                 client_name="App A",
                 redirect_uris="http://localhost:3000/callback",
                 scope="openid profile",
@@ -608,7 +608,7 @@ def test_code_rejected_for_wrong_client(client, test_engine):
         conn.execute(
             insert(oauth2_clients).values(
                 client_id="client-b",
-                client_secret="",
+                client_secret_hash="",
                 client_name="App B",
                 redirect_uris="http://localhost:4000/callback",
                 scope="openid profile",

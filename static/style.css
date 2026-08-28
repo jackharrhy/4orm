@@ -267,6 +267,19 @@ button:active {
 .fourm-shell .fourm-admin-row-body {
   padding: 8px 0 4px;
 }
+.fourm-shell .fourm-oauth-clients {
+  display: grid;
+  gap: 0.75rem;
+}
+.fourm-shell .fourm-secret-result {
+  margin-top: 0.75rem;
+}
+.fourm-shell .fourm-secret-value {
+  display: block;
+  margin-top: 0.5rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
 .fourm-shell .fourm-action-label {
   font-size: 0.85rem;
 }

@@ -28,13 +28,33 @@ scope = "openid profile"
 [clients.worldview]
 client_name = "Worldview"
 redirect_uris = [
-    "https://worldview.jackharrhy.dev/auth/callback",
-    "https://newport.hedgehog-python.ts.net:8444/auth/callback",
+    "https://worldview.harrhy.xyz/auth/callback",
     "http://localhost:8789/auth/callback",
 ]
 scope = "openid profile"
 grant_types = "authorization_code"
 token_endpoint_auth_method = "none"
+
+[clients.worldview-service]
+client_name = "Worldview service"
+redirect_uris = []
+scope = "artbin:assets:read artbin:assets:content"
+grant_types = "client_credentials"
+response_types = ""
+token_endpoint_auth_method = "client_secret_basic"
+client_kind = "service"
+subject = "worldview-service"
+access_token_lifetime = 600
+
+[clients.artbin-server]
+client_name = "Artbin server"
+redirect_uris = []
+scope = ""
+grant_types = ""
+response_types = ""
+token_endpoint_auth_method = "client_secret_basic"
+client_kind = "resource_server"
+access_token_lifetime = 600
 
 [clients.cli]
 client_name = "4orm CLI"
