@@ -11,7 +11,9 @@ from app.schema import oauth2_clients
 
 
 def test_repository_registers_worldview_client():
-    config = tomllib.loads((Path(__file__).parents[1] / "oauth2_clients.toml").read_text())
+    config = tomllib.loads(
+        (Path(__file__).parents[1] / "oauth2_clients.toml").read_text()
+    )
     worldview = config["clients"]["worldview"]
 
     assert worldview["client_name"] == "Worldview"
