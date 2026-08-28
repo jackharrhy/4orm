@@ -301,7 +301,7 @@ def main() -> int:
                         .filter(has=page.locator("code", has_text="worldview"))
                         .filter(has_not_text="worldview-service")
                     )
-                    worldview_login.get_by_text("recent token activity").click()
+                    worldview_login.get_by_text("token usage", exact=True).click()
                     worldview_login.get_by_text(
                         "Visual Check (@visualcheck)", exact=True
                     ).wait_for()

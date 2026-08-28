@@ -56,65 +56,82 @@ def list_oauth_clients(conn):
     ]
     by_client = {client["client_id"]: client for client in clients}
     for client in clients:
-        client["token_activity"] = []
+        client["principal_usage"] = []
 
-    ranked_tokens = select(
-        oauth2_tokens.c.id,
-        oauth2_tokens.c.client_id,
-        oauth2_tokens.c.user_id,
-        oauth2_tokens.c.principal_type,
-        oauth2_tokens.c.subject,
-        oauth2_tokens.c.grant_type,
-        oauth2_tokens.c.scope,
-        oauth2_tokens.c.issued_at,
-        oauth2_tokens.c.expires_in,
-        oauth2_tokens.c.revoked,
-        func.row_number()
-        .over(
-            partition_by=oauth2_tokens.c.client_id,
-            order_by=(
-                oauth2_tokens.c.issued_at.desc(),
-                oauth2_tokens.c.id.desc(),
-            ),
-        )
-        .label("client_rank"),
-    ).subquery()
-    activity = (
+    usage_rows = (
         conn.execute(
             select(
-                ranked_tokens,
+                oauth2_tokens.c.client_id,
+                oauth2_tokens.c.principal_type,
+                oauth2_tokens.c.subject,
+                oauth2_tokens.c.scope,
+                users.c.username,
+                users.c.display_name,
+                func.count(oauth2_tokens.c.id).label("tokens_minted"),
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                oauth2_tokens.c.revoked.is_(False),
+                                oauth2_tokens.c.issued_at + oauth2_tokens.c.expires_in
+                                > now,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("active_tokens"),
+                func.max(oauth2_tokens.c.issued_at).label("last_minted_at"),
+            )
+            .select_from(
+                oauth2_tokens.outerjoin(users, oauth2_tokens.c.user_id == users.c.id)
+            )
+            .group_by(
+                oauth2_tokens.c.client_id,
+                oauth2_tokens.c.principal_type,
+                oauth2_tokens.c.subject,
+                oauth2_tokens.c.scope,
                 users.c.username,
                 users.c.display_name,
             )
-            .select_from(
-                ranked_tokens.outerjoin(users, ranked_tokens.c.user_id == users.c.id)
-            )
-            .where(ranked_tokens.c.client_rank <= 10)
-            .order_by(ranked_tokens.c.issued_at.desc(), ranked_tokens.c.id.desc())
         )
         .mappings()
         .all()
     )
-    for row in activity:
+    usage_by_principal = {}
+    for row in usage_rows:
         client = by_client.get(row["client_id"])
         if not client:
             continue
-        issued_at = row["issued_at"]
-        expires_at = issued_at + row["expires_in"]
-        client["token_activity"].append(
+        key = (row["client_id"], row["principal_type"], row["subject"])
+        usage = usage_by_principal.setdefault(
+            key,
             {
-                **dict(row),
                 "principal_label": (
                     f"{row['display_name']} (@{row['username']})"
                     if row["principal_type"] == "user" and row["username"]
                     else row["subject"] or row["client_id"]
                 ),
-                "issued_at_iso": datetime.fromtimestamp(issued_at, UTC).isoformat(),
-                "expires_at_iso": datetime.fromtimestamp(expires_at, UTC).isoformat(),
-                "is_active": bool(
-                    client["is_enabled"] and not row["revoked"] and expires_at > now
-                ),
-            }
+                "scopes": set(),
+                "tokens_minted": 0,
+                "active_tokens": 0,
+                "last_minted_at": 0,
+            },
+        )
+        usage["scopes"].update(row["scope"].split())
+        usage["tokens_minted"] += row["tokens_minted"]
+        usage["active_tokens"] += row["active_tokens"] if client["is_enabled"] else 0
+        usage["last_minted_at"] = max(usage["last_minted_at"], row["last_minted_at"])
+
+    for (client_id, _principal_type, _subject), usage in usage_by_principal.items():
+        usage["scopes"] = " ".join(sorted(usage["scopes"])) or "—"
+        usage["last_minted_at_iso"] = datetime.fromtimestamp(
+            usage["last_minted_at"], UTC
+        ).isoformat()
+        by_client[client_id]["principal_usage"].append(usage)
+    for client in clients:
+        client["principal_usage"].sort(
+            key=lambda usage: usage["last_minted_at"], reverse=True
         )
     return clients
 

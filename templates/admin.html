@@ -97,30 +97,28 @@
             {% if client.previous_client_secret_hash %}
               <div class="ok">rotation overlap is active</div>
             {% endif %}
-            {% if client.token_activity %}
+            {% if client.principal_usage %}
               <details class="fourm-token-activity">
-                <summary>recent token activity</summary>
+                <summary>token usage</summary>
                 <div class="fourm-data-table-wrap">
                   <table class="fourm-data-table">
                     <thead>
                       <tr>
                         <th>principal</th>
-                        <th>issued</th>
-                        <th>expires</th>
-                        <th>grant</th>
-                        <th>status</th>
-                        <th>scopes</th>
+                        <th>granted access</th>
+                        <th>minted</th>
+                        <th>active</th>
+                        <th>last minted</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {% for token in client.token_activity %}
+                      {% for usage in client.principal_usage %}
                         <tr>
-                          <td>{{ token.principal_label }}</td>
-                          <td><time datetime="{{ token.issued_at_iso }}" data-fmt="relative">{{ token.issued_at_iso }}</time></td>
-                          <td><time datetime="{{ token.expires_at_iso }}">{{ token.expires_at_iso }}</time></td>
-                          <td><code>{{ token.grant_type }}</code></td>
-                          <td>{{ 'active' if token.is_active else ('revoked' if token.revoked else 'expired') }}</td>
-                          <td>{{ token.scope or '—' }}</td>
+                          <td>{{ usage.principal_label }}</td>
+                          <td>{{ usage.scopes }}</td>
+                          <td>{{ usage.tokens_minted }}</td>
+                          <td>{{ usage.active_tokens }}</td>
+                          <td><time datetime="{{ usage.last_minted_at_iso }}" data-fmt="relative">{{ usage.last_minted_at_iso }}</time></td>
                         </tr>
                       {% endfor %}
                     </tbody>
