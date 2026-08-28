@@ -28,7 +28,7 @@ from alembic.config import Config
 from playwright.sync_api import sync_playwright
 from sqlalchemy import create_engine, insert
 
-from app.schema import metadata, pages, profile_cards, users
+from app.schema import metadata, oauth2_tokens, pages, profile_cards, users
 from app.security import hash_password
 
 
@@ -102,6 +102,19 @@ def seed_database(database_url: str) -> None:
                     "content": "<p>Second verification page.</p>",
                 },
             ],
+        )
+        connection.execute(
+            insert(oauth2_tokens).values(
+                client_id="worldview",
+                user_id=user_id,
+                principal_type="user",
+                subject=str(user_id),
+                grant_type="authorization_code",
+                access_token="browser-verification-token-not-for-production",
+                scope="openid profile",
+                issued_at=int(time.time()),
+                expires_in=3600,
+            )
         )
     engine.dispose()
 
@@ -283,6 +296,19 @@ def main() -> int:
                     panel.get_by_role(
                         "heading", name="OAuth clients", exact=False
                     ).wait_for()
+                    worldview_login = (
+                        panel.locator("article")
+                        .filter(has=page.locator("code", has_text="worldview"))
+                        .filter(has_not_text="worldview-service")
+                    )
+                    worldview_login.get_by_text("recent token activity").click()
+                    worldview_login.get_by_text(
+                        "Visual Check (@visualcheck)", exact=True
+                    ).wait_for()
+                    check(
+                        "browser-verification-token" not in panel.inner_text(),
+                        "raw access token is visible in OAuth administration",
+                    )
                     worldview = panel.locator("article").filter(
                         has_text="worldview-service"
                     )

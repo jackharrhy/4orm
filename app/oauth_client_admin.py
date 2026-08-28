@@ -1,10 +1,12 @@
 """OAuth client administration queries and atomic credential transitions."""
 
 import secrets
+import time
+from datetime import UTC, datetime
 
-from sqlalchemy import Integer, func, insert, select, update
+from sqlalchemy import and_, case, func, insert, select, update
 
-from app.schema import oauth2_audit_events, oauth2_clients, oauth2_tokens
+from app.schema import oauth2_audit_events, oauth2_clients, oauth2_tokens, users
 from app.security import hash_client_secret
 
 
@@ -15,28 +17,106 @@ class OAuthClientAdminError(Exception):
 
 
 def list_oauth_clients(conn):
-    return (
+    now = int(time.time())
+    clients = [
+        dict(row)
+        for row in (
+            conn.execute(
+                select(
+                    oauth2_clients,
+                    func.count(oauth2_tokens.c.id).label("token_count"),
+                    func.sum(
+                        case(
+                            (
+                                and_(
+                                    oauth2_tokens.c.revoked.is_(False),
+                                    oauth2_tokens.c.issued_at
+                                    + oauth2_tokens.c.expires_in
+                                    > now,
+                                ),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label("active_token_count"),
+                    func.max(oauth2_tokens.c.issued_at).label("last_token_issued_at"),
+                )
+                .select_from(
+                    oauth2_clients.outerjoin(
+                        oauth2_tokens,
+                        oauth2_tokens.c.client_id == oauth2_clients.c.client_id,
+                    )
+                )
+                .group_by(oauth2_clients.c.id)
+                .order_by(oauth2_clients.c.client_name)
+            )
+            .mappings()
+            .all()
+        )
+    ]
+    by_client = {client["client_id"]: client for client in clients}
+    for client in clients:
+        client["token_activity"] = []
+
+    ranked_tokens = select(
+        oauth2_tokens.c.id,
+        oauth2_tokens.c.client_id,
+        oauth2_tokens.c.user_id,
+        oauth2_tokens.c.principal_type,
+        oauth2_tokens.c.subject,
+        oauth2_tokens.c.grant_type,
+        oauth2_tokens.c.scope,
+        oauth2_tokens.c.issued_at,
+        oauth2_tokens.c.expires_in,
+        oauth2_tokens.c.revoked,
+        func.row_number()
+        .over(
+            partition_by=oauth2_tokens.c.client_id,
+            order_by=(
+                oauth2_tokens.c.issued_at.desc(),
+                oauth2_tokens.c.id.desc(),
+            ),
+        )
+        .label("client_rank"),
+    ).subquery()
+    activity = (
         conn.execute(
             select(
-                oauth2_clients,
-                func.count(oauth2_tokens.c.id).label("token_count"),
-                func.sum(func.cast(oauth2_tokens.c.revoked.is_(False), Integer)).label(
-                    "active_token_count"
-                ),
-                func.max(oauth2_tokens.c.issued_at).label("last_token_issued_at"),
+                ranked_tokens,
+                users.c.username,
+                users.c.display_name,
             )
             .select_from(
-                oauth2_clients.outerjoin(
-                    oauth2_tokens,
-                    oauth2_tokens.c.client_id == oauth2_clients.c.client_id,
-                )
+                ranked_tokens.outerjoin(users, ranked_tokens.c.user_id == users.c.id)
             )
-            .group_by(oauth2_clients.c.id)
-            .order_by(oauth2_clients.c.client_name)
+            .where(ranked_tokens.c.client_rank <= 10)
+            .order_by(ranked_tokens.c.issued_at.desc(), ranked_tokens.c.id.desc())
         )
         .mappings()
         .all()
     )
+    for row in activity:
+        client = by_client.get(row["client_id"])
+        if not client:
+            continue
+        issued_at = row["issued_at"]
+        expires_at = issued_at + row["expires_in"]
+        client["token_activity"].append(
+            {
+                **dict(row),
+                "principal_label": (
+                    f"{row['display_name']} (@{row['username']})"
+                    if row["principal_type"] == "user" and row["username"]
+                    else row["subject"] or row["client_id"]
+                ),
+                "issued_at_iso": datetime.fromtimestamp(issued_at, UTC).isoformat(),
+                "expires_at_iso": datetime.fromtimestamp(expires_at, UTC).isoformat(),
+                "is_active": bool(
+                    client["is_enabled"] and not row["revoked"] and expires_at > now
+                ),
+            }
+        )
+    return clients
 
 
 def _client(conn, client_id: str):
