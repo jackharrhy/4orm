@@ -183,8 +183,26 @@ def test_full_oauth2_flow(client, test_engine):
     )
     assert old_refresh.status_code == 400
 
+    revoked_access = client.get(
+        "/oauth/userinfo",
+        headers={"Authorization": f"Bearer {refreshed_data['access_token']}"},
+    )
+    assert revoked_access.status_code == 401
+
+    revoked_descendant = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refreshed_data["refresh_token"],
+            "client_id": "test-app",
+        },
+    )
+    assert revoked_descendant.status_code == 400
+
 
 def test_authorize_requires_login(client, test_engine):
+    _seed_client_and_user(test_engine)
+    _verifier, challenge = _create_pkce()
     r = client.get(
         "/oauth/authorize",
         params={
@@ -193,7 +211,7 @@ def test_authorize_requires_login(client, test_engine):
             "redirect_uri": "http://localhost:3000/callback",
             "scope": "openid profile",
             "state": "s",
-            "code_challenge": "abc",
+            "code_challenge": challenge,
             "code_challenge_method": "S256",
         },
         follow_redirects=False,
@@ -298,6 +316,12 @@ def test_openid_configuration(client):
     assert "authorization_endpoint" in data
     assert "token_endpoint" in data
     assert "userinfo_endpoint" in data
+    assert "subject_types_supported" not in data
+    assert "id_token_signing_alg_values_supported" not in data
+
+    canonical = client.get("/.well-known/oauth-authorization-server")
+    assert canonical.status_code == 200
+    assert canonical.json() == data
 
 
 def test_authlib_insecure_transport_enabled_for_local_dev(monkeypatch):
@@ -762,6 +786,7 @@ def test_userinfo_rejects_missing_auth_header(client):
     """Userinfo with no Authorization header should return 401."""
     r = client.get("/oauth/userinfo")
     assert r.status_code == 401
+    assert r.headers["www-authenticate"] == 'Bearer realm="4orm"'
 
 
 def test_userinfo_rejects_non_bearer_auth(client):
@@ -771,6 +796,7 @@ def test_userinfo_rejects_non_bearer_auth(client):
         headers={"Authorization": "Basic dXNlcjpwYXNz"},
     )
     assert r.status_code == 401
+    assert r.headers["www-authenticate"] == 'Bearer realm="4orm"'
 
 
 def test_authorize_unauthenticated_stashes_and_resumes(client, test_engine):

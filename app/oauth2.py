@@ -11,6 +11,7 @@ from authlib.oauth2 import AuthorizationServer, OAuth2Request
 from authlib.oauth2.rfc6749 import grants, list_to_scope, scope_to_list
 from authlib.oauth2.rfc6749.errors import (
     InvalidClientError,
+    InvalidGrantError,
     InvalidScopeError,
     UnauthorizedClientError,
 )
@@ -66,8 +67,6 @@ class OAuth2ClientWrapper:
         return redirect_uri in uris
 
     def check_client_secret(self, client_secret):
-        if not self._row["is_enabled"]:
-            return False
         return verify_client_secret(
             client_secret, self._row["client_secret_hash"]
         ) or verify_client_secret(
@@ -75,8 +74,6 @@ class OAuth2ClientWrapper:
         )
 
     def check_endpoint_auth_method(self, method, endpoint):
-        if not self._row["is_enabled"]:
-            return False
         kind = self._row["client_kind"]
         if endpoint == "introspection":
             return kind == "resource_server" and method == "client_secret_basic"
@@ -90,8 +87,6 @@ class OAuth2ClientWrapper:
         return response_type in self._row["response_types"].split()
 
     def check_grant_type(self, grant_type):
-        if not self._row["is_enabled"]:
-            return False
         kind = self._row["client_kind"]
         if kind == "service":
             return grant_type == "client_credentials"
@@ -156,6 +151,7 @@ class OAuth2RefreshTokenWrapper:
 # ---------------------------------------------------------------------------
 
 CODE_LIFETIME = timedelta(minutes=5)
+REFRESH_TOKEN_LIFETIME_SECONDS = 30 * 24 * 60 * 60
 
 
 class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
@@ -187,11 +183,13 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         with self.server.engine.begin() as conn:
             row = (
                 conn.execute(
-                    select(oauth2_authorization_codes).where(
+                    delete(oauth2_authorization_codes)
+                    .where(
                         oauth2_authorization_codes.c.code == code,
                         oauth2_authorization_codes.c.client_id
                         == client.get_client_id(),
                     )
+                    .returning(*oauth2_authorization_codes.c)
                 )
                 .mappings()
                 .first()
@@ -217,12 +215,8 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         return dict(row) if row else None
 
     def delete_authorization_code(self, authorization_code):
-        with self.server.engine.begin() as conn:
-            conn.execute(
-                delete(oauth2_authorization_codes).where(
-                    oauth2_authorization_codes.c.code == authorization_code._row["code"]
-                )
-            )
+        # query_authorization_code atomically consumes the single-use code.
+        pass
 
 
 class RefreshTokenGrant(grants.RefreshTokenGrant):
@@ -241,12 +235,34 @@ class RefreshTokenGrant(grants.RefreshTokenGrant):
                 conn.execute(
                     select(oauth2_tokens).where(
                         oauth2_tokens.c.refresh_token == refresh_token,
-                        oauth2_tokens.c.revoked.is_(False),
                     )
                 )
                 .mappings()
                 .first()
             )
+            if row is None:
+                return None
+            if row["issued_at"] + REFRESH_TOKEN_LIFETIME_SECONDS <= int(time.time()):
+                conn.execute(
+                    update(oauth2_tokens)
+                    .where(oauth2_tokens.c.id == row["id"])
+                    .values(revoked=True)
+                )
+                return None
+            if row["revoked"]:
+                _revoke_refresh_token_family(conn, row)
+                return None
+            claimed = conn.execute(
+                update(oauth2_tokens)
+                .where(
+                    oauth2_tokens.c.id == row["id"],
+                    oauth2_tokens.c.revoked.is_(False),
+                )
+                .values(revoked=True)
+            )
+            if claimed.rowcount != 1:
+                _revoke_refresh_token_family(conn, row)
+                return None
         return OAuth2RefreshTokenWrapper(row) if row else None
 
     def authenticate_user(self, refresh_token):
@@ -259,14 +275,29 @@ class RefreshTokenGrant(grants.RefreshTokenGrant):
         return dict(row) if row and not row["is_disabled"] else None
 
     def revoke_old_credential(self, refresh_token):
-        with self.server.engine.begin() as conn:
-            conn.execute(
-                update(oauth2_tokens)
-                .where(
-                    oauth2_tokens.c.refresh_token == refresh_token._row["refresh_token"]
-                )
-                .values(revoked=True)
-            )
+        # authenticate_refresh_token atomically claims the credential before
+        # issuance, so Authlib's post-issuance revocation hook has nothing to do.
+        pass
+
+
+def _revoke_refresh_token_family(conn, token_row) -> None:
+    family_id = token_row["refresh_family_id"]
+    if not family_id:
+        return
+    conn.execute(
+        update(oauth2_tokens)
+        .where(oauth2_tokens.c.refresh_family_id == family_id)
+        .values(revoked=True, refresh_family_compromised=True)
+    )
+    conn.execute(
+        insert(oauth2_audit_events).values(
+            event_type="refresh_token_reused",
+            client_id=token_row["client_id"],
+            token_id=token_row["id"],
+            success=False,
+            detail="refresh token family revoked",
+        )
+    )
 
 
 class ClientCredentialsGrant(grants.ClientCredentialsGrant):
@@ -352,10 +383,7 @@ class OAuth2IntrospectionEndpoint(IntrospectionEndpoint):
         return OAuth2TokenWrapper(row) if row else None
 
     def check_permission(self, token, client, request):
-        return bool(
-            client._row["is_enabled"]
-            and client._row["client_kind"] == "resource_server"
-        )
+        return client._row["client_kind"] == "resource_server"
 
     def introspect_token(self, token):
         row = token._row
@@ -430,7 +458,8 @@ def create_authorization_server(engine) -> OAuth2Server:
             row = (
                 conn.execute(
                     select(oauth2_clients).where(
-                        oauth2_clients.c.client_id == client_id
+                        oauth2_clients.c.client_id == client_id,
+                        oauth2_clients.c.is_enabled.is_(True),
                     )
                 )
                 .mappings()
@@ -452,6 +481,24 @@ def create_authorization_server(engine) -> OAuth2Server:
                 raise RuntimeError("Service token issuance cannot have a user")
             if not is_service and user is None:
                 raise RuntimeError("User token issuance requires a user")
+            refresh_credential = getattr(request, "refresh_token", None)
+            refresh_family_id = None
+            if token.get("refresh_token"):
+                refresh_family_id = (
+                    refresh_credential._row.get("refresh_family_id")
+                    if refresh_credential
+                    else secrets.token_hex(16)
+                ) or secrets.token_hex(16)
+                compromised_family = conn.execute(
+                    select(oauth2_tokens.c.id).where(
+                        oauth2_tokens.c.refresh_family_id == refresh_family_id,
+                        oauth2_tokens.c.refresh_family_compromised.is_(True),
+                    )
+                ).first()
+                if compromised_family:
+                    raise InvalidGrantError(
+                        description="Refresh token reuse was detected."
+                    )
             result = conn.execute(
                 insert(oauth2_tokens).values(
                     client_id=request.client.get_client_id(),
@@ -466,6 +513,7 @@ def create_authorization_server(engine) -> OAuth2Server:
                     token_type=token["token_type"],
                     access_token=token["access_token"],
                     refresh_token=token.get("refresh_token"),
+                    refresh_family_id=refresh_family_id,
                     scope=token.get("scope", ""),
                     issued_at=int(time.time()),
                     expires_in=token.get("expires_in", 3600),

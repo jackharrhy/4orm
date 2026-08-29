@@ -392,6 +392,8 @@ oauth2_tokens = Table(
     Column("token_type", String(40), nullable=False, server_default="bearer"),
     Column("access_token", String(255), nullable=False, unique=True),
     Column("refresh_token", String(255), unique=True),
+    Column("refresh_family_id", String(64), index=True),
+    Column("refresh_family_compromised", Boolean, nullable=False, server_default="0"),
     Column("scope", Text, nullable=False, server_default=""),
     Column("issued_at", Integer, nullable=False),
     Column("expires_in", Integer, nullable=False, server_default="3600"),

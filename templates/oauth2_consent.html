@@ -3,7 +3,7 @@
 {% block content %}
   <h1>authorize app</h1>
   <p><strong>{{ client_name }}</strong> wants to access your 4orm account.</p>
-  <p>this will share your username and display name.</p>
+  <p>this will share your username, display name, and 4orm admin status.</p>
 
   <form method="post" action="/oauth/authorize" class="fourm-actions fourm-space-sm">
     <input type="hidden" name="response_type" value="{{ response_type }}" />

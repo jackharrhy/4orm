@@ -5,11 +5,12 @@ from __future__ import annotations
 import base64
 import os
 import warnings
+from collections.abc import Iterable
 from urllib.parse import urlparse, urlunparse
 
 from authlib.common.urls import add_params_to_uri
 from authlib.oauth2 import OAuth2Request as AuthlibOAuth2Request
-from authlib.oauth2.rfc6749.errors import OAuth2Error
+from authlib.oauth2.rfc6749.errors import InvalidRequestError, OAuth2Error
 from authlib.oauth2.rfc6749.requests import BasicOAuth2Payload
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -54,32 +55,24 @@ def _get_server(request: Request):
 
 @router.get("/oauth/authorize")
 def authorize_get(request: Request):
+    duplicate_error = _reject_duplicate_parameters(request.query_params.multi_items())
+    if duplicate_error:
+        return duplicate_error
+    params = dict(request.query_params)
+    try:
+        _grant, oauth2_request, _redirect_uri = _validated_authorization_request(
+            request, params
+        )
+    except OAuth2Error as error:
+        return _authorization_error_response(error, params.get("state", ""))
+
     me = current_user(request)
     if not me:
         # Stash the per-request OAuth params in the session, keep the URL short
-        params = dict(request.query_params)
         client_id = params.get("client_id", "")
         request.session["oauth_params"] = params
         return RedirectResponse(
             url=f"/login?next=oauth&client_id={client_id}", status_code=303
-        )
-
-    params = request.query_params
-    client_id = params.get("client_id", "")
-
-    server = _get_server(request)
-    client = server.query_client(client_id)
-    if not client:
-        return JSONResponse({"error": "unknown client"}, status_code=400)
-
-    redirect_uri = params.get("redirect_uri", "")
-    if not client.check_redirect_uri(redirect_uri):
-        return JSONResponse({"error": "invalid redirect_uri"}, status_code=400)
-    if not params.get("code_challenge"):
-        return JSONResponse({"error": "missing code_challenge"}, status_code=400)
-    if params.get("code_challenge_method") != "S256":
-        return JSONResponse(
-            {"error": "unsupported code_challenge_method"}, status_code=400
         )
 
     return templates.TemplateResponse(
@@ -87,11 +80,11 @@ def authorize_get(request: Request):
         "oauth2_consent.html",
         {
             "me": me,
-            "client_name": client._row["client_name"],
+            "client_name": oauth2_request.client._row["client_name"],
             "response_type": params.get("response_type", ""),
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "scope": params.get("scope", ""),
+            "client_id": oauth2_request.client.get_client_id(),
+            "redirect_uri": _redirect_uri,
+            "scope": oauth2_request.scope or "",
             "state": params.get("state", ""),
             "code_challenge": params.get("code_challenge", ""),
             "code_challenge_method": params.get("code_challenge_method", ""),
@@ -112,80 +105,46 @@ async def authorize_post(request: Request):
         return RedirectResponse(url="/login", status_code=303)
 
     form = await request.form()
+    duplicate_error = _reject_duplicate_parameters(form.multi_items())
+    if duplicate_error:
+        return duplicate_error
     confirm = form.get("confirm", "no")
-    client_id = form.get("client_id", "")
-    redirect_uri = form.get("redirect_uri", "")
     state = form.get("state", "")
-    code_challenge_method = form.get("code_challenge_method", "")
-
-    server = _get_server(request)
-    oauth_client = server.query_client(client_id)
-    if not oauth_client:
-        return JSONResponse({"error": "unknown client"}, status_code=400)
-    if not oauth_client.check_redirect_uri(redirect_uri):
-        return JSONResponse({"error": "invalid redirect_uri"}, status_code=400)
-
-    if confirm != "yes":
-        params = [("error", "access_denied")]
-        if state:
-            params.append(("state", state))
-        uri = add_params_to_uri(redirect_uri, params)
-        return RedirectResponse(url=uri, status_code=302)
-
-    # PKCE is required - reject early if code_challenge is missing
-    code_challenge = form.get("code_challenge")
-    if not code_challenge:
-        params = [
-            ("error", "invalid_request"),
-            ("error_description", "Missing code_challenge"),
-        ]
-        if state:
-            params.append(("state", state))
-        uri = add_params_to_uri(redirect_uri, params)
-        return RedirectResponse(url=uri, status_code=302)
-    if code_challenge_method != "S256":
-        params = [
-            ("error", "invalid_request"),
-            ("error_description", "Unsupported code_challenge_method"),
-        ]
-        if state:
-            params.append(("state", state))
-        uri = add_params_to_uri(redirect_uri, params)
-        return RedirectResponse(url=uri, status_code=302)
-
-    # Build the form data dict for Authlib
     form_data = {
         "response_type": form.get("response_type", ""),
         "client_id": form.get("client_id", ""),
-        "redirect_uri": redirect_uri,
+        "redirect_uri": form.get("redirect_uri", ""),
         "scope": form.get("scope", ""),
         "state": state,
-        "code_challenge": code_challenge,
-        "code_challenge_method": code_challenge_method,
+        "code_challenge": form.get("code_challenge", ""),
+        "code_challenge_method": form.get("code_challenge_method", ""),
     }
     nonce = form.get("nonce")
     if nonce:
         form_data["nonce"] = nonce
 
-    # Build an Authlib OAuth2Request for the authorization endpoint
-    # Use the full request URL so Authlib can parse it
-    oauth2_req = _make_authlib_request("GET", str(request.url), form_data)
-    oauth2_req.user = dict(me)
-
     try:
-        grant = server.get_authorization_grant(oauth2_req)
-        redirect_uri_validated = grant.validate_authorization_request()
-        _status, _body, headers = grant.create_authorization_response(
-            redirect_uri_validated, grant_user=dict(me)
+        grant, oauth2_req, redirect_uri = _validated_authorization_request(
+            request, form_data
         )
+        oauth2_req.user = dict(me)
     except OAuth2Error as error:
-        params = [("error", error.error)]
-        if error.description:
-            params.append(("error_description", error.description))
+        return _authorization_error_response(error, state)
+
+    if confirm != "yes":
+        params = [("error", "access_denied")]
         if state:
             params.append(("state", state))
-        uri = add_params_to_uri(redirect_uri, params)
-        return RedirectResponse(url=uri, status_code=302)
+        return RedirectResponse(
+            url=add_params_to_uri(redirect_uri, params), status_code=302
+        )
+
+    try:
+        _status, _body, headers = grant.create_authorization_response(
+            redirect_uri, grant_user=dict(me)
+        )
+    except OAuth2Error as error:
+        return _authorization_error_response(error, state, redirect_uri)
 
     # Extract Location header from the grant response
     location = dict(headers).get("Location", redirect_uri)
@@ -200,6 +159,9 @@ async def authorize_post(request: Request):
 @router.post("/oauth/token")
 async def token_endpoint(request: Request):
     form = await request.form()
+    duplicate_error = _reject_duplicate_parameters(form.multi_items())
+    if duplicate_error:
+        return duplicate_error
     form_data = dict(form)
 
     server = _get_server(request)
@@ -235,6 +197,9 @@ async def token_endpoint(request: Request):
 @router.post("/oauth/introspect")
 async def introspection_endpoint(request: Request):
     form = await request.form()
+    duplicate_error = _reject_duplicate_parameters(form.multi_items())
+    if duplicate_error:
+        return duplicate_error
     form_data = dict(form)
     server = _get_server(request)
     oauth2_req = _make_authlib_request(
@@ -272,7 +237,7 @@ async def introspection_endpoint(request: Request):
 def userinfo(request: Request):
     auth_header = request.headers.get("authorization", "")
     if not auth_header.lower().startswith("bearer "):
-        return JSONResponse({"error": "missing or invalid token"}, status_code=401)
+        return _bearer_error("", 401)
 
     access_token = auth_header[7:]  # strip "Bearer "
 
@@ -280,10 +245,10 @@ def userinfo(request: Request):
     with engine.begin() as conn:
         context = get_access_token_context(conn, access_token)
         if not context:
-            return JSONResponse({"error": "invalid token"}, status_code=401)
+            return _bearer_error("invalid_token", 401)
         token_row, user_row = context
         if "openid" not in token_row["scope"].split():
-            return JSONResponse({"error": "insufficient_scope"}, status_code=403)
+            return _bearer_error("insufficient_scope", 403, "openid")
 
     return JSONResponse(
         {
@@ -296,12 +261,13 @@ def userinfo(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# GET /.well-known/openid-configuration
+# Authorization server metadata (RFC 8414)
 # ---------------------------------------------------------------------------
 
 
+@router.get("/.well-known/oauth-authorization-server")
 @router.get("/.well-known/openid-configuration")
-def openid_configuration():
+def authorization_server_metadata():
     return JSONResponse(
         {
             "issuer": SITE_URL,
@@ -315,8 +281,6 @@ def openid_configuration():
                 "refresh_token",
                 "client_credentials",
             ],
-            "subject_types_supported": ["public"],
-            "id_token_signing_alg_values_supported": ["none"],
             "scopes_supported": [
                 "openid",
                 "profile",
@@ -351,6 +315,81 @@ def _make_authlib_request(
         req = AuthlibOAuth2Request(method, uri, body=form_data, headers=headers)
     req.payload = BasicOAuth2Payload(form_data)
     return req
+
+
+def _validated_authorization_request(request: Request, form_data: dict):
+    """Build and fully validate one authorization request through Authlib."""
+    server = _get_server(request)
+    oauth2_request = _make_authlib_request("GET", str(request.url), form_data)
+    grant = server.get_authorization_grant(oauth2_request)
+    redirect_uri = grant.validate_authorization_request()
+    code_challenge = form_data.get("code_challenge")
+    if not code_challenge:
+        raise InvalidRequestError(
+            "Missing 'code_challenge'",
+            state=form_data.get("state"),
+            redirect_uri=redirect_uri,
+        )
+    if form_data.get("code_challenge_method") != "S256":
+        raise InvalidRequestError(
+            "Unsupported 'code_challenge_method'",
+            state=form_data.get("state"),
+            redirect_uri=redirect_uri,
+        )
+    return grant, oauth2_request, redirect_uri
+
+
+def _authorization_error_response(
+    error: OAuth2Error, state: str, redirect_uri: str | None = None
+):
+    """Return an OAuth error without ever redirecting to an unvalidated URI."""
+    safe_redirect_uri = error.redirect_uri or redirect_uri
+    params = list(error.get_body())
+    if state and not any(name == "state" for name, _value in params):
+        params.append(("state", state))
+    if safe_redirect_uri:
+        return RedirectResponse(
+            url=add_params_to_uri(safe_redirect_uri, params), status_code=302
+        )
+    return JSONResponse(
+        dict(params),
+        status_code=error.status_code or 400,
+        headers=dict(error.get_headers()),
+    )
+
+
+def _bearer_error(error: str, status_code: int, scope: str = "") -> JSONResponse:
+    """Build an RFC 6750 bearer challenge and matching JSON error body."""
+    challenge = 'Bearer realm="4orm"'
+    body = {}
+    if error:
+        challenge += f', error="{error}"'
+        body["error"] = error
+    if scope:
+        challenge += f', scope="{scope}"'
+    return JSONResponse(
+        body,
+        status_code=status_code,
+        headers={"WWW-Authenticate": challenge},
+    )
+
+
+def _reject_duplicate_parameters(
+    items: Iterable[tuple[str, object]],
+) -> JSONResponse | None:
+    """Reject repeated OAuth parameters before mapping conversion hides them."""
+    seen = set()
+    for name, _value in items:
+        if name in seen:
+            return JSONResponse(
+                {
+                    "error": "invalid_request",
+                    "error_description": f"Duplicate '{name}' parameter.",
+                },
+                status_code=400,
+            )
+        seen.add(name)
+    return None
 
 
 def _public_oauth_uri(uri: str) -> str:
