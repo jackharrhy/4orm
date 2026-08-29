@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}design - 4orm{% endblock %}
+{% block content %}
+  <header class="fourm-design-intro">
+    <h1>design</h1>
+    <p>
+      4orm should feel direct, familiar, and a little handmade. These are the
+      restrictions that keep the shared interface consistent without sanding
+      down anyone's personal page.
+    </p>
+  </header>
+
+  <section class="fourm-design-section" id="principles">
+    <h2><a href="#principles">the restrictions</a></h2>
+    <div class="fourm-design-rules">
+      <article>
+        <strong>content before chrome</strong>
+        <p>Use plain structure, short labels, and visible controls. Decoration never carries meaning.</p>
+      </article>
+      <article>
+        <strong>borders before shadows</strong>
+        <p>Panels are white with a solid black border. Controls keep their inset and outset edges.</p>
+      </article>
+      <article>
+        <strong>square by default</strong>
+        <p>No soft cards, floating pills, glass, gradients, or ornamental corner radii.</p>
+      </article>
+      <article>
+        <strong>one loud accent</strong>
+        <p>Cyan identifies the shared shell. Semantic colors appear only when the state needs them.</p>
+      </article>
+      <article>
+        <strong>the web stays recognizable</strong>
+        <p>Links look like links, buttons look pressable, and forms keep persistent labels.</p>
+      </article>
+      <article>
+        <strong>personal pages stay personal</strong>
+        <p>Application helpers use a <code>fourm-</code> prefix. Never claim a generic class a member may use.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="fourm-design-section" id="colour">
+    <h2><a href="#colour">colour</a></h2>
+    <p>The palette is small on purpose. Do not invent nearby shades for one screen.</p>
+    <div class="fourm-design-swatches" aria-label="4orm colour palette">
+      <div><span class="fourm-swatch fourm-swatch-cyan"></span><code>#00ccff</code><small>shell</small></div>
+      <div><span class="fourm-swatch fourm-swatch-paper"></span><code>#f0f0f0</code><small>page</small></div>
+      <div><span class="fourm-swatch fourm-swatch-white"></span><code>#ffffff</code><small>panel</small></div>
+      <div><span class="fourm-swatch fourm-swatch-ink"></span><code>#111111</code><small>ink</small></div>
+      <div><span class="fourm-swatch fourm-swatch-link"></span><code>#0000ee</code><small>link</small></div>
+      <div><span class="fourm-swatch fourm-swatch-focus"></span><code>#ff00ff</code><small>focus</small></div>
+    </div>
+    <div class="fourm-design-semantic">
+      <p class="ok"><strong>success</strong> confirms that something finished.</p>
+      <p class="error"><strong>error</strong> says what failed near the affected control.</p>
+      <p class="fourm-design-warning"><strong>notice</strong> asks for attention without implying failure.</p>
+    </div>
+  </section>
+
+  <section class="fourm-design-section" id="type">
+    <h2><a href="#type">type</a></h2>
+    <p>Verdana leads, with Tahoma and Arial as local fallbacks. There are no downloaded fonts.</p>
+    <div class="panel fourm-panel-flush fourm-design-type">
+      <h1>page heading</h1>
+      <h2>section heading</h2>
+      <h3>small heading</h3>
+      <p>Body copy stays readable at the browser's normal size and a 1.45 line height.</p>
+      <p class="muted">Secondary copy is smaller and quieter, but still has useful contrast.</p>
+      <p><code>code and machine values use the browser monospace stack</code></p>
+    </div>
+  </section>
+
+  <section class="fourm-design-section" id="controls">
+    <h2><a href="#controls">controls</a></h2>
+    <p>Use words before icons. A control owns its foreground, background, border, hover, focus, and disabled states.</p>
+    <div class="panel fourm-panel-flush fourm-design-demo">
+      <div class="fourm-actions">
+        <button type="button" class="fourm-button-primary">primary action</button>
+        <button type="button" class="fourm-button-secondary">secondary action</button>
+        <button type="button" disabled>disabled action</button>
+        <a href="#controls">ordinary link</a>
+      </div>
+      <form class="stack fourm-design-form" onsubmit="return false">
+        <label for="design-name">label stays visible</label>
+        <input id="design-name" type="text" placeholder="placeholder is only a hint" />
+        <label for="design-choice">choose one</label>
+        <select id="design-choice">
+          <option>first option</option>
+          <option>second option</option>
+        </select>
+        <label class="inline"><input type="checkbox" /> an explicit checkbox label</label>
+      </form>
+    </div>
+  </section>
+
+  <section class="fourm-design-section" id="structure">
+    <h2><a href="#structure">structure</a></h2>
+    <div class="fourm-design-structure">
+      <div>
+        <h3>shared screens</h3>
+        <p>A 920px wrapper, simple vertical rhythm, and panels only where a border clarifies grouping.</p>
+      </div>
+      <div>
+        <h3>actions</h3>
+        <p>Related actions share one wrapping row. A form does not force the next action onto a new line.</p>
+      </div>
+      <div>
+        <h3>narrow screens</h3>
+        <p>Layouts collapse naturally. Nothing depends on hover, fixed widths, or horizontal clipping.</p>
+      </div>
+      <div>
+        <h3>member content</h3>
+        <p>Custom HTML, CSS, and layouts may ignore this entire page. That freedom is part of the system.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="fourm-design-section" id="boundary">
+    <h2><a href="#boundary">the boundary</a></h2>
+    <div class="panel fourm-panel-flush">
+      <p><strong>4orm owns:</strong> navigation, authentication, settings, administration, shared forms, and system feedback.</p>
+      <p><strong>members own:</strong> profiles, pages, cards, embedded media, and their chosen visual voice.</p>
+      <p class="fourm-panel-flush">When shared CSS needs a helper, scope it beneath <code>.fourm-shell</code> and name it <code>.fourm-*</code>.</p>
+    </div>
+  </section>
+{% endblock %}

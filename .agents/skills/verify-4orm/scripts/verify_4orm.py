@@ -253,6 +253,43 @@ def main() -> int:
 
                 flow("desktop homepage", desktop_home)
 
+                def design_reference():
+                    page.goto(f"{base_url}/design", wait_until="domcontentloaded")
+                    page.get_by_role("heading", name="design", exact=True).wait_for()
+                    page.get_by_role(
+                        "heading", name="the restrictions", exact=True
+                    ).wait_for()
+                    check(
+                        page.locator(".fourm-swatch").count() == 6,
+                        "design reference does not show all six palette swatches",
+                    )
+                    check(
+                        page.evaluate(
+                            "document.documentElement.scrollWidth <= innerWidth"
+                        ),
+                        "desktop design reference has horizontal overflow",
+                    )
+                    primary = page.get_by_role(
+                        "button", name="primary action", exact=True
+                    )
+                    primary.focus()
+                    check(
+                        primary.evaluate("el => getComputedStyle(el).outlineStyle")
+                        != "none",
+                        "design reference primary action has no focus outline",
+                    )
+                    page.screenshot(
+                        path=evidence / "02-design-desktop.png", full_page=True
+                    )
+                    return [
+                        "all design sections visible",
+                        "six palette swatches visible",
+                        "primary action has visible focus",
+                        "no horizontal overflow",
+                    ]
+
+                flow("desktop design reference", design_reference)
+
                 def login_and_settings():
                     page.get_by_role("link", name="login", exact=True).click()
                     page.get_by_label("username").fill("visualcheck")
@@ -484,11 +521,23 @@ def main() -> int:
                     page.screenshot(
                         path=evidence / "08-oauth-admin-mobile.png", full_page=True
                     )
+                    page.goto(f"{base_url}/design", wait_until="domcontentloaded")
+                    page.get_by_role("heading", name="design", exact=True).wait_for()
+                    check(
+                        page.evaluate(
+                            "document.documentElement.scrollWidth <= innerWidth"
+                        ),
+                        "mobile design reference has horizontal overflow",
+                    )
+                    page.screenshot(
+                        path=evidence / "09-design-mobile.png", full_page=True
+                    )
                     return [
                         "mobile homepage fits viewport",
                         "mobile settings fits viewport",
                         "mobile OAuth consent fits viewport",
                         "mobile OAuth admin fits viewport",
+                        "mobile design reference fits viewport",
                     ]
 
                 flow("mobile layouts", mobile_layouts)

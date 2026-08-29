@@ -9,3 +9,4 @@ Use the default runner for shared layout changes, then read the closest feature 
 - [Page management](page-management.md)
 - [Member pages and layouts](member-pages.md)
 - [Forum and chat](forum-chat.md)
+- [Design reference](design-reference.md)

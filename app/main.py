@@ -424,3 +424,12 @@ def home(request: Request):
             "site_banner": site_banner,
         },
     )
+
+
+@app.get("/design", response_class=HTMLResponse, summary="Design system")
+def design(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "design.html",
+        {"me": current_user(request)},
+    )

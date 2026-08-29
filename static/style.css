@@ -357,6 +357,115 @@ button:active {
   white-space: pre-line;
 }
 
+/* Design reference. These selectors are deliberately application-namespaced
+   so the specimen page documents the same boundary it asks contributors to keep. */
+.fourm-shell .fourm-design-intro {
+  max-width: 680px;
+  margin-bottom: 28px;
+}
+.fourm-shell .fourm-design-intro h1 {
+  font-size: clamp(2rem, 7vw, 3.5rem);
+  letter-spacing: -0.06em;
+}
+.fourm-shell .fourm-design-intro p {
+  font-size: 1.05rem;
+}
+.fourm-shell .fourm-design-section {
+  margin: 0 0 34px;
+}
+.fourm-shell .fourm-design-section > h2 {
+  padding-bottom: 5px;
+  border-bottom: 2px solid #111;
+}
+.fourm-shell .fourm-design-rules,
+.fourm-shell .fourm-design-structure {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid #999;
+}
+.fourm-shell .fourm-design-rules article,
+.fourm-shell .fourm-design-structure > div {
+  padding: 12px 12px 6px 0;
+  border-bottom: 1px solid #999;
+}
+.fourm-shell .fourm-design-rules article:nth-child(even),
+.fourm-shell .fourm-design-structure > div:nth-child(even) {
+  padding-right: 0;
+  padding-left: 12px;
+  border-left: 1px solid #999;
+}
+.fourm-shell .fourm-design-rules p,
+.fourm-shell .fourm-design-structure p {
+  margin-top: 4px;
+}
+.fourm-shell .fourm-design-swatches {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0;
+}
+.fourm-shell .fourm-design-swatches > div {
+  min-width: 0;
+}
+.fourm-shell .fourm-design-swatches code,
+.fourm-shell .fourm-design-swatches small {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.fourm-shell .fourm-swatch {
+  display: block;
+  height: 64px;
+  border: 2px solid #111;
+}
+.fourm-shell .fourm-swatch-cyan { background: #00ccff; }
+.fourm-shell .fourm-swatch-paper { background: #f0f0f0; }
+.fourm-shell .fourm-swatch-white { background: #fff; }
+.fourm-shell .fourm-swatch-ink { background: #111; }
+.fourm-shell .fourm-swatch-link { background: #0000ee; }
+.fourm-shell .fourm-swatch-focus { background: #ff00ff; }
+.fourm-shell .fourm-design-semantic {
+  display: grid;
+  gap: 8px;
+}
+.fourm-shell .fourm-design-semantic p {
+  margin: 0;
+}
+.fourm-shell .fourm-design-warning {
+  padding: 8px;
+  border: 2px solid #665c00;
+  background: #ffffcc;
+}
+.fourm-shell .fourm-design-type > :last-child,
+.fourm-shell .fourm-design-demo > :last-child {
+  margin-bottom: 0;
+}
+.fourm-shell .fourm-design-demo {
+  display: grid;
+  gap: 18px;
+}
+.fourm-shell .fourm-design-form {
+  max-width: 460px;
+}
+.fourm-shell .fourm-design-demo button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+@media (max-width: 640px) {
+  .fourm-shell .fourm-design-rules,
+  .fourm-shell .fourm-design-structure {
+    grid-template-columns: 1fr;
+  }
+  .fourm-shell .fourm-design-rules article:nth-child(even),
+  .fourm-shell .fourm-design-structure > div:nth-child(even) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .fourm-shell .fourm-design-swatches {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 code {
   background: #f4f4f4;
   padding: 1px 4px;
