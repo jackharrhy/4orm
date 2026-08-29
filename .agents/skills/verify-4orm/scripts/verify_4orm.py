@@ -18,6 +18,7 @@ import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlencode
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -267,7 +268,105 @@ def main() -> int:
 
                 flow("login and settings", login_and_settings)
 
+                consent_url = f"{base_url}/oauth/authorize?{
+                    urlencode(
+                        {
+                            'response_type': 'code',
+                            'client_id': 'worldview',
+                            'redirect_uri': 'http://localhost:8789/auth/callback',
+                            'scope': 'openid profile',
+                            'state': 'browser-verification',
+                            'code_challenge': 'a' * 43,
+                            'code_challenge_method': 'S256',
+                        }
+                    )
+                }"
+
+                def consent_contrast(button, boundary_property):
+                    return button.evaluate(
+                        """(element, boundaryProperty) => {
+                          const rgb = (value) => {
+                            const parts = value.match(/[\\d.]+/g).map(Number);
+                            return parts.slice(0, 3);
+                          };
+                          const luminance = (value) => {
+                            const channels = rgb(value).map((channel) => {
+                              const normalized = channel / 255;
+                              return normalized <= 0.04045
+                                ? normalized / 12.92
+                                : Math.pow((normalized + 0.055) / 1.055, 2.4);
+                            });
+                            return 0.2126 * channels[0]
+                              + 0.7152 * channels[1]
+                              + 0.0722 * channels[2];
+                          };
+                          const ratio = (first, second) => {
+                            const lighter = Math.max(
+                              luminance(first), luminance(second)
+                            );
+                            const darker = Math.min(
+                              luminance(first), luminance(second)
+                            );
+                            return (lighter + 0.05) / (darker + 0.05);
+                          };
+                          const style = getComputedStyle(element);
+                          const body = getComputedStyle(document.body);
+                          return {
+                            text: ratio(style.color, style.backgroundColor),
+                            boundary: ratio(
+                              style[boundaryProperty], body.backgroundColor
+                            ),
+                          };
+                        }""",
+                        boundary_property,
+                    )
+
+                def oauth_consent():
+                    page.goto(consent_url, wait_until="domcontentloaded")
+                    page.get_by_role(
+                        "heading", name="authorize app", exact=True
+                    ).wait_for()
+                    approve = page.get_by_role("button", name="approve", exact=True)
+                    deny = page.get_by_role("button", name="deny", exact=True)
+                    approve_contrast = consent_contrast(approve, "backgroundColor")
+                    deny_contrast = consent_contrast(deny, "borderTopColor")
+                    check(
+                        approve_contrast["text"] >= 4.5,
+                        "approve button text contrast is below 4.5:1",
+                    )
+                    check(
+                        approve_contrast["boundary"] >= 3,
+                        "approve button boundary contrast is below 3:1",
+                    )
+                    check(
+                        deny_contrast["text"] >= 4.5,
+                        "deny button text contrast is below 4.5:1",
+                    )
+                    check(
+                        deny_contrast["boundary"] >= 3,
+                        "deny button boundary contrast is below 3:1",
+                    )
+                    approve.focus()
+                    check(
+                        approve.evaluate("el => getComputedStyle(el).outlineStyle")
+                        != "none",
+                        "approve button has no visible focus outline",
+                    )
+                    page.screenshot(
+                        path=evidence / "03-oauth-consent-desktop.png", full_page=True
+                    )
+                    return {
+                        "approveTextContrast": approve_contrast["text"],
+                        "approveBoundaryContrast": approve_contrast["boundary"],
+                        "denyTextContrast": deny_contrast["text"],
+                        "denyBoundaryContrast": deny_contrast["boundary"],
+                        "visibleFocusOutline": True,
+                    }
+
+                flow("OAuth authorization consent", oauth_consent)
+
                 def page_management():
+                    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
                     row = page.locator("#page-first-page")
                     edit_box = row.get_by_role(
                         "link", name="edit", exact=True
@@ -322,7 +421,7 @@ def main() -> int:
                         "generated secret is unexpectedly short",
                     )
                     page.screenshot(
-                        path=evidence / "03-oauth-admin-desktop.png", full_page=True
+                        path=evidence / "04-oauth-admin-desktop.png", full_page=True
                     )
                     check(
                         page.evaluate(
@@ -348,7 +447,7 @@ def main() -> int:
                         "mobile homepage has horizontal overflow",
                     )
                     page.screenshot(
-                        path=evidence / "03-home-mobile.png", full_page=True
+                        path=evidence / "05-home-mobile.png", full_page=True
                     )
                     page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
                     page.get_by_role("heading", name="settings", exact=True).wait_for()
@@ -359,7 +458,18 @@ def main() -> int:
                         "mobile settings has horizontal overflow",
                     )
                     page.screenshot(
-                        path=evidence / "04-settings-mobile.png", full_page=True
+                        path=evidence / "06-settings-mobile.png", full_page=True
+                    )
+                    page.goto(consent_url, wait_until="domcontentloaded")
+                    page.get_by_role("button", name="approve", exact=True).wait_for()
+                    check(
+                        page.evaluate(
+                            "document.documentElement.scrollWidth <= innerWidth"
+                        ),
+                        "mobile OAuth consent has horizontal overflow",
+                    )
+                    page.screenshot(
+                        path=evidence / "07-oauth-consent-mobile.png", full_page=True
                     )
                     page.goto(
                         f"{base_url}/admin#oauth-clients",
@@ -372,11 +482,12 @@ def main() -> int:
                         "mobile OAuth admin has horizontal overflow",
                     )
                     page.screenshot(
-                        path=evidence / "05-oauth-admin-mobile.png", full_page=True
+                        path=evidence / "08-oauth-admin-mobile.png", full_page=True
                     )
                     return [
                         "mobile homepage fits viewport",
                         "mobile settings fits viewport",
+                        "mobile OAuth consent fits viewport",
                         "mobile OAuth admin fits viewport",
                     ]
 

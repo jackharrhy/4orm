@@ -179,9 +179,17 @@ input[type="radio"] {
 }
 button {
   width: auto;
-  border: 2px outset #999;
-  background: #eee;
+  border: 2px outset #444;
+  background: #fff;
+  color: #111;
   cursor: pointer;
+}
+button:hover {
+  background: #dff7ff;
+}
+button:focus-visible {
+  outline: 3px solid #005f73;
+  outline-offset: 2px;
 }
 button:active {
   border-style: inset;
@@ -249,6 +257,22 @@ button:active {
 }
 .fourm-shell .fourm-button-link:hover {
   color: #f00;
+}
+.fourm-shell .fourm-button-primary {
+  border-color: #003f4c;
+  background: #005f73;
+  color: #fff;
+}
+.fourm-shell .fourm-button-primary:hover {
+  background: #004f60;
+}
+.fourm-shell .fourm-button-secondary {
+  border-color: #444;
+  background: #fff;
+  color: #111;
+}
+.fourm-shell .fourm-button-secondary:hover {
+  background: #dff7ff;
 }
 .fourm-shell .fourm-preview-frame {
   width: 100%;
