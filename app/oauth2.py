@@ -19,6 +19,7 @@ from authlib.oauth2.rfc7636 import CodeChallenge
 from authlib.oauth2.rfc7662 import IntrospectionEndpoint
 from sqlalchemy import delete, insert, select, update
 
+from app.oauth_policy import InvalidTargetError, validate_resource_request
 from app.schema import (
     oauth2_audit_events,
     oauth2_authorization_codes,
@@ -59,8 +60,13 @@ class OAuth2ClientWrapper:
     def get_allowed_scope(self, scope):
         if not scope:
             return ""
+        requested = scope_to_list(scope)
         allowed = set(scope_to_list(self._row["scope"]))
-        return list_to_scope([s for s in scope.split() if s in allowed])
+        if len(requested) != len(set(requested)) or not set(requested).issubset(
+            allowed
+        ):
+            return None
+        return list_to_scope(requested)
 
     def check_redirect_uri(self, redirect_uri):
         uris = self._row["redirect_uris"].split("\n")
@@ -107,6 +113,9 @@ class OAuth2AuthCodeWrapper:
     def get_scope(self):
         return self._row["scope"]
 
+    def get_resource(self):
+        return self._row["resource"]
+
     @property
     def code_challenge(self):
         return self._row.get("code_challenge")
@@ -141,6 +150,9 @@ class OAuth2RefreshTokenWrapper:
     def get_scope(self):
         return self._row["scope"]
 
+    def get_audience(self):
+        return self._row["audience"]
+
     @property
     def user_id(self):
         return self._row["user_id"]
@@ -161,6 +173,29 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         "none",
     ]
 
+    def validate_authorization_request(self):
+        redirect_uri = super().validate_authorization_request()
+        try:
+            self.request.resource = validate_resource_request(
+                self.request.client._row,
+                self.request.payload.data.get("resource"),
+            )
+        except InvalidTargetError as error:
+            error.redirect_uri = redirect_uri
+            error.state = self.request.payload.state
+            raise
+        return redirect_uri
+
+    def validate_token_request(self):
+        super().validate_token_request()
+        authorization_code = self.request.authorization_code
+        self.request.resource = validate_resource_request(
+            self.request.client._row,
+            self.request.payload.data.get("resource"),
+            bound_resource=authorization_code.get_resource(),
+            require_bound_resource=True,
+        )
+
     def save_authorization_code(self, code, request):
         client = request.client
         payload = request.payload
@@ -172,6 +207,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
                     user_id=request.user["id"],
                     redirect_uri=payload.redirect_uri or "",
                     scope=request.scope or "",
+                    resource=request.resource,
                     nonce=payload.data.get("nonce"),
                     code_challenge=payload.data.get("code_challenge"),
                     code_challenge_method=payload.data.get("code_challenge_method"),
@@ -252,6 +288,11 @@ class RefreshTokenGrant(grants.RefreshTokenGrant):
             if row["revoked"]:
                 _revoke_refresh_token_family(conn, row)
                 return None
+            self.request.resource = validate_resource_request(
+                self.request.client._row,
+                self.request.payload.data.get("resource"),
+                bound_resource=row["audience"],
+            )
             claimed = conn.execute(
                 update(oauth2_tokens)
                 .where(
@@ -316,6 +357,10 @@ class ClientCredentialsGrant(grants.ClientCredentialsGrant):
             raise InvalidScopeError()
         if not requested:
             self.request.payload.scope = client._row["scope"]
+        self.request.resource = validate_resource_request(
+            client._row,
+            self.request.payload.data.get("resource"),
+        )
 
 
 class OAuth2TokenWrapper:
@@ -387,7 +432,7 @@ class OAuth2IntrospectionEndpoint(IntrospectionEndpoint):
 
     def introspect_token(self, token):
         row = token._row
-        return {
+        payload = {
             "client_id": row["client_id"],
             "sub": row["subject"],
             "principal_type": row["principal_type"],
@@ -396,6 +441,9 @@ class OAuth2IntrospectionEndpoint(IntrospectionEndpoint):
             "exp": row["issued_at"] + row["expires_in"],
             "iat": row["issued_at"],
         }
+        if row["audience"]:
+            payload["aud"] = row["audience"]
+        return payload
 
 
 # ---------------------------------------------------------------------------
@@ -482,6 +530,14 @@ def create_authorization_server(engine) -> OAuth2Server:
             if not is_service and user is None:
                 raise RuntimeError("User token issuance requires a user")
             refresh_credential = getattr(request, "refresh_token", None)
+            authorization_code = getattr(request, "authorization_code", None)
+            audience = (
+                refresh_credential.get_audience()
+                if refresh_credential
+                else authorization_code.get_resource()
+                if authorization_code
+                else getattr(request, "resource", "")
+            )
             refresh_family_id = None
             if token.get("refresh_token"):
                 refresh_family_id = (
@@ -515,6 +571,7 @@ def create_authorization_server(engine) -> OAuth2Server:
                     refresh_token=token.get("refresh_token"),
                     refresh_family_id=refresh_family_id,
                     scope=token.get("scope", ""),
+                    audience=audience,
                     issued_at=int(time.time()),
                     expires_in=token.get("expires_in", 3600),
                 )

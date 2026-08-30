@@ -57,6 +57,11 @@ def list_oauth_clients(conn):
     by_client = {client["client_id"]: client for client in clients}
     for client in clients:
         client["principal_usage"] = []
+        client["allowed_resource_list"] = [
+            resource
+            for resource in client["allowed_resources"].splitlines()
+            if resource
+        ]
 
     usage_rows = (
         conn.execute(

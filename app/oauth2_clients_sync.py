@@ -3,7 +3,8 @@
 On every app startup the declared clients are reconciled with the DB:
   - new clients are inserted
   - existing clients are updated to match the file
-  - clients in the DB but absent from the file are disabled and their tokens revoked
+  - declarative clients absent from the file are disabled and their tokens revoked
+  - dynamically registered clients are left unchanged
 
 The TOML format is:
 
@@ -11,6 +12,7 @@ The TOML format is:
     client_name = "My App"
     redirect_uris = ["https://example.com/callback"]
     scope = "openid profile"                      # optional, default "openid profile"
+    allowed_resources = ["https://api.example.com/mcp"] # optional
     grant_types = "authorization_code"             # optional
     response_types = "code"                        # optional
     token_endpoint_auth_method = "none"            # optional
@@ -69,6 +71,17 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
             else:
                 redirect_uris = str(redirect_uris_raw)
 
+            allowed_resources_raw = cfg.get("allowed_resources", [])
+            if not isinstance(allowed_resources_raw, list) or not all(
+                isinstance(resource, str) and resource
+                for resource in allowed_resources_raw
+            ):
+                raise ValueError(
+                    f"OAuth client {client_id} allowed_resources must be a list "
+                    "of non-empty strings"
+                )
+            allowed_resources = "\n".join(allowed_resources_raw)
+
             kind = cfg.get("client_kind", _DEFAULTS["client_kind"])
             if kind not in {"public", "service", "resource_server"}:
                 raise ValueError(f"Invalid client_kind for OAuth client {client_id}")
@@ -76,8 +89,10 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
             values = {
                 "client_name": cfg["client_name"],
                 "client_kind": kind,
+                "registration_source": "declarative",
                 "redirect_uris": redirect_uris,
                 "scope": cfg.get("scope", _DEFAULTS["scope"]),
+                "allowed_resources": allowed_resources,
                 "grant_types": cfg.get("grant_types", _DEFAULTS["grant_types"]),
                 "response_types": cfg.get(
                     "response_types", _DEFAULTS["response_types"]
@@ -122,6 +137,11 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
                 )
 
             if client_id in existing:
+                if existing[client_id]["registration_source"] == "dynamic":
+                    raise ValueError(
+                        f"Declarative OAuth client {client_id} conflicts with a "
+                        "dynamically registered client"
+                    )
                 # Check if anything changed
                 row = existing[client_id]
                 changed = any(row[k] != v for k, v in values.items())
@@ -141,7 +161,11 @@ def sync_oauth2_clients(engine: Engine, config_path: Path) -> None:
         # --- disable clients not in the config ---
         declared_ids = set(declared.keys())
         for client_id in existing:
-            if client_id not in declared_ids and existing[client_id]["is_enabled"]:
+            if (
+                client_id not in declared_ids
+                and existing[client_id]["registration_source"] == "declarative"
+                and existing[client_id]["is_enabled"]
+            ):
                 conn.execute(
                     update(oauth2_clients)
                     .where(oauth2_clients.c.client_id == client_id)

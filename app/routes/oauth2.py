@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 import warnings
 from collections.abc import Iterable
@@ -19,6 +20,8 @@ from sqlalchemy import insert
 from app.auth import get_access_token_context
 from app.deps import SITE_URL, current_user, get_engine, templates
 from app.oauth2 import create_authorization_server
+from app.oauth_policy import ARTBIN_ADMIN_SCOPE, ARTBIN_MCP_RESOURCE
+from app.oauth_registration import OAuthRegistrationError, register_dynamic_client
 from app.schema import oauth2_audit_events
 
 
@@ -89,6 +92,7 @@ def authorize_get(request: Request):
             "code_challenge": params.get("code_challenge", ""),
             "code_challenge_method": params.get("code_challenge_method", ""),
             "nonce": params.get("nonce", ""),
+            "resource": getattr(oauth2_request, "resource", ""),
         },
     )
 
@@ -118,6 +122,7 @@ async def authorize_post(request: Request):
         "state": state,
         "code_challenge": form.get("code_challenge", ""),
         "code_challenge_method": form.get("code_challenge_method", ""),
+        "resource": form.get("resource", ""),
     }
     nonce = form.get("nonce")
     if nonce:
@@ -149,6 +154,66 @@ async def authorize_post(request: Request):
     # Extract Location header from the grant response
     location = dict(headers).get("Location", redirect_uri)
     return RedirectResponse(url=location, status_code=302)
+
+
+# ---------------------------------------------------------------------------
+# POST /oauth/register - RFC 7591 public client registration
+# ---------------------------------------------------------------------------
+
+
+@router.post("/oauth/register")
+async def dynamic_client_registration(request: Request):
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
+    if content_type != "application/json":
+        return _registration_error_response(
+            OAuthRegistrationError(
+                "invalid_client_metadata", "Registration requires application/json."
+            )
+        )
+
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > 32_768:
+                return _registration_error_response(
+                    OAuthRegistrationError(
+                        "invalid_client_metadata", "The registration body is too large."
+                    )
+                )
+        except ValueError:
+            return _registration_error_response(
+                OAuthRegistrationError(
+                    "invalid_client_metadata", "Content-Length must be an integer."
+                )
+            )
+
+    body = await request.body()
+    if len(body) > 32_768:
+        return _registration_error_response(
+            OAuthRegistrationError(
+                "invalid_client_metadata", "The registration body is too large."
+            )
+        )
+    try:
+        metadata = json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return _registration_error_response(
+            OAuthRegistrationError(
+                "invalid_client_metadata", "The registration body is not valid JSON."
+            )
+        )
+
+    try:
+        with get_engine(request).begin() as conn:
+            registration = register_dynamic_client(conn, metadata)
+    except OAuthRegistrationError as error:
+        return _registration_error_response(error)
+
+    return JSONResponse(
+        registration,
+        status_code=201,
+        headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +338,7 @@ def authorization_server_metadata():
             "issuer": SITE_URL,
             "authorization_endpoint": f"{SITE_URL}/oauth/authorize",
             "token_endpoint": f"{SITE_URL}/oauth/token",
+            "registration_endpoint": f"{SITE_URL}/oauth/register",
             "introspection_endpoint": f"{SITE_URL}/oauth/introspect",
             "userinfo_endpoint": f"{SITE_URL}/oauth/userinfo",
             "response_types_supported": ["code"],
@@ -284,9 +350,11 @@ def authorization_server_metadata():
             "scopes_supported": [
                 "openid",
                 "profile",
+                ARTBIN_ADMIN_SCOPE,
                 "artbin:assets:read",
                 "artbin:assets:content",
             ],
+            "protected_resources": [ARTBIN_MCP_RESOURCE],
             "token_endpoint_auth_methods_supported": [
                 "none",
                 "client_secret_basic",
@@ -371,6 +439,14 @@ def _bearer_error(error: str, status_code: int, scope: str = "") -> JSONResponse
         body,
         status_code=status_code,
         headers={"WWW-Authenticate": challenge},
+    )
+
+
+def _registration_error_response(error: OAuthRegistrationError) -> JSONResponse:
+    return JSONResponse(
+        {"error": error.error, "error_description": error.description},
+        status_code=400,
+        headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
     )
 
 

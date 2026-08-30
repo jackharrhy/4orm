@@ -310,9 +310,16 @@ oauth2_clients = Table(
     Column("previous_client_secret_hash", Text, nullable=False, server_default=""),
     Column("client_name", String(120), nullable=False),
     Column("client_kind", String(24), nullable=False, server_default="public"),
+    Column(
+        "registration_source",
+        String(24),
+        nullable=False,
+        server_default="declarative",
+    ),
     Column("subject", String(120), nullable=False, server_default=""),
     Column("redirect_uris", Text, nullable=False, server_default=""),
     Column("scope", Text, nullable=False, server_default=""),
+    Column("allowed_resources", Text, nullable=False, server_default=""),
     Column("grant_types", Text, nullable=False, server_default="authorization_code"),
     Column("response_types", Text, nullable=False, server_default="code"),
     Column(
@@ -335,6 +342,10 @@ oauth2_clients = Table(
         "client_kind IN ('public', 'service', 'resource_server')",
         name="ck_oauth2_clients_kind",
     ),
+    CheckConstraint(
+        "registration_source IN ('declarative', 'dynamic')",
+        name="ck_oauth2_clients_registration_source",
+    ),
 )
 
 oauth2_authorization_codes = Table(
@@ -348,6 +359,7 @@ oauth2_authorization_codes = Table(
     ),
     Column("redirect_uri", Text, nullable=False, server_default=""),
     Column("scope", Text, nullable=False, server_default=""),
+    Column("resource", Text, nullable=False, server_default=""),
     Column("nonce", String(120)),
     Column("code_challenge", Text),
     Column("code_challenge_method", String(10)),
@@ -395,6 +407,7 @@ oauth2_tokens = Table(
     Column("refresh_family_id", String(64), index=True),
     Column("refresh_family_compromised", Boolean, nullable=False, server_default="0"),
     Column("scope", Text, nullable=False, server_default=""),
+    Column("audience", Text, nullable=False, server_default=""),
     Column("issued_at", Integer, nullable=False),
     Column("expires_in", Integer, nullable=False, server_default="3600"),
     Column("revoked", Boolean, nullable=False, server_default="0"),

@@ -3,7 +3,12 @@
 {% block content %}
   <h1>authorize app</h1>
   <p><strong>{{ client_name }}</strong> wants to access your 4orm account.</p>
-  <p>this will share your username, display name, and 4orm admin status.</p>
+  {% if resource %}
+    <p>resource: <code>{{ resource }}</code></p>
+    <p>requested access: <code>{{ scope }}</code></p>
+  {% else %}
+    <p>this will share your username, display name, and 4orm admin status.</p>
+  {% endif %}
 
   <form method="post" action="/oauth/authorize" class="fourm-actions fourm-space-sm">
     <input type="hidden" name="response_type" value="{{ response_type }}" />
@@ -17,6 +22,7 @@
       name="code_challenge_method"
       value="{{ code_challenge_method }}"
     />
+    <input type="hidden" name="resource" value="{{ resource }}" />
     {% if nonce %}
       <input type="hidden" name="nonce" value="{{ nonce }}" />
     {% endif %}

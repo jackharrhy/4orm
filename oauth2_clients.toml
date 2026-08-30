@@ -3,9 +3,13 @@
 # Clients defined here are synced to the database on every app startup:
 #   - New clients are created
 #   - Existing clients are updated to match this file
-#   - Clients in the database but NOT in this file are removed
+#   - Declarative clients absent from this file are disabled and revoked
+#   - Dynamically registered clients are preserved
 #
 # The [clients.<key>] becomes the client_id.
+# Public clients may also declare allowed_resources as an array of exact RFC
+# 8707 resource identifiers. Dynamically registered Artbin MCP clients receive
+# their fixed resource policy through /oauth/register instead.
 
 [clients.artbin]
 client_name = "artbin"
