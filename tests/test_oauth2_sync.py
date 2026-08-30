@@ -4,6 +4,7 @@ import textwrap
 import tomllib
 from pathlib import Path
 
+import pytest
 from sqlalchemy import insert, select
 
 from app.oauth2_clients_sync import sync_oauth2_clients
@@ -233,7 +234,7 @@ def test_sync_missing_file_is_noop(test_engine, tmp_path):
 
 
 def test_sync_empty_clients_section_disables_all(test_engine, tmp_path):
-    """An empty clients section disables every existing client."""
+    """An empty clients section disables every declarative client."""
     with test_engine.begin() as conn:
         conn.execute(
             insert(oauth2_clients).values(
@@ -253,3 +254,64 @@ def test_sync_empty_clients_section_disables_all(test_engine, tmp_path):
         rows = conn.execute(select(oauth2_clients)).mappings().all()
     assert len(rows) == 1
     assert rows[0]["is_enabled"] is False
+
+
+def test_sync_preserves_dynamically_registered_clients(test_engine, tmp_path):
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(oauth2_clients).values(
+                client_id="artbin-mcp-dynamic",
+                client_name="Dynamic MCP client",
+                client_kind="public",
+                registration_source="dynamic",
+                redirect_uris="http://127.0.0.1:43127/oauth/callback",
+                scope="artbin:admin",
+                allowed_resources="https://artbin.jackharrhy.dev/mcp",
+                grant_types="authorization_code refresh_token",
+                response_types="code",
+                token_endpoint_auth_method="none",
+            )
+        )
+
+    toml = tmp_path / "clients.toml"
+    toml.write_text("[clients]\n")
+    sync_oauth2_clients(test_engine, toml)
+
+    with test_engine.begin() as conn:
+        row = (
+            conn.execute(
+                select(oauth2_clients).where(
+                    oauth2_clients.c.client_id == "artbin-mcp-dynamic"
+                )
+            )
+            .mappings()
+            .one()
+        )
+    assert row["is_enabled"] is True
+    assert row["registration_source"] == "dynamic"
+    assert row["allowed_resources"] == "https://artbin.jackharrhy.dev/mcp"
+
+
+def test_sync_refuses_to_overwrite_dynamic_client(test_engine, tmp_path):
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(oauth2_clients).values(
+                client_id="collision",
+                client_name="Dynamic client",
+                registration_source="dynamic",
+                redirect_uris="http://127.0.0.1:43127/oauth/callback",
+                token_endpoint_auth_method="none",
+            )
+        )
+
+    toml = tmp_path / "clients.toml"
+    toml.write_text(
+        textwrap.dedent("""\
+        [clients.collision]
+        client_name = "Declarative client"
+        redirect_uris = ["https://client.example/callback"]
+    """)
+    )
+
+    with pytest.raises(ValueError, match="conflicts with a dynamically"):
+        sync_oauth2_clients(test_engine, toml)

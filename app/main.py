@@ -102,7 +102,12 @@ async def lifespan(application: FastAPI):
         application.state.backup_scheduler.stop()
 
 
-_CSRF_EXEMPT_PATHS = {"/login", "/oauth/token", "/oauth/introspect"}
+_CSRF_EXEMPT_PATHS = {
+    "/login",
+    "/oauth/register",
+    "/oauth/token",
+    "/oauth/introspect",
+}
 _TRUSTED_ORIGINS: set[str] = set()  # add full origins like "https://example.com"
 
 

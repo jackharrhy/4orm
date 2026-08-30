@@ -79,8 +79,9 @@
   <details class="panel" id="oauth-clients" open>
     <summary><h2>OAuth clients ({{ oauth_clients|length }})</h2></summary>
     <p class="muted">
-      client capabilities come from <code>oauth2_clients.toml</code>. secrets
-      are stored as hashes and a newly generated secret is shown only once.
+      client capabilities are declaratively configured or dynamically
+      registered. secrets are stored as hashes and a newly generated secret is
+      shown only once.
     </p>
     <div class="fourm-oauth-clients">
       {% for client in oauth_clients %}
@@ -90,10 +91,14 @@
             <code>{{ client.client_id }}</code>
             <span class="muted">
               {{ client.client_kind.replace('_', ' ') }} ·
+              {{ client.registration_source }} ·
               {{ 'enabled' if client.is_enabled else 'disabled' }} ·
               {{ client.active_token_count or 0 }} active token(s)
             </span>
             {% if client.scope %}<div class="muted">{{ client.scope }}</div>{% endif %}
+            {% for resource in client.allowed_resource_list %}
+              <div class="muted">resource: <code>{{ resource }}</code></div>
+            {% endfor %}
             {% if client.previous_client_secret_hash %}
               <div class="ok">rotation overlap is active</div>
             {% endif %}

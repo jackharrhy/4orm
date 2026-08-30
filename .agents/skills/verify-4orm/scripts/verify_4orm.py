@@ -29,7 +29,15 @@ from alembic.config import Config
 from playwright.sync_api import sync_playwright
 from sqlalchemy import create_engine, insert
 
-from app.schema import metadata, oauth2_tokens, pages, profile_cards, users
+from app.oauth_policy import ARTBIN_ADMIN_SCOPE, ARTBIN_MCP_RESOURCE
+from app.schema import (
+    metadata,
+    oauth2_clients,
+    oauth2_tokens,
+    pages,
+    profile_cards,
+    users,
+)
 from app.security import hash_password
 
 
@@ -103,6 +111,21 @@ def seed_database(database_url: str) -> None:
                     "content": "<p>Second verification page.</p>",
                 },
             ],
+        )
+        connection.execute(
+            insert(oauth2_clients).values(
+                client_id="browser-mcp-client",
+                client_name="Browser MCP client",
+                client_kind="public",
+                registration_source="dynamic",
+                redirect_uris="http://127.0.0.1:43127/oauth/callback",
+                scope=ARTBIN_ADMIN_SCOPE,
+                allowed_resources=ARTBIN_MCP_RESOURCE,
+                grant_types="authorization_code refresh_token",
+                response_types="code",
+                token_endpoint_auth_method="none",
+                access_token_lifetime=600,
+            )
         )
         connection.execute(
             insert(oauth2_tokens).values(
@@ -309,12 +332,13 @@ def main() -> int:
                     urlencode(
                         {
                             'response_type': 'code',
-                            'client_id': 'worldview',
-                            'redirect_uri': 'http://localhost:8789/auth/callback',
-                            'scope': 'openid profile',
+                            'client_id': 'browser-mcp-client',
+                            'redirect_uri': 'http://127.0.0.1:43127/oauth/callback',
+                            'scope': ARTBIN_ADMIN_SCOPE,
                             'state': 'browser-verification',
                             'code_challenge': 'a' * 43,
                             'code_challenge_method': 'S256',
+                            'resource': ARTBIN_MCP_RESOURCE,
                         }
                     )
                 }"
@@ -363,6 +387,25 @@ def main() -> int:
                     page.get_by_role(
                         "heading", name="authorize app", exact=True
                     ).wait_for()
+                    check(
+                        page.locator('input[name="resource"]').input_value()
+                        == ARTBIN_MCP_RESOURCE,
+                        "consent form did not preserve the validated resource",
+                    )
+                    check(
+                        page.locator('input[name="scope"]').input_value()
+                        == ARTBIN_ADMIN_SCOPE,
+                        "consent form did not preserve the validated scope",
+                    )
+                    consent_text = page.locator("main").inner_text()
+                    check(
+                        ARTBIN_MCP_RESOURCE in consent_text,
+                        "validated resource is not visible on the consent screen",
+                    )
+                    check(
+                        ARTBIN_ADMIN_SCOPE in consent_text,
+                        "requested scope is not visible on the consent screen",
+                    )
                     approve = page.get_by_role("button", name="approve", exact=True)
                     deny = page.get_by_role("button", name="deny", exact=True)
                     approve_contrast = consent_contrast(approve, "backgroundColor")
@@ -398,6 +441,8 @@ def main() -> int:
                         "denyTextContrast": deny_contrast["text"],
                         "denyBoundaryContrast": deny_contrast["boundary"],
                         "visibleFocusOutline": True,
+                        "resourceVisible": ARTBIN_MCP_RESOURCE,
+                        "scopeVisible": ARTBIN_ADMIN_SCOPE,
                     }
 
                 flow("OAuth authorization consent", oauth_consent)
@@ -445,6 +490,17 @@ def main() -> int:
                         "browser-verification-token" not in panel.inner_text(),
                         "raw access token is visible in OAuth administration",
                     )
+                    dynamic_client = panel.locator("article").filter(
+                        has_text="browser-mcp-client"
+                    )
+                    check(
+                        "dynamic" in dynamic_client.inner_text(),
+                        "dynamic OAuth registration source is not visible",
+                    )
+                    check(
+                        ARTBIN_MCP_RESOURCE in dynamic_client.inner_text(),
+                        "dynamic OAuth allowed resource is not visible",
+                    )
                     worldview = panel.locator("article").filter(
                         has_text="worldview-service"
                     )
@@ -468,6 +524,7 @@ def main() -> int:
                     )
                     return [
                         "OAuth clients panel visible",
+                        "dynamic client provenance and resource visible",
                         "one-time secret result visible",
                         "no horizontal overflow",
                     ]

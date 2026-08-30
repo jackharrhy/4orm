@@ -2,9 +2,10 @@
 
 ## Sub-features
 
-Configured OAuth client status, complete token usage grouped by principal,
-one-time secret generation, overlapping secret rotation, token revocation, and
-client enablement.
+Configured and dynamically registered OAuth client status, registration source,
+allowed resource audiences, complete token usage grouped by principal, one-time
+secret generation, overlapping secret rotation, token revocation, and client
+enablement.
 
 ## How to get to it (user POV)
 
@@ -18,7 +19,8 @@ visible button, and check that the one-time secret notice appears without
 horizontal overflow. Expand token usage and confirm it identifies the issuing
 human or service principal, granted scopes, aggregate mint count, active count,
 and last mint time without displaying a raw token. Capture the panel at desktop
-and mobile widths.
+and mobile widths. Confirm declarative and dynamic clients are distinguished and
+the dynamic Artbin MCP client's allowed resource is visible.
 
 ## Gotchas
 
