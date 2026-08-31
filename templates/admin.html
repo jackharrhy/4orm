@@ -77,98 +77,20 @@
   </details>
 
   <details class="panel" id="oauth-clients" open>
-    <summary><h2>OAuth clients ({{ oauth_clients|length }})</h2></summary>
+    <summary><h2>OAuth administration</h2></summary>
     <p class="muted">
-      client capabilities are declaratively configured or dynamically
-      registered. secrets are stored as hashes and a newly generated secret is
-      shown only once.
+      OAuth clients, scopes, issued-token activity, and security events now have
+      a dedicated admin workspace. dynamic registrations are separated and
+      paginated there.
     </p>
-    <div class="fourm-oauth-clients">
-      {% for client in oauth_clients %}
-        <article class="fourm-admin-row fourm-panel-nested">
-          <div class="fourm-admin-row-body">
-            <strong>{{ client.client_name }}</strong>
-            <code>{{ client.client_id }}</code>
-            <span class="muted">
-              {{ client.client_kind.replace('_', ' ') }} ·
-              {{ client.registration_source }} ·
-              {{ 'enabled' if client.is_enabled else 'disabled' }} ·
-              {{ client.active_token_count or 0 }} active token(s)
-            </span>
-            {% if client.scope %}<div class="muted">{{ client.scope }}</div>{% endif %}
-            {% for resource in client.allowed_resource_list %}
-              <div class="muted">resource: <code>{{ resource }}</code></div>
-            {% endfor %}
-            {% if client.previous_client_secret_hash %}
-              <div class="ok">rotation overlap is active</div>
-            {% endif %}
-            {% if client.principal_usage %}
-              <details class="fourm-token-activity">
-                <summary>token usage</summary>
-                <div class="fourm-data-table-wrap">
-                  <table class="fourm-data-table">
-                    <thead>
-                      <tr>
-                        <th>principal</th>
-                        <th>granted access</th>
-                        <th>minted</th>
-                        <th>active</th>
-                        <th>last minted</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for usage in client.principal_usage %}
-                        <tr>
-                          <td>{{ usage.principal_label }}</td>
-                          <td>{{ usage.scopes }}</td>
-                          <td>{{ usage.tokens_minted }}</td>
-                          <td>{{ usage.active_tokens }}</td>
-                          <td><time datetime="{{ usage.last_minted_at_iso }}" data-fmt="relative">{{ usage.last_minted_at_iso }}</time></td>
-                        </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            {% else %}
-              <div class="muted fourm-space-xs">no tokens issued yet</div>
-            {% endif %}
-            <div id="oauth-secret-{{ client.id }}"></div>
-          </div>
-          <div class="fourm-actions">
-            {% if client.token_endpoint_auth_method != 'none' %}
-              {% if not client.client_secret_hash %}
-                <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/secret/generate"
-                      hx-post="/admin/oauth/clients/{{ client.client_id }}/secret/generate"
-                      hx-target="this" hx-swap="outerHTML">
-                  <button type="submit">generate secret</button>
-                </form>
-              {% else %}
-                <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/secret/rotate"
-                      hx-post="/admin/oauth/clients/{{ client.client_id }}/secret/rotate"
-                      hx-target="this" hx-swap="outerHTML"
-                      onsubmit="return confirm('Start a secret rotation? The old secret remains valid until you finish the rotation.')">
-                  <button type="submit">rotate secret</button>
-                </form>
-              {% endif %}
-            {% endif %}
-            {% if client.previous_client_secret_hash %}
-              <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/secret/finish-rotation"
-                    onsubmit="return confirm('Stop accepting the previous secret?')">
-                <button type="submit">finish rotation</button>
-              </form>
-            {% endif %}
-            <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/revoke-tokens"
-                  onsubmit="return confirm('Revoke every active token for this client?')">
-              <button type="submit">revoke tokens</button>
-            </form>
-            <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/toggle-enabled">
-              <button type="submit">{{ 'disable' if client.is_enabled else 'enable' }}</button>
-            </form>
-          </div>
-        </article>
-      {% endfor %}
+    <div class="fourm-oauth-summary" aria-label="OAuth summary">
+      <div><strong>{{ oauth_summary.enabled_clients }} / {{ oauth_summary.total_clients }}</strong><span>clients enabled</span></div>
+      <div><strong>{{ oauth_summary.dynamic_clients }}</strong><span>dynamic clients</span></div>
+      <div><strong>{{ oauth_summary.active_tokens }}</strong><span>active tokens</span></div>
+      <div><strong>{{ oauth_summary.token_records }}</strong><span>issued records</span></div>
+      <div><strong>{{ oauth_summary.defined_scopes }}</strong><span>defined scopes</span></div>
     </div>
+    <a class="fourm-button-link" href="/admin/oauth">open OAuth administration →</a>
   </details>
 
   <details class="panel" open>

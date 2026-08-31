@@ -20,7 +20,7 @@ from sqlalchemy import insert
 from app.auth import get_access_token_context
 from app.deps import SITE_URL, current_user, get_engine, templates
 from app.oauth2 import create_authorization_server
-from app.oauth_policy import ARTBIN_ADMIN_SCOPE, ARTBIN_MCP_RESOURCE
+from app.oauth_policy import ARTBIN_MCP_RESOURCE, OAUTH_SCOPE_NAMES
 from app.oauth_registration import OAuthRegistrationError, register_dynamic_client
 from app.schema import oauth2_audit_events
 
@@ -347,13 +347,7 @@ def authorization_server_metadata():
                 "refresh_token",
                 "client_credentials",
             ],
-            "scopes_supported": [
-                "openid",
-                "profile",
-                ARTBIN_ADMIN_SCOPE,
-                "artbin:assets:read",
-                "artbin:assets:content",
-            ],
+            "scopes_supported": list(OAUTH_SCOPE_NAMES),
             "protected_resources": [ARTBIN_MCP_RESOURCE],
             "token_endpoint_auth_methods_supported": [
                 "none",

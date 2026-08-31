@@ -1,9 +1,51 @@
 """Shared OAuth scope and resource policy."""
 
+from dataclasses import dataclass
+
 from authlib.oauth2.rfc6749.errors import OAuth2Error
 
 ARTBIN_ADMIN_SCOPE = "artbin:admin"
 ARTBIN_MCP_RESOURCE = "https://artbin.jackharrhy.dev/mcp"
+
+
+@dataclass(frozen=True)
+class OAuthScopeDefinition:
+    """One scope 4orm advertises or issues."""
+
+    name: str
+    description: str
+    surface: str
+
+
+OAUTH_SCOPE_DEFINITIONS = (
+    OAuthScopeDefinition(
+        "openid",
+        "Identify the signed-in 4orm account.",
+        "4orm identity",
+    ),
+    OAuthScopeDefinition(
+        "profile",
+        "Read the account username, display name, and administrator status.",
+        "4orm identity",
+    ),
+    OAuthScopeDefinition(
+        ARTBIN_ADMIN_SCOPE,
+        "Administer Artbin through its MCP resource.",
+        "Artbin MCP",
+    ),
+    OAuthScopeDefinition(
+        "artbin:assets:read",
+        "Read Artbin asset metadata and listings.",
+        "Artbin API",
+    ),
+    OAuthScopeDefinition(
+        "artbin:assets:content",
+        "Read the contents of Artbin assets.",
+        "Artbin API",
+    ),
+)
+OAUTH_SCOPE_NAMES = tuple(scope.name for scope in OAUTH_SCOPE_DEFINITIONS)
+OAUTH_SCOPE_BY_NAME = {scope.name: scope for scope in OAUTH_SCOPE_DEFINITIONS}
 
 
 class InvalidTargetError(OAuth2Error):

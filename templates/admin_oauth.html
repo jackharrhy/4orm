@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% block title %}OAuth administration{% endblock %}
+{% block content %}
+  <p class="fourm-back-link"><a href="/admin">← back to admin</a></p>
+  <h1>OAuth administration</h1>
+  <p class="muted">
+    inspect scope policy, managed clients, dynamic registrations, issued-token
+    activity, and security events. raw credentials and token values never appear
+    here.
+  </p>
+
+  <section class="panel" aria-labelledby="oauth-overview-heading">
+    <h2 id="oauth-overview-heading">overview</h2>
+    <div class="fourm-oauth-summary" aria-label="OAuth summary">
+      <div><strong>{{ oauth_admin.summary.enabled_clients }} / {{ oauth_admin.summary.total_clients }}</strong><span>clients enabled</span></div>
+      <div><strong>{{ oauth_admin.summary.dynamic_clients }}</strong><span>dynamic clients</span></div>
+      <div><strong>{{ oauth_admin.summary.active_tokens }}</strong><span>active tokens</span></div>
+      <div><strong>{{ oauth_admin.summary.token_records }}</strong><span>issued records</span></div>
+      <div><strong>{{ oauth_admin.summary.defined_scopes }}</strong><span>defined scopes</span></div>
+    </div>
+  </section>
+
+  <details class="panel" id="oauth-scopes" open>
+    <summary><h2>scope inventory ({{ oauth_admin.scopes|length }})</h2></summary>
+    <p class="muted">
+      current policy is combined with scopes configured on clients and scopes
+      observed in token history. an observed-only scope may be stale or
+      unrecognized. client counts remain compact even when registrations grow.
+    </p>
+    <div class="fourm-data-table-wrap">
+      <table class="fourm-data-table fourm-oauth-scope-table">
+        <thead>
+          <tr>
+            <th>scope</th>
+            <th>meaning</th>
+            <th>surface</th>
+            <th>configured clients</th>
+            <th>issued / active</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scope in oauth_admin.scopes %}
+            <tr{% if not scope.is_defined %} class="fourm-oauth-observed-scope"{% endif %}>
+              <td data-label="scope">
+                <code>{{ scope.name }}</code>
+                {% if not scope.is_defined %}<span class="fourm-oauth-state fourm-oauth-state-warn">observed only</span>{% endif %}
+              </td>
+              <td data-label="meaning">{{ scope.description }}</td>
+              <td data-label="surface">{{ scope.surface }}</td>
+              <td data-label="configured clients">
+                <strong>{{ scope.client_count }}</strong> configured ·
+                {{ scope.enabled_client_count }} enabled
+                <span class="fourm-oauth-client-ref muted">
+                  {{ scope.declarative_client_count }} declarative ·
+                  {{ scope.dynamic_client_count }} dynamic
+                </span>
+              </td>
+              <td data-label="issued / active">{{ scope.token_count }} / {{ scope.active_token_count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details class="panel" id="declarative-clients" open>
+    <summary><h2>managed clients ({{ oauth_admin.declarative_clients|length }})</h2></summary>
+    <p class="muted">
+      these clients come from declarative configuration and retain detailed
+      protocol, credential, and principal-level token activity controls.
+    </p>
+    <div class="fourm-oauth-clients">
+      {% for client in oauth_admin.declarative_clients %}
+        {% include 'fragments/oauth_client_card.html' %}
+      {% else %}
+        <p class="muted">no declarative OAuth clients are configured.</p>
+      {% endfor %}
+    </div>
+  </details>
+
+  {% set pagination = oauth_admin.dynamic_pagination %}
+  <details class="panel" id="dynamic-clients" open>
+    <summary><h2>dynamic registrations ({{ pagination.total_items }})</h2></summary>
+    <p class="muted">
+      every dynamic registration is a distinct public client. newest
+      registrations appear first; this table is paginated so repeated Codex and
+      other client registrations do not overwhelm the admin page.
+    </p>
+    {% if oauth_admin.dynamic_clients %}
+      <div class="fourm-oauth-page-status">
+        showing {{ pagination.first_item }}–{{ pagination.last_item }} of
+        {{ pagination.total_items }} registrations
+      </div>
+      <div class="fourm-data-table-wrap">
+        <table class="fourm-data-table fourm-oauth-dynamic-table">
+          <thead>
+            <tr>
+              <th>client</th>
+              <th>access</th>
+              <th>protocol</th>
+              <th>tokens</th>
+              <th>activity</th>
+              <th>actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for client in oauth_admin.dynamic_clients %}
+              <tr>
+                <td data-label="client">
+                  <strong>{{ client.client_name }}</strong>
+                  <code class="fourm-oauth-uri">{{ client.client_id }}</code>
+                  <span class="fourm-oauth-state {{ 'fourm-oauth-state-ok' if client.is_enabled else 'fourm-oauth-state-off' }}">
+                    {{ 'enabled' if client.is_enabled else 'disabled' }}
+                  </span>
+                </td>
+                <td data-label="access">
+                  {% for scope in client.scope_list %}<code class="fourm-oauth-uri">{{ scope }}</code>{% else %}no scopes{% endfor %}
+                  {% for resource in client.allowed_resource_list %}<code class="fourm-oauth-uri">{{ resource }}</code>{% endfor %}
+                </td>
+                <td data-label="protocol">
+                  {% for grant_type in client.grant_type_list %}<code>{{ grant_type }}</code>{% else %}—{% endfor %}
+                  <div class="muted">
+                    response {{ client.response_types or '—' }} ·
+                    auth {{ client.token_endpoint_auth_method }} ·
+                    {{ client.access_token_lifetime_label }}
+                  </div>
+                  {% if client.redirect_uri_list %}
+                    <details class="fourm-oauth-table-details">
+                      <summary>redirect URIs ({{ client.redirect_uri_list|length }})</summary>
+                      {% for redirect_uri in client.redirect_uri_list %}<code class="fourm-oauth-uri">{{ redirect_uri }}</code>{% endfor %}
+                    </details>
+                  {% endif %}
+                </td>
+                <td data-label="tokens">
+                  <strong>{{ client.active_token_count or 0 }}</strong> active ·
+                  {{ client.expired_token_count or 0 }} expired ·
+                  {{ client.revoked_token_count or 0 }} revoked ·
+                  {{ client.token_count or 0 }} issued
+                  {% if client.compromised_family_count %}
+                    <div class="fourm-oauth-count-alert">{{ client.compromised_family_count }} compromised refresh families</div>
+                  {% endif %}
+                </td>
+                <td data-label="activity">
+                  registered
+                  <time datetime="{{ client.created_at_iso }}" data-fmt="relative">{{ client.created_at_iso }}</time>
+                  {% if client.last_token_issued_at_iso %}
+                    <span class="fourm-oauth-client-ref">last token
+                      <time datetime="{{ client.last_token_issued_at_iso }}" data-fmt="relative">{{ client.last_token_issued_at_iso }}</time>
+                    </span>
+                  {% else %}
+                    <span class="fourm-oauth-client-ref muted">no tokens issued</span>
+                  {% endif %}
+                </td>
+                <td data-label="actions">
+                  <div class="fourm-actions">
+                    <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/revoke-tokens?dynamic_page={{ pagination.page }}"
+                          onsubmit="return confirm('Revoke every active token for this client?')">
+                      <button type="submit">revoke tokens</button>
+                    </form>
+                    <form method="post" action="/admin/oauth/clients/{{ client.client_id }}/toggle-enabled?dynamic_page={{ pagination.page }}">
+                      <button type="submit">{{ 'disable' if client.is_enabled else 'enable' }}</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if pagination.total_pages > 1 %}
+        <nav class="fourm-oauth-pagination" aria-label="Dynamic client pages">
+          {% if pagination.has_previous %}
+            <a href="/admin/oauth?dynamic_page={{ pagination.previous_page }}#dynamic-clients">← newer registrations</a>
+          {% else %}
+            <span></span>
+          {% endif %}
+          <strong>page {{ pagination.page }} of {{ pagination.total_pages }}</strong>
+          {% if pagination.has_next %}
+            <a href="/admin/oauth?dynamic_page={{ pagination.next_page }}#dynamic-clients">older registrations →</a>
+          {% else %}
+            <span></span>
+          {% endif %}
+        </nav>
+      {% endif %}
+    {% else %}
+      <p class="muted">no dynamic OAuth clients are registered.</p>
+    {% endif %}
+  </details>
+
+  <details class="panel" id="oauth-audit" open>
+    <summary><h2>recent OAuth activity ({{ oauth_admin.events|length }})</h2></summary>
+    <p class="muted">
+      the newest 25 issuance, introspection, registration, credential, and
+      security events are shown without raw token or secret values.
+    </p>
+    {% if oauth_admin.events %}
+      <div class="fourm-data-table-wrap">
+        <table class="fourm-data-table fourm-oauth-audit-table">
+          <thead>
+            <tr>
+              <th>when</th>
+              <th>event</th>
+              <th>client</th>
+              <th>actor</th>
+              <th>result</th>
+              <th>detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for event in oauth_admin.events %}
+              <tr>
+                <td data-label="when"><time datetime="{{ event.created_at_iso }}" data-fmt="relative">{{ event.created_at_iso }}</time></td>
+                <td data-label="event">{{ event.event_label }}</td>
+                <td data-label="client">
+                  {% if event.client_id %}
+                    {{ event.client_name or 'unknown client' }} <code>{{ event.client_id }}</code>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td data-label="actor">{{ event.actor_label }}</td>
+                <td data-label="result">
+                  <span class="fourm-oauth-state {{ 'fourm-oauth-state-ok' if event.success else 'fourm-oauth-state-warn' }}">
+                    {{ 'success' if event.success else 'failed' }}
+                  </span>
+                </td>
+                <td data-label="detail">
+                  {{ event.detail or '—' }}
+                  {% if event.token_id %}<span class="muted">token #{{ event.token_id }}</span>{% endif %}
+                  {% if event.source_ip %}<span class="muted">from {{ event.source_ip }}</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">no OAuth activity recorded yet.</p>
+    {% endif %}
+  </details>
+{% endblock %}

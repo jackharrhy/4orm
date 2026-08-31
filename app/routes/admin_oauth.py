@@ -1,6 +1,6 @@
 """Administrator-facing OAuth credential lifecycle routes."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.deps import get_engine, require_admin, templates
@@ -35,6 +35,15 @@ def _secret_response(request: Request, secret: str, client_id: str) -> HTMLRespo
     return response
 
 
+def _admin_redirect(dynamic_page: int | None = None) -> RedirectResponse:
+    if dynamic_page is not None:
+        return RedirectResponse(
+            f"/admin/oauth?dynamic_page={dynamic_page}#dynamic-clients",
+            status_code=303,
+        )
+    return RedirectResponse("/admin/oauth", status_code=303)
+
+
 @router.post("/{client_id}/secret/generate")
 def admin_generate_oauth_secret(request: Request, client_id: str):
     return _secret_response(
@@ -50,16 +59,24 @@ def admin_rotate_oauth_secret(request: Request, client_id: str):
 @router.post("/{client_id}/secret/finish-rotation")
 def admin_finish_oauth_secret_rotation(request: Request, client_id: str):
     _run(request, finish_rotation, client_id)
-    return RedirectResponse("/admin#oauth-clients", status_code=303)
+    return RedirectResponse("/admin/oauth#declarative-clients", status_code=303)
 
 
 @router.post("/{client_id}/revoke-tokens")
-def admin_revoke_oauth_tokens(request: Request, client_id: str):
+def admin_revoke_oauth_tokens(
+    request: Request,
+    client_id: str,
+    dynamic_page: int | None = Query(None, ge=1),
+):
     _run(request, revoke_tokens, client_id)
-    return RedirectResponse("/admin#oauth-clients", status_code=303)
+    return _admin_redirect(dynamic_page)
 
 
 @router.post("/{client_id}/toggle-enabled")
-def admin_toggle_oauth_client(request: Request, client_id: str):
+def admin_toggle_oauth_client(
+    request: Request,
+    client_id: str,
+    dynamic_page: int | None = Query(None, ge=1),
+):
     _run(request, toggle_client, client_id)
-    return RedirectResponse("/admin#oauth-clients", status_code=303)
+    return _admin_redirect(dynamic_page)

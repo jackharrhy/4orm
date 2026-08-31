@@ -5,7 +5,7 @@ import time
 from sqlalchemy import insert, select
 
 from app.oauth_client_admin import list_oauth_clients
-from app.schema import oauth2_clients, oauth2_tokens
+from app.schema import oauth2_audit_events, oauth2_clients, oauth2_tokens
 from app.security import hash_client_secret, verify_client_secret
 from tests.conftest import login_as, make_admin_user
 
@@ -152,6 +152,10 @@ def test_admin_token_activity_identifies_human_and_service_principals(
                 {
                     "client_id": "worldview",
                     "client_name": "Worldview",
+                    "client_kind": "public",
+                    "subject": "",
+                    "grant_types": "authorization_code",
+                    "response_types": "code",
                     "token_endpoint_auth_method": "none",
                 },
                 {
@@ -204,6 +208,15 @@ def test_admin_token_activity_identifies_human_and_service_principals(
                 },
             ],
         )
+        conn.execute(
+            insert(oauth2_audit_events).values(
+                event_type="token_request_failed",
+                client_id="worldview-service",
+                success=False,
+                detail="invalid_scope",
+                source_ip="192.0.2.20",
+            )
+        )
         clients = {
             oauth_client["client_id"]: oauth_client
             for oauth_client in list_oauth_clients(conn)
@@ -217,12 +230,25 @@ def test_admin_token_activity_identifies_human_and_service_principals(
         )
     login_as(client, "admin")
 
-    response = client.get("/admin")
+    dashboard = client.get("/admin")
+    assert dashboard.status_code == 200
+    assert 'href="/admin/oauth"' in dashboard.text
+    assert "dynamic registrations are separated" in dashboard.text
+    assert "worldview-service" not in dashboard.text
 
+    response = client.get("/admin/oauth")
     assert response.status_code == 200
     assert "admin (@admin)" in response.text
     assert "worldview-service" in response.text
     assert "artbin:assets:read" in response.text
+    assert "OAuth administration" in response.text
+    assert "scope inventory" in response.text
+    assert "Read the contents of Artbin assets." in response.text
+    assert "capabilities &amp; lifecycle" in response.text
+    assert "client_credentials" in response.text
+    assert "recent OAuth activity" in response.text
+    assert "token request failed" in response.text
+    assert "invalid_scope" in response.text
     assert "human-secret-token" not in response.text
     assert "service-secret-token" not in response.text
     assert "older-service-secret-token" not in response.text
