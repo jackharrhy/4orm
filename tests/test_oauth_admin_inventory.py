@@ -174,9 +174,7 @@ def test_dynamic_oauth_clients_are_paginated_separately(client, test_engine):
         "managed-client"
     ]
     assert len(first_page["dynamic_clients"]) == 25
-    assert first_page["dynamic_clients"][0]["client_id"] == (
-        "codex-registration-026"
-    )
+    assert first_page["dynamic_clients"][0]["client_id"] == ("codex-registration-026")
     assert first_page["dynamic_pagination"] == {
         "page": 1,
         "page_size": 25,

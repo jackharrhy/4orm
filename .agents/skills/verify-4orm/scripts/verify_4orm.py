@@ -683,9 +683,7 @@ def main() -> int:
                         ARTBIN_MCP_RESOURCE in dynamic_client.inner_text(),
                         "dynamic OAuth allowed resource is not visible",
                     )
-                    dynamic_client.get_by_text(
-                        "redirect URIs (1)", exact=True
-                    ).click()
+                    dynamic_client.get_by_text("redirect URIs (1)", exact=True).click()
                     dynamic_text = dynamic_client.inner_text()
                     for expected in (
                         "authorization_code",
@@ -717,9 +715,9 @@ def main() -> int:
                             f"OAuth audit event is missing: {expected}",
                         )
 
-                    worldview = page.locator(
-                        "#declarative-clients article"
-                    ).filter(has_text="worldview-service")
+                    worldview = page.locator("#declarative-clients article").filter(
+                        has_text="worldview-service"
+                    )
                     worldview.get_by_role(
                         "button", name="generate secret", exact=True
                     ).click()
@@ -809,9 +807,7 @@ def main() -> int:
                     mobile_dynamic = page.locator(
                         ".fourm-oauth-dynamic-table tr"
                     ).filter(has_text="browser-mcp-client")
-                    mobile_dynamic.get_by_text(
-                        "redirect URIs (1)", exact=True
-                    ).click()
+                    mobile_dynamic.get_by_text("redirect URIs (1)", exact=True).click()
                     check(
                         page.evaluate(
                             "document.documentElement.scrollWidth <= innerWidth"

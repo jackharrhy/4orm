@@ -187,12 +187,8 @@ def admin_dashboard(request: Request):
     )
 
 
-@router.get(
-    "/admin/oauth", response_class=HTMLResponse, summary="OAuth administration"
-)
-def admin_oauth_dashboard(
-    request: Request, dynamic_page: int = Query(1, ge=1)
-):
+@router.get("/admin/oauth", response_class=HTMLResponse, summary="OAuth administration")
+def admin_oauth_dashboard(request: Request, dynamic_page: int = Query(1, ge=1)):
     me = require_admin(request)
     with get_engine(request).begin() as conn:
         oauth_admin = get_oauth_admin_inventory(conn, dynamic_page=dynamic_page)

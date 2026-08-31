@@ -64,65 +64,54 @@ def list_oauth_clients(
     if limit is not None:
         client_statement = client_statement.limit(limit).offset(offset)
 
-    clients = [
-        dict(row) for row in conn.execute(client_statement).mappings().all()
-    ]
+    clients = [dict(row) for row in conn.execute(client_statement).mappings().all()]
     by_client = {client["client_id"]: client for client in clients}
     token_stats = {}
     if by_client:
-        stats_statement = (
-            select(
-                oauth2_tokens.c.client_id,
-                func.count(oauth2_tokens.c.id).label("token_count"),
-                func.sum(
+        stats_statement = select(
+            oauth2_tokens.c.client_id,
+            func.count(oauth2_tokens.c.id).label("token_count"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            oauth2_tokens.c.revoked.is_(False),
+                            oauth2_tokens.c.issued_at + oauth2_tokens.c.expires_in
+                            > now,
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("active_token_count"),
+            func.sum(case((oauth2_tokens.c.revoked.is_(True), 1), else_=0)).label(
+                "revoked_token_count"
+            ),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            oauth2_tokens.c.revoked.is_(False),
+                            oauth2_tokens.c.issued_at + oauth2_tokens.c.expires_in
+                            <= now,
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("expired_token_count"),
+            func.count(
+                func.distinct(
                     case(
                         (
-                            and_(
-                                oauth2_tokens.c.revoked.is_(False),
-                                oauth2_tokens.c.issued_at
-                                + oauth2_tokens.c.expires_in
-                                > now,
-                            ),
-                            1,
-                        ),
-                        else_=0,
-                    )
-                ).label("active_token_count"),
-                func.sum(
-                    case((oauth2_tokens.c.revoked.is_(True), 1), else_=0)
-                ).label("revoked_token_count"),
-                func.sum(
-                    case(
-                        (
-                            and_(
-                                oauth2_tokens.c.revoked.is_(False),
-                                oauth2_tokens.c.issued_at
-                                + oauth2_tokens.c.expires_in
-                                <= now,
-                            ),
-                            1,
-                        ),
-                        else_=0,
-                    )
-                ).label("expired_token_count"),
-                func.count(
-                    func.distinct(
-                        case(
-                            (
-                                oauth2_tokens.c.refresh_family_compromised.is_(
-                                    True
-                                ),
-                                oauth2_tokens.c.refresh_family_id,
-                            )
+                            oauth2_tokens.c.refresh_family_compromised.is_(True),
+                            oauth2_tokens.c.refresh_family_id,
                         )
                     )
-                ).label("compromised_family_count"),
-                func.max(oauth2_tokens.c.issued_at).label(
-                    "last_token_issued_at"
-                ),
-            )
-            .group_by(oauth2_tokens.c.client_id)
-        )
+                )
+            ).label("compromised_family_count"),
+            func.max(oauth2_tokens.c.issued_at).label("last_token_issued_at"),
+        ).group_by(oauth2_tokens.c.client_id)
         if registration_source is not None or limit is not None:
             stats_statement = stats_statement.where(
                 oauth2_tokens.c.client_id.in_(by_client)
@@ -316,9 +305,7 @@ def list_oauth_scope_inventory(conn):
             entry["client_count"] += row["client_count"]
             if row["is_enabled"]:
                 entry["enabled_client_count"] += row["client_count"]
-            entry[f"{row['registration_source']}_client_count"] += row[
-                "client_count"
-            ]
+            entry[f"{row['registration_source']}_client_count"] += row["client_count"]
 
     token_scope_rows = (
         conn.execute(
@@ -331,8 +318,7 @@ def list_oauth_scope_inventory(conn):
                             and_(
                                 oauth2_clients.c.is_enabled.is_(True),
                                 oauth2_tokens.c.revoked.is_(False),
-                                oauth2_tokens.c.issued_at
-                                + oauth2_tokens.c.expires_in
+                                oauth2_tokens.c.issued_at + oauth2_tokens.c.expires_in
                                 > now,
                             ),
                             1,
@@ -437,8 +423,7 @@ def get_oauth_admin_summary(conn):
                             and_(
                                 oauth2_clients.c.is_enabled.is_(True),
                                 oauth2_tokens.c.revoked.is_(False),
-                                oauth2_tokens.c.issued_at
-                                + oauth2_tokens.c.expires_in
+                                oauth2_tokens.c.issued_at + oauth2_tokens.c.expires_in
                                 > now,
                             ),
                             1,
@@ -476,9 +461,7 @@ def get_oauth_admin_inventory(
     page = min(max(1, dynamic_page), total_pages)
     offset = (page - 1) * page_size
 
-    declarative_clients = list_oauth_clients(
-        conn, registration_source="declarative"
-    )
+    declarative_clients = list_oauth_clients(conn, registration_source="declarative")
     dynamic_clients = list_oauth_clients(
         conn,
         registration_source="dynamic",
