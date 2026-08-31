@@ -32,6 +32,7 @@ from sqlalchemy import create_engine, insert
 from app.oauth_policy import ARTBIN_ADMIN_SCOPE, ARTBIN_MCP_RESOURCE
 from app.schema import (
     metadata,
+    oauth2_audit_events,
     oauth2_clients,
     oauth2_tokens,
     pages,
@@ -127,18 +128,112 @@ def seed_database(database_url: str) -> None:
                 access_token_lifetime=600,
             )
         )
+        now = int(time.time())
         connection.execute(
-            insert(oauth2_tokens).values(
-                client_id="worldview",
-                user_id=user_id,
-                principal_type="user",
-                subject=str(user_id),
-                grant_type="authorization_code",
-                access_token="browser-verification-token-not-for-production",
-                scope="openid profile",
-                issued_at=int(time.time()),
-                expires_in=3600,
-            )
+            insert(oauth2_tokens),
+            [
+                {
+                    "client_id": "worldview",
+                    "user_id": user_id,
+                    "principal_type": "user",
+                    "subject": str(user_id),
+                    "grant_type": "authorization_code",
+                    "access_token": "browser-verification-token-not-for-production",
+                    "refresh_token": None,
+                    "refresh_family_id": None,
+                    "refresh_family_compromised": False,
+                    "scope": "openid profile",
+                    "audience": "",
+                    "issued_at": now,
+                    "expires_in": 3600,
+                    "revoked": False,
+                },
+                {
+                    "client_id": "browser-mcp-client",
+                    "user_id": user_id,
+                    "principal_type": "user",
+                    "subject": str(user_id),
+                    "grant_type": "authorization_code",
+                    "access_token": "browser-mcp-active-token-not-for-production",
+                    "refresh_token": None,
+                    "refresh_family_id": None,
+                    "refresh_family_compromised": False,
+                    "scope": ARTBIN_ADMIN_SCOPE,
+                    "audience": ARTBIN_MCP_RESOURCE,
+                    "issued_at": now,
+                    "expires_in": 600,
+                    "revoked": False,
+                },
+                {
+                    "client_id": "browser-mcp-client",
+                    "user_id": user_id,
+                    "principal_type": "user",
+                    "subject": str(user_id),
+                    "grant_type": "authorization_code",
+                    "access_token": "browser-mcp-expired-token-not-for-production",
+                    "refresh_token": None,
+                    "refresh_family_id": None,
+                    "refresh_family_compromised": False,
+                    "scope": f"{ARTBIN_ADMIN_SCOPE} legacy:browser",
+                    "audience": ARTBIN_MCP_RESOURCE,
+                    "issued_at": now - 700,
+                    "expires_in": 600,
+                    "revoked": False,
+                },
+                {
+                    "client_id": "worldview-service",
+                    "user_id": None,
+                    "principal_type": "service",
+                    "subject": "worldview-service",
+                    "grant_type": "client_credentials",
+                    "access_token": "browser-service-active-token-not-for-production",
+                    "refresh_token": None,
+                    "refresh_family_id": None,
+                    "refresh_family_compromised": False,
+                    "scope": "artbin:assets:read",
+                    "audience": "",
+                    "issued_at": now,
+                    "expires_in": 600,
+                    "revoked": False,
+                },
+                {
+                    "client_id": "worldview-service",
+                    "user_id": None,
+                    "principal_type": "service",
+                    "subject": "worldview-service",
+                    "grant_type": "client_credentials",
+                    "access_token": "browser-service-revoked-token-not-for-production",
+                    "refresh_token": None,
+                    "refresh_family_id": "browser-compromised-family",
+                    "refresh_family_compromised": True,
+                    "scope": "",
+                    "audience": "",
+                    "issued_at": now,
+                    "expires_in": 600,
+                    "revoked": True,
+                },
+            ],
+        )
+        connection.execute(
+            insert(oauth2_audit_events),
+            [
+                {
+                    "event_type": "client_registered",
+                    "client_id": "browser-mcp-client",
+                    "actor_user_id": None,
+                    "success": True,
+                    "detail": "dynamic public Artbin MCP client",
+                    "source_ip": "",
+                },
+                {
+                    "event_type": "token_request_failed",
+                    "client_id": "browser-mcp-client",
+                    "actor_user_id": user_id,
+                    "success": False,
+                    "detail": "invalid_scope",
+                    "source_ip": "192.0.2.44",
+                },
+            ],
         )
     engine.dispose()
 
@@ -474,20 +569,39 @@ def main() -> int:
                         wait_until="domcontentloaded",
                     )
                     panel = page.locator("#oauth-clients")
-                    panel.get_by_role(
-                        "heading", name="OAuth clients", exact=False
+                    panel.get_by_text("OAuth administration", exact=True).wait_for()
+                    scope_inventory = panel.locator(".fourm-oauth-scope-table")
+                    scope_inventory.get_by_text(
+                        "artbin:assets:content", exact=True
                     ).wait_for()
+                    content_scope = scope_inventory.locator("tr").filter(
+                        has_text="artbin:assets:content"
+                    )
+                    check(
+                        "Worldview service" in content_scope.inner_text()
+                        and "0 / 0" in content_scope.inner_text(),
+                        "defined zero-use scope does not show its client and counts",
+                    )
+                    legacy_scope = scope_inventory.locator("tr").filter(
+                        has_text="legacy:browser"
+                    )
+                    check(
+                        "observed only" in legacy_scope.inner_text().lower(),
+                        "historical scope is not flagged as observed only",
+                    )
                     worldview_login = (
                         panel.locator("article")
                         .filter(has=page.locator("code", has_text="worldview"))
                         .filter(has_not_text="worldview-service")
                     )
-                    worldview_login.get_by_text("token usage", exact=True).click()
+                    worldview_login.get_by_text(
+                        "issued token grants", exact=True
+                    ).click()
                     worldview_login.get_by_text(
                         "Visual Check (@visualcheck)", exact=True
                     ).wait_for()
                     check(
-                        "browser-verification-token" not in panel.inner_text(),
+                        "token-not-for-production" not in panel.inner_text(),
                         "raw access token is visible in OAuth administration",
                     )
                     dynamic_client = panel.locator("article").filter(
@@ -501,6 +615,38 @@ def main() -> int:
                         ARTBIN_MCP_RESOURCE in dynamic_client.inner_text(),
                         "dynamic OAuth allowed resource is not visible",
                     )
+                    dynamic_client.get_by_text(
+                        "capabilities & lifecycle", exact=True
+                    ).click()
+                    dynamic_text = dynamic_client.inner_text()
+                    for expected in (
+                        "authorization_code",
+                        "refresh_token",
+                        "none",
+                        "10 minutes",
+                        "http://127.0.0.1:43127/oauth/callback",
+                        "1 active",
+                        "1 expired",
+                    ):
+                        check(
+                            expected in dynamic_text,
+                            f"dynamic client capability is missing: {expected}",
+                        )
+                    audit = panel.locator(".fourm-oauth-audit-table")
+                    failed_event = audit.locator("tr").filter(
+                        has_text="token request failed"
+                    )
+                    failed_text = failed_event.inner_text().lower()
+                    for expected in (
+                        "browser-mcp-client",
+                        "Visual Check (@visualcheck)",
+                        "failed",
+                        "invalid_scope",
+                    ):
+                        check(
+                            expected.lower() in failed_text,
+                            f"OAuth audit event is missing: {expected}",
+                        )
                     worldview = panel.locator("article").filter(
                         has_text="worldview-service"
                     )
@@ -524,6 +670,9 @@ def main() -> int:
                     )
                     return [
                         "OAuth clients panel visible",
+                        "scope inventory includes defined and observed-only scopes",
+                        "dynamic client capabilities and token lifecycle visible",
+                        "recent failed audit activity visible",
                         "dynamic client provenance and resource visible",
                         "one-time secret result visible",
                         "no horizontal overflow",
@@ -569,6 +718,12 @@ def main() -> int:
                         f"{base_url}/admin#oauth-clients",
                         wait_until="domcontentloaded",
                     )
+                    mobile_dynamic = page.locator("#oauth-clients article").filter(
+                        has_text="browser-mcp-client"
+                    )
+                    mobile_dynamic.get_by_text(
+                        "capabilities & lifecycle", exact=True
+                    ).click()
                     check(
                         page.evaluate(
                             "document.documentElement.scrollWidth <= innerWidth"
