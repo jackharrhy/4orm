@@ -139,12 +139,14 @@ def validate_registration_metadata(metadata: object) -> dict:
 
     if "scope" in metadata:
         requested_scope = metadata["scope"]
-        if not isinstance(requested_scope, str) or requested_scope.split() != [
-            ARTBIN_ADMIN_SCOPE
-        ]:
-            raise _registration_error(
-                f"Dynamic clients may request only {ARTBIN_ADMIN_SCOPE}."
-            )
+        if not isinstance(requested_scope, str):
+            raise _registration_error("scope must be a string.")
+
+        # Registration metadata describes what the client would like to use; it
+        # does not grant those scopes. Some generic OAuth clients submit their
+        # complete scope vocabulary here. Keep registration interoperable while
+        # bounding the accepted client below to Artbin's single administrator
+        # scope. Authorization and token issuance enforce that bound again.
 
     client_name = metadata.get("client_name", "Artbin MCP client")
     if not isinstance(client_name, str):

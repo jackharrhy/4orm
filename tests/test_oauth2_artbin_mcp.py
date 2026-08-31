@@ -141,6 +141,25 @@ def test_dynamic_registration_creates_bounded_public_client(client, test_engine)
     assert row["access_token_lifetime"] == 600
 
 
+def test_dynamic_registration_downscopes_client_scope_metadata(client, test_engine):
+    response = client.post(
+        "/oauth/register",
+        json=_registration(scope="openid profile artbin:admin unknown"),
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["scope"] == ARTBIN_ADMIN_SCOPE
+
+    with test_engine.begin() as conn:
+        registered_scope = conn.execute(
+            select(oauth2_clients.c.scope).where(
+                oauth2_clients.c.client_id == payload["client_id"]
+            )
+        ).scalar_one()
+    assert registered_scope == ARTBIN_ADMIN_SCOPE
+
+
 @pytest.mark.parametrize(
     "redirect_uri",
     [
@@ -195,8 +214,7 @@ def test_registration_rejects_unsafe_redirect_uris(client, redirect_uri):
         ),
         ({"grant_types": ["client_credentials"]}, "invalid_client_metadata"),
         ({"response_types": ["token"]}, "invalid_client_metadata"),
-        ({"scope": "openid artbin:admin"}, "invalid_client_metadata"),
-        ({"scope": "artbin:admin unknown"}, "invalid_client_metadata"),
+        ({"scope": [ARTBIN_ADMIN_SCOPE]}, "invalid_client_metadata"),
     ],
 )
 def test_registration_rejects_unsupported_security_metadata(
