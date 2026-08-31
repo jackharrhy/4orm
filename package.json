@@ -9,17 +9,17 @@
     "precheck": "npm run format && npm run typecheck && npm run build && uv run --group dev ruff check . && uv run --group dev pytest tests/ -v && go test ./..."
   },
   "devDependencies": {
-    "@codemirror/commands": "^6.10.3",
+    "@codemirror/commands": "^6.11.0",
     "@codemirror/lang-css": "^6.3.1",
-    "@codemirror/lang-html": "^6.4.11",
-    "@codemirror/lang-markdown": "^6.5.0",
-    "@codemirror/state": "^6.6.0",
-    "@codemirror/view": "^6.41.0",
+    "@codemirror/lang-html": "^6.4.12",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.9",
     "@lezer/highlight": "^1.2.3",
     "codemirror": "^6.0.2",
-    "esbuild": "^0.28.0",
-    "prettier": "^3.8.1",
-    "prettier-plugin-jinja-template": "^2.1.0",
-    "typescript": "^6.0.2"
+    "esbuild": "^0.28.2",
+    "prettier": "^3.9.6",
+    "prettier-plugin-jinja-template": "^2.2.0",
+    "typescript": "^7.0.2"
   }
 }
