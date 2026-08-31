@@ -7,11 +7,13 @@ from tests.conftest import make_test_user
 def test_admin_requires_login(client):
     r = client.get("/admin")
     assert r.status_code == 403
+    assert client.get("/admin/oauth").status_code == 403
 
 
 def test_admin_requires_admin_role(authed_client):
     r = authed_client.get("/admin")
     assert r.status_code == 403
+    assert authed_client.get("/admin/oauth").status_code == 403
 
 
 def test_admin_dashboard(authed_client, test_engine, seed_user):

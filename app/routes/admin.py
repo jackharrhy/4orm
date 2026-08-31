@@ -2,7 +2,7 @@
 
 import random
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func, insert, select, update
 
@@ -15,7 +15,7 @@ from app.deps import (
     require_admin,
     templates,
 )
-from app.oauth_client_admin import get_oauth_admin_inventory
+from app.oauth_client_admin import get_oauth_admin_inventory, get_oauth_admin_summary
 from app.queries.admin import delete_user_prune, delete_user_reparent
 from app.queries.site import get_site_banner
 from app.queries.users import create_password_reset_token, get_user_by_id
@@ -155,7 +155,7 @@ def admin_dashboard(request: Request):
         )
         site_banner = get_site_banner(conn)
 
-        oauth_admin = get_oauth_admin_inventory(conn)
+        oauth_summary = get_oauth_admin_summary(conn)
 
     scheduler = getattr(request.app.state, "backup_scheduler", None)
     backup_summary = None
@@ -182,8 +182,24 @@ def admin_dashboard(request: Request):
             "recent_posts": recent_posts,
             "backup_summary": backup_summary,
             "site_banner_settings": site_banner,
-            "oauth_admin": oauth_admin,
+            "oauth_summary": oauth_summary,
         },
+    )
+
+
+@router.get(
+    "/admin/oauth", response_class=HTMLResponse, summary="OAuth administration"
+)
+def admin_oauth_dashboard(
+    request: Request, dynamic_page: int = Query(1, ge=1)
+):
+    me = require_admin(request)
+    with get_engine(request).begin() as conn:
+        oauth_admin = get_oauth_admin_inventory(conn, dynamic_page=dynamic_page)
+    return templates.TemplateResponse(
+        request,
+        "admin_oauth.html",
+        {"me": me, "oauth_admin": oauth_admin},
     )
 
 

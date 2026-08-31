@@ -230,8 +230,13 @@ def test_admin_token_activity_identifies_human_and_service_principals(
         )
     login_as(client, "admin")
 
-    response = client.get("/admin")
+    dashboard = client.get("/admin")
+    assert dashboard.status_code == 200
+    assert 'href="/admin/oauth"' in dashboard.text
+    assert "dynamic registrations are separated" in dashboard.text
+    assert "worldview-service" not in dashboard.text
 
+    response = client.get("/admin/oauth")
     assert response.status_code == 200
     assert "admin (@admin)" in response.text
     assert "worldview-service" in response.text

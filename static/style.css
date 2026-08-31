@@ -428,10 +428,15 @@ button:active {
 .fourm-shell .fourm-oauth-audit-table {
   min-width: 900px;
 }
+.fourm-shell .fourm-oauth-dynamic-table {
+  min-width: 900px;
+}
 .fourm-shell .fourm-oauth-scope-table th,
 .fourm-shell .fourm-oauth-scope-table td,
 .fourm-shell .fourm-oauth-audit-table th,
 .fourm-shell .fourm-oauth-audit-table td,
+.fourm-shell .fourm-oauth-dynamic-table th,
+.fourm-shell .fourm-oauth-dynamic-table td,
 .fourm-shell .fourm-token-activity th,
 .fourm-shell .fourm-token-activity td {
   padding: 6px 8px;
@@ -441,6 +446,7 @@ button:active {
 }
 .fourm-shell .fourm-oauth-scope-table th,
 .fourm-shell .fourm-oauth-audit-table th,
+.fourm-shell .fourm-oauth-dynamic-table th,
 .fourm-shell .fourm-token-activity th {
   background: #f1f1f1;
   white-space: nowrap;
@@ -450,6 +456,28 @@ button:active {
 }
 .fourm-shell .fourm-oauth-audit {
   margin-top: 1rem;
+}
+.fourm-shell .fourm-oauth-page-status {
+  margin-top: 0.65rem;
+  color: #555;
+  font-size: 0.82rem;
+}
+.fourm-shell .fourm-oauth-table-details {
+  margin-top: 6px;
+}
+.fourm-shell .fourm-oauth-table-details > summary {
+  cursor: pointer;
+}
+.fourm-shell .fourm-oauth-pagination {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  text-align: center;
+}
+.fourm-shell .fourm-oauth-pagination > :last-child {
+  text-align: right;
 }
 .fourm-shell .fourm-secret-result {
   margin-top: 0.75rem;
@@ -507,12 +535,14 @@ button:active {
   }
   .fourm-shell .fourm-oauth-scope-table,
   .fourm-shell .fourm-oauth-audit-table,
+  .fourm-shell .fourm-oauth-dynamic-table,
   .fourm-shell .fourm-token-activity .fourm-data-table {
     display: block;
     min-width: 0;
   }
   .fourm-shell .fourm-oauth-scope-table thead,
   .fourm-shell .fourm-oauth-audit-table thead,
+  .fourm-shell .fourm-oauth-dynamic-table thead,
   .fourm-shell .fourm-token-activity thead {
     display: none;
   }
@@ -522,6 +552,9 @@ button:active {
   .fourm-shell .fourm-oauth-audit-table tbody,
   .fourm-shell .fourm-oauth-audit-table tr,
   .fourm-shell .fourm-oauth-audit-table td,
+  .fourm-shell .fourm-oauth-dynamic-table tbody,
+  .fourm-shell .fourm-oauth-dynamic-table tr,
+  .fourm-shell .fourm-oauth-dynamic-table td,
   .fourm-shell .fourm-token-activity tbody,
   .fourm-shell .fourm-token-activity tr,
   .fourm-shell .fourm-token-activity td {
@@ -529,12 +562,14 @@ button:active {
   }
   .fourm-shell .fourm-oauth-scope-table tr,
   .fourm-shell .fourm-oauth-audit-table tr,
+  .fourm-shell .fourm-oauth-dynamic-table tr,
   .fourm-shell .fourm-token-activity tr {
     padding: 4px 0;
     border-bottom: 1px solid #aaa;
   }
   .fourm-shell .fourm-oauth-scope-table td,
   .fourm-shell .fourm-oauth-audit-table td,
+  .fourm-shell .fourm-oauth-dynamic-table td,
   .fourm-shell .fourm-token-activity td {
     display: grid;
     grid-template-columns: 92px minmax(0, 1fr);
@@ -544,12 +579,19 @@ button:active {
   }
   .fourm-shell .fourm-oauth-scope-table td::before,
   .fourm-shell .fourm-oauth-audit-table td::before,
+  .fourm-shell .fourm-oauth-dynamic-table td::before,
   .fourm-shell .fourm-token-activity td::before {
     content: attr(data-label);
     color: #666;
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
+  }
+  .fourm-shell .fourm-oauth-pagination {
+    grid-template-columns: 1fr;
+  }
+  .fourm-shell .fourm-oauth-pagination > :last-child {
+    text-align: center;
   }
 }
 .fourm-shell .fourm-chat-empty {

@@ -6,7 +6,7 @@ from sqlalchemy import insert
 
 from app.oauth_client_admin import get_oauth_admin_inventory
 from app.schema import oauth2_audit_events, oauth2_clients, oauth2_tokens
-from tests.conftest import make_admin_user
+from tests.conftest import login_as, make_admin_user
 
 
 def test_oauth_admin_inventory_combines_policy_capabilities_and_history(test_engine):
@@ -141,3 +141,94 @@ def test_oauth_admin_inventory_combines_policy_capabilities_and_history(test_eng
     assert inventory["events"][0]["success"] is False
     assert inventory["events"][0]["source_ip"] == "192.0.2.10"
     assert inventory["events"][1]["actor_label"] == "system"
+
+
+def test_dynamic_oauth_clients_are_paginated_separately(client, test_engine):
+    with test_engine.begin() as conn:
+        make_admin_user(conn, "pagination-admin")
+        conn.execute(
+            insert(oauth2_clients).values(
+                client_id="managed-client",
+                client_name="Managed client",
+                registration_source="declarative",
+                scope="openid",
+            )
+        )
+        conn.execute(
+            insert(oauth2_clients),
+            [
+                {
+                    "client_id": f"codex-registration-{index:03d}",
+                    "client_name": f"Codex session {index:03d}",
+                    "registration_source": "dynamic",
+                    "scope": "artbin:admin",
+                }
+                for index in range(27)
+            ],
+        )
+
+        first_page = get_oauth_admin_inventory(conn)
+        second_page = get_oauth_admin_inventory(conn, dynamic_page=2)
+
+    assert [client["client_id"] for client in first_page["declarative_clients"]] == [
+        "managed-client"
+    ]
+    assert len(first_page["dynamic_clients"]) == 25
+    assert first_page["dynamic_clients"][0]["client_id"] == (
+        "codex-registration-026"
+    )
+    assert first_page["dynamic_pagination"] == {
+        "page": 1,
+        "page_size": 25,
+        "total_items": 27,
+        "total_pages": 2,
+        "first_item": 1,
+        "last_item": 25,
+        "has_previous": False,
+        "has_next": True,
+        "previous_page": 0,
+        "next_page": 2,
+    }
+    assert [client["client_id"] for client in second_page["dynamic_clients"]] == [
+        "codex-registration-001",
+        "codex-registration-000",
+    ]
+    assert second_page["dynamic_pagination"]["first_item"] == 26
+    assert second_page["dynamic_pagination"]["last_item"] == 27
+
+    scopes = {scope["name"]: scope for scope in first_page["scopes"]}
+    assert scopes["openid"]["client_count"] == 1
+    assert scopes["openid"]["declarative_client_count"] == 1
+    assert scopes["artbin:admin"]["client_count"] == 27
+    assert scopes["artbin:admin"]["dynamic_client_count"] == 27
+    login_as(client, "pagination-admin")
+
+    dashboard = client.get("/admin")
+    assert dashboard.status_code == 200
+    assert "27" in dashboard.text
+    assert 'href="/admin/oauth"' in dashboard.text
+    assert "codex-registration-026" not in dashboard.text
+
+    page_one = client.get("/admin/oauth")
+    assert page_one.status_code == 200
+    assert "dynamic registrations (27)" in page_one.text
+    assert "showing 1\u201325 of" in page_one.text
+    assert "codex-registration-026" in page_one.text
+    assert "codex-registration-001" not in page_one.text
+    assert "older registrations" in page_one.text
+
+    page_two = client.get("/admin/oauth?dynamic_page=2")
+    assert page_two.status_code == 200
+    assert "showing 26\u201327 of" in page_two.text
+    assert "page 2 of 2" in page_two.text
+    assert "codex-registration-001" in page_two.text
+    assert "codex-registration-026" not in page_two.text
+
+    toggled = client.post(
+        "/admin/oauth/clients/codex-registration-001/toggle-enabled?dynamic_page=2",
+        follow_redirects=False,
+    )
+    assert toggled.status_code == 303
+    assert toggled.headers["location"] == (
+        "/admin/oauth?dynamic_page=2#dynamic-clients"
+    )

@@ -543,10 +543,14 @@ def test_admin_can_inventory_revoke_and_disable_dynamic_client(client, test_engi
         )
     login_as(client, "oauth-admin", password="admin-pass")
 
-    inventory = client.get("/admin")
+    dashboard = client.get("/admin")
+    assert dashboard.status_code == 200
+    assert 'href="/admin/oauth"' in dashboard.text
+
+    inventory = client.get("/admin/oauth")
     assert inventory.status_code == 200
     assert "Managed MCP client" in inventory.text
-    assert "dynamic" in inventory.text
+    assert "dynamic registrations" in inventory.text
     assert ARTBIN_MCP_RESOURCE in inventory.text
 
     revoked = client.post(
@@ -554,6 +558,7 @@ def test_admin_can_inventory_revoke_and_disable_dynamic_client(client, test_engi
         follow_redirects=False,
     )
     assert revoked.status_code == 303
+    assert revoked.headers["location"] == "/admin/oauth"
     introspected = client.post(
         "/oauth/introspect",
         data={"token": "dynamic-token-to-revoke"},

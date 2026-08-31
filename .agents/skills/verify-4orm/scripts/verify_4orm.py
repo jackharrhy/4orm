@@ -128,6 +128,27 @@ def seed_database(database_url: str) -> None:
                 access_token_lifetime=600,
             )
         )
+        connection.execute(
+            insert(oauth2_clients),
+            [
+                {
+                    "client_id": f"codex-browser-{index:03d}",
+                    "client_name": f"Codex session {index:03d}",
+                    "client_kind": "public",
+                    "registration_source": "dynamic",
+                    "redirect_uris": (
+                        f"http://127.0.0.1:{44000 + index}/oauth/callback"
+                    ),
+                    "scope": ARTBIN_ADMIN_SCOPE,
+                    "allowed_resources": ARTBIN_MCP_RESOURCE,
+                    "grant_types": "authorization_code refresh_token",
+                    "response_types": "code",
+                    "token_endpoint_auth_method": "none",
+                    "access_token_lifetime": 600,
+                }
+                for index in range(27)
+            ],
+        )
         now = int(time.time())
         connection.execute(
             insert(oauth2_tokens),
@@ -568,9 +589,31 @@ def main() -> int:
                         f"{base_url}/admin#oauth-clients",
                         wait_until="domcontentloaded",
                     )
-                    panel = page.locator("#oauth-clients")
-                    panel.get_by_text("OAuth administration", exact=True).wait_for()
-                    scope_inventory = panel.locator(".fourm-oauth-scope-table")
+                    dashboard_panel = page.locator("#oauth-clients")
+                    dashboard_panel.get_by_text(
+                        "OAuth administration", exact=True
+                    ).wait_for()
+                    check(
+                        "28" in dashboard_panel.inner_text(),
+                        "dashboard OAuth summary omits dynamic client count",
+                    )
+                    check(
+                        "codex-browser-026" not in dashboard_panel.inner_text(),
+                        "dashboard rendered dynamic clients instead of a summary",
+                    )
+                    page.screenshot(
+                        path=evidence / "04-oauth-admin-dashboard-desktop.png",
+                        full_page=True,
+                    )
+                    dashboard_panel.get_by_role(
+                        "link", name="open OAuth administration", exact=False
+                    ).click()
+                    page.get_by_role(
+                        "heading", name="OAuth administration", exact=True
+                    ).wait_for()
+                    oauth_page = page.locator("main")
+
+                    scope_inventory = page.locator(".fourm-oauth-scope-table")
                     scope_inventory.get_by_text(
                         "artbin:assets:content", exact=True
                     ).wait_for()
@@ -578,9 +621,17 @@ def main() -> int:
                         has_text="artbin:assets:content"
                     )
                     check(
-                        "Worldview service" in content_scope.inner_text()
+                        "1 configured" in content_scope.inner_text()
                         and "0 / 0" in content_scope.inner_text(),
-                        "defined zero-use scope does not show its client and counts",
+                        "defined zero-use scope omits aggregate client counts",
+                    )
+                    admin_scope = scope_inventory.locator("tr").filter(
+                        has_text=ARTBIN_ADMIN_SCOPE
+                    )
+                    check(
+                        "28 dynamic" in admin_scope.inner_text(),
+                        "scope inventory expands dynamic clients instead of "
+                        "counting them",
                     )
                     legacy_scope = scope_inventory.locator("tr").filter(
                         has_text="legacy:browser"
@@ -589,8 +640,9 @@ def main() -> int:
                         "observed only" in legacy_scope.inner_text().lower(),
                         "historical scope is not flagged as observed only",
                     )
+
                     worldview_login = (
-                        panel.locator("article")
+                        page.locator("#declarative-clients article")
                         .filter(has=page.locator("code", has_text="worldview"))
                         .filter(has_not_text="worldview-service")
                     )
@@ -601,22 +653,38 @@ def main() -> int:
                         "Visual Check (@visualcheck)", exact=True
                     ).wait_for()
                     check(
-                        "token-not-for-production" not in panel.inner_text(),
+                        "token-not-for-production" not in oauth_page.inner_text(),
                         "raw access token is visible in OAuth administration",
                     )
-                    dynamic_client = panel.locator("article").filter(
-                        has_text="browser-mcp-client"
+
+                    dynamic_table = page.locator(".fourm-oauth-dynamic-table")
+                    check(
+                        dynamic_table.locator("tbody tr").count() == 25,
+                        "first dynamic registration page does not contain 25 rows",
                     )
                     check(
-                        "dynamic" in dynamic_client.inner_text(),
-                        "dynamic OAuth registration source is not visible",
+                        "codex-browser-026" in dynamic_table.inner_text()
+                        and "browser-mcp-client" not in dynamic_table.inner_text(),
+                        "dynamic registrations are not newest-first and paginated",
+                    )
+                    page.get_by_role(
+                        "link", name="older registrations", exact=False
+                    ).click()
+                    page.wait_for_url("**/admin/oauth?dynamic_page=2#dynamic-clients")
+                    dynamic_table = page.locator(".fourm-oauth-dynamic-table")
+                    check(
+                        dynamic_table.locator("tbody tr").count() == 3,
+                        "second dynamic registration page does not contain 3 rows",
+                    )
+                    dynamic_client = dynamic_table.locator("tr").filter(
+                        has_text="browser-mcp-client"
                     )
                     check(
                         ARTBIN_MCP_RESOURCE in dynamic_client.inner_text(),
                         "dynamic OAuth allowed resource is not visible",
                     )
                     dynamic_client.get_by_text(
-                        "capabilities & lifecycle", exact=True
+                        "redirect URIs (1)", exact=True
                     ).click()
                     dynamic_text = dynamic_client.inner_text()
                     for expected in (
@@ -632,7 +700,8 @@ def main() -> int:
                             expected in dynamic_text,
                             f"dynamic client capability is missing: {expected}",
                         )
-                    audit = panel.locator(".fourm-oauth-audit-table")
+
+                    audit = page.locator(".fourm-oauth-audit-table")
                     failed_event = audit.locator("tr").filter(
                         has_text="token request failed"
                     )
@@ -647,9 +716,10 @@ def main() -> int:
                             expected.lower() in failed_text,
                             f"OAuth audit event is missing: {expected}",
                         )
-                    worldview = panel.locator("article").filter(
-                        has_text="worldview-service"
-                    )
+
+                    worldview = page.locator(
+                        "#declarative-clients article"
+                    ).filter(has_text="worldview-service")
                     worldview.get_by_role(
                         "button", name="generate secret", exact=True
                     ).click()
@@ -669,11 +739,12 @@ def main() -> int:
                         "OAuth admin has horizontal overflow",
                     )
                     return [
-                        "OAuth clients panel visible",
-                        "scope inventory includes defined and observed-only scopes",
-                        "dynamic client capabilities and token lifecycle visible",
+                        "admin dashboard links to dedicated OAuth workspace",
+                        "scope inventory uses aggregate dynamic-client counts",
+                        "dynamic clients are separated and paginated newest-first",
+                        "dynamic client protocol and token lifecycle visible",
+                        "managed client token grants remain visible",
                         "recent failed audit activity visible",
-                        "dynamic client provenance and resource visible",
                         "one-time secret result visible",
                         "no horizontal overflow",
                     ]
@@ -718,11 +789,28 @@ def main() -> int:
                         f"{base_url}/admin#oauth-clients",
                         wait_until="domcontentloaded",
                     )
-                    mobile_dynamic = page.locator("#oauth-clients article").filter(
-                        has_text="browser-mcp-client"
+                    page.locator("#oauth-clients").get_by_role(
+                        "link", name="open OAuth administration", exact=False
+                    ).wait_for()
+                    check(
+                        page.evaluate(
+                            "document.documentElement.scrollWidth <= innerWidth"
+                        ),
+                        "mobile admin dashboard has horizontal overflow",
                     )
+                    page.screenshot(
+                        path=evidence / "08-oauth-admin-dashboard-mobile.png",
+                        full_page=True,
+                    )
+                    page.goto(
+                        f"{base_url}/admin/oauth?dynamic_page=2#dynamic-clients",
+                        wait_until="domcontentloaded",
+                    )
+                    mobile_dynamic = page.locator(
+                        ".fourm-oauth-dynamic-table tr"
+                    ).filter(has_text="browser-mcp-client")
                     mobile_dynamic.get_by_text(
-                        "capabilities & lifecycle", exact=True
+                        "redirect URIs (1)", exact=True
                     ).click()
                     check(
                         page.evaluate(
@@ -748,6 +836,7 @@ def main() -> int:
                         "mobile homepage fits viewport",
                         "mobile settings fits viewport",
                         "mobile OAuth consent fits viewport",
+                        "mobile admin OAuth handoff fits viewport",
                         "mobile OAuth admin fits viewport",
                         "mobile design reference fits viewport",
                     ]
