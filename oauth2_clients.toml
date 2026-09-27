@@ -33,6 +33,8 @@ scope = "openid profile"
 client_name = "Worldview"
 redirect_uris = [
     "https://worldview.harrhy.xyz/auth/callback",
+    "https://newport.hedgehog-python.ts.net:8444/auth/callback",
+    "https://newport.hedgehog-python.ts.net:8457/auth/callback",
     "http://localhost:8789/auth/callback",
 ]
 scope = "openid profile"

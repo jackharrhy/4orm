@@ -22,6 +22,14 @@ def test_repository_registers_worldview_client():
     assert worldview["grant_types"] == "authorization_code"
     assert worldview["token_endpoint_auth_method"] == "none"
     assert "https://worldview.harrhy.xyz/auth/callback" in worldview["redirect_uris"]
+    assert (
+        "https://newport.hedgehog-python.ts.net:8444/auth/callback"
+        in worldview["redirect_uris"]
+    )
+    assert (
+        "https://newport.hedgehog-python.ts.net:8457/auth/callback"
+        in worldview["redirect_uris"]
+    )
     assert "http://localhost:8789/auth/callback" in worldview["redirect_uris"]
 
     service = config["clients"]["worldview-service"]
