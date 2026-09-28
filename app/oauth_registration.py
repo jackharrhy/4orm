@@ -1,4 +1,4 @@
-"""Bounded RFC 7591 dynamic registration for Artbin MCP clients."""
+"""Bounded RFC 7591 dynamic registration for MCP clients."""
 
 from __future__ import annotations
 
@@ -159,18 +159,16 @@ def validate_registration_metadata(metadata: object) -> dict:
         WORLDVIEW_MCP_RESOURCE,
     }:
         raise _registration_error("resource must name a supported MCP endpoint.")
-    if (
-        ARTBIN_ADMIN_SCOPE in requested_scopes
-        and WORLDVIEW_ADMIN_SCOPE in requested_scopes
-    ):
-        raise _registration_error("An MCP client may request only one service.")
-    worldview = (
-        requested_resource == WORLDVIEW_MCP_RESOURCE
-        or WORLDVIEW_ADMIN_SCOPE in requested_scopes
-    )
-    if (worldview and requested_resource == ARTBIN_MCP_RESOURCE) or (
-        requested_resource == WORLDVIEW_MCP_RESOURCE
-        and ARTBIN_ADMIN_SCOPE in requested_scopes
+    has_artbin = ARTBIN_ADMIN_SCOPE in requested_scopes
+    has_worldview = WORLDVIEW_ADMIN_SCOPE in requested_scopes
+    if requested_resource == WORLDVIEW_MCP_RESOURCE:
+        worldview = True
+    elif requested_resource == ARTBIN_MCP_RESOURCE:
+        worldview = False
+    else:
+        worldview = has_worldview and not has_artbin
+    if (worldview and has_artbin and not has_worldview) or (
+        not worldview and has_worldview and not has_artbin
     ):
         raise _registration_error("scope and resource disagree.")
 

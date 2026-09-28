@@ -176,6 +176,26 @@ def test_worldview_registration_is_bound_to_its_resource(client, test_engine):
     )
     assert conflicting.status_code == 400
 
+    broad = client.post(
+        "/oauth/register",
+        json=_registration(
+            scope=f"openid profile {ARTBIN_ADMIN_SCOPE} {WORLDVIEW_ADMIN_SCOPE}",
+            resource=WORLDVIEW_MCP_RESOURCE,
+        ),
+    )
+    assert broad.status_code == 201
+    assert broad.json()["scope"] == f"openid {WORLDVIEW_ADMIN_SCOPE}"
+
+    artbin_broad = client.post(
+        "/oauth/register",
+        json=_registration(
+            scope=f"openid profile {ARTBIN_ADMIN_SCOPE} {WORLDVIEW_ADMIN_SCOPE}",
+            resource=ARTBIN_MCP_RESOURCE,
+        ),
+    )
+    assert artbin_broad.status_code == 201
+    assert artbin_broad.json()["scope"] == ARTBIN_ADMIN_SCOPE
+
 
 def test_dynamic_registration_downscopes_client_scope_metadata(client, test_engine):
     response = client.post(
