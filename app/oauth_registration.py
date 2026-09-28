@@ -9,7 +9,12 @@ from urllib.parse import urlsplit
 
 from sqlalchemy import insert
 
-from app.oauth_policy import ARTBIN_ADMIN_SCOPE, ARTBIN_MCP_RESOURCE
+from app.oauth_policy import (
+    ARTBIN_ADMIN_SCOPE,
+    ARTBIN_MCP_RESOURCE,
+    WORLDVIEW_ADMIN_SCOPE,
+    WORLDVIEW_MCP_RESOURCE,
+)
 from app.schema import oauth2_audit_events, oauth2_clients
 
 _MAX_REDIRECT_URIS = 10
@@ -145,10 +150,33 @@ def validate_registration_metadata(metadata: object) -> dict:
         # Registration metadata describes what the client would like to use; it
         # does not grant those scopes. Some generic OAuth clients submit their
         # complete scope vocabulary here. Keep registration interoperable while
-        # bounding the accepted client below to Artbin's single administrator
-        # scope. Authorization and token issuance enforce that bound again.
+        # bounding the accepted client to one MCP resource. Authorization and
+        # token issuance enforce that bound again.
+    requested_scopes = set(str(metadata.get("scope", "")).split())
+    requested_resource = metadata.get("resource")
+    if requested_resource is not None and requested_resource not in {
+        ARTBIN_MCP_RESOURCE,
+        WORLDVIEW_MCP_RESOURCE,
+    }:
+        raise _registration_error("resource must name a supported MCP endpoint.")
+    if (
+        ARTBIN_ADMIN_SCOPE in requested_scopes
+        and WORLDVIEW_ADMIN_SCOPE in requested_scopes
+    ):
+        raise _registration_error("An MCP client may request only one service.")
+    worldview = (
+        requested_resource == WORLDVIEW_MCP_RESOURCE
+        or WORLDVIEW_ADMIN_SCOPE in requested_scopes
+    )
+    if (worldview and requested_resource == ARTBIN_MCP_RESOURCE) or (
+        requested_resource == WORLDVIEW_MCP_RESOURCE
+        and ARTBIN_ADMIN_SCOPE in requested_scopes
+    ):
+        raise _registration_error("scope and resource disagree.")
 
-    client_name = metadata.get("client_name", "Artbin MCP client")
+    client_name = metadata.get(
+        "client_name", "Worldview MCP client" if worldview else "Artbin MCP client"
+    )
     if not isinstance(client_name, str):
         raise _registration_error("client_name must be a string.")
     client_name = client_name.strip()
@@ -163,14 +191,17 @@ def validate_registration_metadata(metadata: object) -> dict:
         "grant_types": grant_types,
         "response_types": response_types,
         "token_endpoint_auth_method": "none",
-        "scope": ARTBIN_ADMIN_SCOPE,
+        "scope": f"openid {WORLDVIEW_ADMIN_SCOPE}" if worldview else ARTBIN_ADMIN_SCOPE,
+        "resource": WORLDVIEW_MCP_RESOURCE if worldview else ARTBIN_MCP_RESOURCE,
     }
 
 
 def register_dynamic_client(conn, metadata: object) -> dict:
-    """Persist and return one Artbin-scoped public client registration."""
+    """Persist and return one resource-scoped public MCP client registration."""
     accepted = validate_registration_metadata(metadata)
-    client_id = f"artbin-mcp-{secrets.token_urlsafe(18)}"
+    worldview = accepted["resource"] == WORLDVIEW_MCP_RESOURCE
+    client_prefix = "worldview" if worldview else "artbin"
+    client_id = f"{client_prefix}-mcp-{secrets.token_urlsafe(18)}"
     conn.execute(
         insert(oauth2_clients).values(
             client_id=client_id,
@@ -180,8 +211,8 @@ def register_dynamic_client(conn, metadata: object) -> dict:
             registration_source="dynamic",
             subject="",
             redirect_uris="\n".join(accepted["redirect_uris"]),
-            scope=ARTBIN_ADMIN_SCOPE,
-            allowed_resources=ARTBIN_MCP_RESOURCE,
+            scope=accepted["scope"],
+            allowed_resources=accepted["resource"],
             grant_types=" ".join(accepted["grant_types"]),
             response_types="code",
             token_endpoint_auth_method="none",
@@ -192,7 +223,10 @@ def register_dynamic_client(conn, metadata: object) -> dict:
         insert(oauth2_audit_events).values(
             event_type="client_registered",
             client_id=client_id,
-            detail="dynamic public Artbin MCP client",
+            detail=f"dynamic public {client_prefix} MCP client",
         )
     )
-    return {"client_id": client_id, **accepted}
+    return {
+        "client_id": client_id,
+        **{key: value for key, value in accepted.items() if key != "resource"},
+    }

@@ -6,6 +6,8 @@ from authlib.oauth2.rfc6749.errors import OAuth2Error
 
 ARTBIN_ADMIN_SCOPE = "artbin:admin"
 ARTBIN_MCP_RESOURCE = "https://artbin.jackharrhy.dev/mcp"
+WORLDVIEW_ADMIN_SCOPE = "worldview:admin"
+WORLDVIEW_MCP_RESOURCE = "https://worldview.harrhy.xyz/mcp"
 
 
 @dataclass(frozen=True)
@@ -32,6 +34,11 @@ OAUTH_SCOPE_DEFINITIONS = (
         ARTBIN_ADMIN_SCOPE,
         "Administer Artbin through its MCP resource.",
         "Artbin MCP",
+    ),
+    OAuthScopeDefinition(
+        WORLDVIEW_ADMIN_SCOPE,
+        "Administer accessible Worldview projects through MCP.",
+        "Worldview MCP",
     ),
     OAuthScopeDefinition(
         "artbin:assets:read",

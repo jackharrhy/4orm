@@ -62,6 +62,16 @@ token_endpoint_auth_method = "client_secret_basic"
 client_kind = "resource_server"
 access_token_lifetime = 600
 
+[clients.worldview-server]
+client_name = "Worldview MCP resource server"
+redirect_uris = []
+scope = ""
+grant_types = ""
+response_types = ""
+token_endpoint_auth_method = "client_secret_basic"
+client_kind = "resource_server"
+access_token_lifetime = 600
+
 [clients.cli]
 client_name = "4orm CLI"
 redirect_uris = [

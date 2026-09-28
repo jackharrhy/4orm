@@ -8,7 +8,12 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from sqlalchemy import insert, select
 
-from app.oauth_policy import ARTBIN_ADMIN_SCOPE, ARTBIN_MCP_RESOURCE
+from app.oauth_policy import (
+    ARTBIN_ADMIN_SCOPE,
+    ARTBIN_MCP_RESOURCE,
+    WORLDVIEW_ADMIN_SCOPE,
+    WORLDVIEW_MCP_RESOURCE,
+)
 from app.schema import (
     oauth2_authorization_codes,
     oauth2_clients,
@@ -106,7 +111,10 @@ def test_metadata_advertises_artbin_scope_resource_and_registration(client):
 
     assert metadata["registration_endpoint"].endswith("/oauth/register")
     assert ARTBIN_ADMIN_SCOPE in metadata["scopes_supported"]
-    assert metadata["protected_resources"] == [ARTBIN_MCP_RESOURCE]
+    assert metadata["protected_resources"] == [
+        ARTBIN_MCP_RESOURCE,
+        WORLDVIEW_MCP_RESOURCE,
+    ]
     assert metadata["code_challenge_methods_supported"] == ["S256"]
 
 
@@ -139,6 +147,34 @@ def test_dynamic_registration_creates_bounded_public_client(client, test_engine)
     assert row["scope"] == ARTBIN_ADMIN_SCOPE
     assert row["allowed_resources"] == ARTBIN_MCP_RESOURCE
     assert row["access_token_lifetime"] == 600
+
+
+def test_worldview_registration_is_bound_to_its_resource(client, test_engine):
+    response = client.post(
+        "/oauth/register",
+        json=_registration(scope=f"openid {WORLDVIEW_ADMIN_SCOPE}"),
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["client_id"].startswith("worldview-mcp-")
+    assert payload["scope"] == f"openid {WORLDVIEW_ADMIN_SCOPE}"
+    with test_engine.begin() as conn:
+        row = (
+            conn.execute(
+                select(oauth2_clients).where(
+                    oauth2_clients.c.client_id == payload["client_id"]
+                )
+            )
+            .mappings()
+            .one()
+        )
+    assert row["allowed_resources"] == WORLDVIEW_MCP_RESOURCE
+
+    conflicting = client.post(
+        "/oauth/register",
+        json=_registration(resource=WORLDVIEW_MCP_RESOURCE),
+    )
+    assert conflicting.status_code == 400
 
 
 def test_dynamic_registration_downscopes_client_scope_metadata(client, test_engine):
