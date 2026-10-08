@@ -132,7 +132,7 @@ def test_oauth_admin_inventory_combines_policy_capabilities_and_history(test_eng
         "dynamic_clients": 1,
         "active_tokens": 1,
         "token_records": 4,
-        "defined_scopes": 6,
+        "defined_scopes": 7,
     }
     assert inventory["events"][0]["event_label"] == "token request failed"
     assert inventory["events"][0]["actor_label"] == (

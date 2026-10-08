@@ -8,6 +8,8 @@ ARTBIN_ADMIN_SCOPE = "artbin:admin"
 ARTBIN_MCP_RESOURCE = "https://artbin.jackharrhy.dev/mcp"
 WORLDVIEW_ADMIN_SCOPE = "worldview:admin"
 WORLDVIEW_MCP_RESOURCE = "https://worldview.harrhy.xyz/mcp"
+MAPS_ADMIN_SCOPE = "maps:admin"
+MAPS_MCP_RESOURCE = "https://maps.jackharrhy.dev/mcp"
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,11 @@ OAUTH_SCOPE_DEFINITIONS = (
         WORLDVIEW_ADMIN_SCOPE,
         "Administer accessible Worldview projects through MCP.",
         "Worldview MCP",
+    ),
+    OAuthScopeDefinition(
+        MAPS_ADMIN_SCOPE,
+        "Administer accessible Tea Maps projects through MCP.",
+        "Tea Maps MCP",
     ),
     OAuthScopeDefinition(
         "artbin:assets:read",

@@ -12,6 +12,8 @@ from sqlalchemy import insert
 from app.oauth_policy import (
     ARTBIN_ADMIN_SCOPE,
     ARTBIN_MCP_RESOURCE,
+    MAPS_ADMIN_SCOPE,
+    MAPS_MCP_RESOURCE,
     WORLDVIEW_ADMIN_SCOPE,
     WORLDVIEW_MCP_RESOURCE,
 )
@@ -154,27 +156,30 @@ def validate_registration_metadata(metadata: object) -> dict:
         # token issuance enforce that bound again.
     requested_scopes = set(str(metadata.get("scope", "")).split())
     requested_resource = metadata.get("resource")
-    if requested_resource is not None and requested_resource not in {
-        ARTBIN_MCP_RESOURCE,
-        WORLDVIEW_MCP_RESOURCE,
-    }:
+    policies = {
+        ARTBIN_MCP_RESOURCE: (ARTBIN_ADMIN_SCOPE, "Artbin", "artbin"),
+        WORLDVIEW_MCP_RESOURCE: (WORLDVIEW_ADMIN_SCOPE, "Worldview", "worldview"),
+        MAPS_MCP_RESOURCE: (MAPS_ADMIN_SCOPE, "Tea Maps", "maps"),
+    }
+    if requested_resource is not None and requested_resource not in policies:
         raise _registration_error("resource must name a supported MCP endpoint.")
-    has_artbin = ARTBIN_ADMIN_SCOPE in requested_scopes
-    has_worldview = WORLDVIEW_ADMIN_SCOPE in requested_scopes
-    if requested_resource == WORLDVIEW_MCP_RESOURCE:
-        worldview = True
-    elif requested_resource == ARTBIN_MCP_RESOURCE:
-        worldview = False
+    if requested_resource is None:
+        selected_resource = ARTBIN_MCP_RESOURCE
+        for resource, (scope, _label, _prefix) in policies.items():
+            if scope in requested_scopes and not (
+                requested_scopes
+                & {item[0] for key, item in policies.items() if key != resource}
+            ):
+                selected_resource = resource
+                break
     else:
-        worldview = has_worldview and not has_artbin
-    if (worldview and has_artbin and not has_worldview) or (
-        not worldview and has_worldview and not has_artbin
-    ):
+        selected_resource = requested_resource
+    selected_scope, label, _prefix = policies[selected_resource]
+    requested_mcp_scopes = requested_scopes & {item[0] for item in policies.values()}
+    if requested_mcp_scopes and selected_scope not in requested_mcp_scopes:
         raise _registration_error("scope and resource disagree.")
 
-    client_name = metadata.get(
-        "client_name", "Worldview MCP client" if worldview else "Artbin MCP client"
-    )
+    client_name = metadata.get("client_name", f"{label} MCP client")
     if not isinstance(client_name, str):
         raise _registration_error("client_name must be a string.")
     client_name = client_name.strip()
@@ -189,16 +194,21 @@ def validate_registration_metadata(metadata: object) -> dict:
         "grant_types": grant_types,
         "response_types": response_types,
         "token_endpoint_auth_method": "none",
-        "scope": f"openid {WORLDVIEW_ADMIN_SCOPE}" if worldview else ARTBIN_ADMIN_SCOPE,
-        "resource": WORLDVIEW_MCP_RESOURCE if worldview else ARTBIN_MCP_RESOURCE,
+        "scope": f"openid {selected_scope}"
+        if selected_resource != ARTBIN_MCP_RESOURCE
+        else ARTBIN_ADMIN_SCOPE,
+        "resource": selected_resource,
     }
 
 
 def register_dynamic_client(conn, metadata: object) -> dict:
     """Persist and return one resource-scoped public MCP client registration."""
     accepted = validate_registration_metadata(metadata)
-    worldview = accepted["resource"] == WORLDVIEW_MCP_RESOURCE
-    client_prefix = "worldview" if worldview else "artbin"
+    client_prefix = {
+        ARTBIN_MCP_RESOURCE: "artbin",
+        WORLDVIEW_MCP_RESOURCE: "worldview",
+        MAPS_MCP_RESOURCE: "maps",
+    }[accepted["resource"]]
     client_id = f"{client_prefix}-mcp-{secrets.token_urlsafe(18)}"
     conn.execute(
         insert(oauth2_clients).values(
