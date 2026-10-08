@@ -52,6 +52,37 @@ client_kind = "service"
 subject = "worldview-service"
 access_token_lifetime = 600
 
+[clients.tea-maps]
+client_name = "Tea Maps"
+redirect_uris = [
+    "https://maps.jackharrhy.dev/auth/callback",
+    "http://localhost:8790/auth/callback",
+]
+scope = "openid profile"
+grant_types = "authorization_code"
+token_endpoint_auth_method = "none"
+
+[clients.tea-maps-service]
+client_name = "Tea Maps asset service"
+redirect_uris = []
+scope = "artbin:assets:read artbin:assets:content"
+grant_types = "client_credentials"
+response_types = ""
+token_endpoint_auth_method = "client_secret_basic"
+client_kind = "service"
+subject = "tea-maps-service"
+access_token_lifetime = 600
+
+[clients.tea-maps-server]
+client_name = "Tea Maps MCP resource server"
+redirect_uris = []
+scope = ""
+grant_types = ""
+response_types = ""
+token_endpoint_auth_method = "client_secret_basic"
+client_kind = "resource_server"
+access_token_lifetime = 600
+
 [clients.artbin-server]
 client_name = "Artbin server"
 redirect_uris = []

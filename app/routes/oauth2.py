@@ -22,6 +22,7 @@ from app.deps import SITE_URL, current_user, get_engine, templates
 from app.oauth2 import create_authorization_server
 from app.oauth_policy import (
     ARTBIN_MCP_RESOURCE,
+    MAPS_MCP_RESOURCE,
     OAUTH_SCOPE_NAMES,
     WORLDVIEW_MCP_RESOURCE,
 )
@@ -352,7 +353,11 @@ def authorization_server_metadata():
                 "client_credentials",
             ],
             "scopes_supported": list(OAUTH_SCOPE_NAMES),
-            "protected_resources": [ARTBIN_MCP_RESOURCE, WORLDVIEW_MCP_RESOURCE],
+            "protected_resources": [
+                ARTBIN_MCP_RESOURCE,
+                WORLDVIEW_MCP_RESOURCE,
+                MAPS_MCP_RESOURCE,
+            ],
             "token_endpoint_auth_methods_supported": [
                 "none",
                 "client_secret_basic",
