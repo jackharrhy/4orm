@@ -15,6 +15,7 @@ from authlib.oauth2.rfc6749.errors import InvalidRequestError, OAuth2Error
 from authlib.oauth2.rfc6749.requests import BasicOAuth2Payload
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import insert
 
 from app.auth import get_access_token_context
@@ -23,6 +24,7 @@ from app.oauth2 import create_authorization_server
 from app.oauth_policy import (
     ARTBIN_MCP_RESOURCE,
     MAPS_MCP_RESOURCE,
+    NEWPORT_SHELL_RESOURCE,
     OAUTH_SCOPE_NAMES,
     WORLDVIEW_MCP_RESOURCE,
 )
@@ -72,8 +74,10 @@ def authorize_get(request: Request):
             request, params
         )
     except OAuth2Error as error:
+        _log_oauth_diagnostic("authorization", params, error.error)
         return _authorization_error_response(error, params.get("state", ""))
 
+    _log_oauth_diagnostic("authorization", params)
     me = current_user(request)
     if not me:
         # Stash the per-request OAuth params in the session, keep the URL short
@@ -139,8 +143,10 @@ async def authorize_post(request: Request):
         )
         oauth2_req.user = dict(me)
     except OAuth2Error as error:
+        _log_oauth_diagnostic("consent", form_data, error.error)
         return _authorization_error_response(error, state)
 
+    _log_oauth_diagnostic("consent", form_data)
     if confirm != "yes":
         params = [("error", "access_denied")]
         if state:
@@ -167,6 +173,7 @@ async def authorize_post(request: Request):
 
 
 @router.post("/oauth/register")
+@router.post("/oauth/register/newport-shell")
 async def dynamic_client_registration(request: Request):
     content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
     if content_type != "application/json":
@@ -208,12 +215,30 @@ async def dynamic_client_registration(request: Request):
             )
         )
 
+    selected_metadata = metadata
     try:
+        # The discovery-selected endpoint supplies the resource even when generic
+        # DCR clients omit nonstandard resource metadata and optional scope.
+        if request.url.path == "/oauth/register/newport-shell" and isinstance(
+            metadata, dict
+        ):
+            if (
+                metadata.get("resource", NEWPORT_SHELL_RESOURCE)
+                != NEWPORT_SHELL_RESOURCE
+            ):
+                raise OAuthRegistrationError(
+                    "invalid_client_metadata",
+                    "resource and registration endpoint disagree.",
+                )
+            selected_metadata = {**metadata, "resource": NEWPORT_SHELL_RESOURCE}
         with get_engine(request).begin() as conn:
-            registration = register_dynamic_client(conn, metadata)
+            registration = register_dynamic_client(conn, selected_metadata)
     except OAuthRegistrationError as error:
+        _log_oauth_diagnostic("registration", metadata, error.error)
         return _registration_error_response(error)
 
+    _log_oauth_diagnostic("registration", metadata)
+    _log_oauth_diagnostic("registered", registration)
     return JSONResponse(
         registration,
         status_code=201,
@@ -335,6 +360,21 @@ def userinfo(request: Request):
 # ---------------------------------------------------------------------------
 
 
+@router.get("/.well-known/oauth-authorization-server/newport-shell")
+@router.get("/.well-known/openid-configuration/newport-shell")
+@router.get("/newport-shell/.well-known/openid-configuration")
+def shell_authorization_server_metadata():
+    metadata = json.loads(authorization_server_metadata().body)
+    metadata.update(
+        issuer=f"{SITE_URL}/newport-shell",
+        registration_endpoint=f"{SITE_URL}/oauth/register/newport-shell",
+        scopes_supported=["openid", "newport-shell:execute"],
+        protected_resources=[NEWPORT_SHELL_RESOURCE],
+        grant_types_supported=["authorization_code", "refresh_token"],
+    )
+    return JSONResponse(metadata)
+
+
 @router.get("/.well-known/oauth-authorization-server")
 @router.get("/.well-known/openid-configuration")
 def authorization_server_metadata():
@@ -357,7 +397,9 @@ def authorization_server_metadata():
                 ARTBIN_MCP_RESOURCE,
                 WORLDVIEW_MCP_RESOURCE,
                 MAPS_MCP_RESOURCE,
+                NEWPORT_SHELL_RESOURCE,
             ],
+            "introspection_endpoint_auth_methods_supported": ["client_secret_basic"],
             "token_endpoint_auth_methods_supported": [
                 "none",
                 "client_secret_basic",
@@ -371,6 +413,36 @@ def authorization_server_metadata():
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _log_oauth_diagnostic(stage: str, params: object, error: str | None = "") -> None:
+    """Log scope selection, never raw requests or authorization credentials."""
+    params = params if isinstance(params, dict) else {}
+    scope = params.get("scope")
+    scopes = scope.split() if isinstance(scope, str) else []
+    resource = params.get("resource")
+    known_resources = (
+        ARTBIN_MCP_RESOURCE,
+        MAPS_MCP_RESOURCE,
+        WORLDVIEW_MCP_RESOURCE,
+        NEWPORT_SHELL_RESOURCE,
+    )
+    logger.info(
+        "oauth_diagnostic {}",
+        json.dumps(
+            {
+                "stage": stage,
+                "scope_present": "scope" in params,
+                "scope": " ".join(s for s in scopes if s in OAUTH_SCOPE_NAMES)[:512],
+                "unknown_scope": any(s not in OAUTH_SCOPE_NAMES for s in scopes),
+                "resource_present": "resource" in params,
+                "resource": resource if resource in known_resources else "",
+                "unknown_resource": resource is not None
+                and resource not in known_resources,
+                "error": error,
+            }
+        ),
+    )
 
 
 def _make_authlib_request(

@@ -110,3 +110,13 @@ redirect_uris = [
 ]
 scope = "openid profile"
 grant_types = "authorization_code refresh_token"
+
+[clients.newport-shell-server]
+client_name = "Newport Shell MCP resource server"
+redirect_uris = []
+scope = ""
+grant_types = ""
+response_types = ""
+token_endpoint_auth_method = "client_secret_basic"
+client_kind = "resource_server"
+access_token_lifetime = 600
