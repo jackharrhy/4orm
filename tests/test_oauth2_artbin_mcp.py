@@ -13,6 +13,7 @@ from app.oauth_policy import (
     ARTBIN_MCP_RESOURCE,
     MAPS_ADMIN_SCOPE,
     MAPS_MCP_RESOURCE,
+    NEWPORT_SHELL_RESOURCE,
     WORLDVIEW_ADMIN_SCOPE,
     WORLDVIEW_MCP_RESOURCE,
 )
@@ -117,6 +118,7 @@ def test_metadata_advertises_artbin_scope_resource_and_registration(client):
         ARTBIN_MCP_RESOURCE,
         WORLDVIEW_MCP_RESOURCE,
         MAPS_MCP_RESOURCE,
+        NEWPORT_SHELL_RESOURCE,
     ]
     assert metadata["code_challenge_methods_supported"] == ["S256"]
 
