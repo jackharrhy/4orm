@@ -194,3 +194,60 @@ def test_browser_code_flow_uses_pkce_and_preserves_local_ownership(
         ).status_code
         == 400
     )
+
+
+def test_central_mode_blocks_legacy_reset_and_routes_admin_recovery(
+    client, seed_user, test_engine, monkeypatch
+):
+    from sqlalchemy import func, select, update
+
+    from app.schema import password_reset_tokens, users
+
+    monkeypatch.setenv("CENTRAL_AUTH_ENABLED", "1")
+    monkeypatch.setenv("OIDC_CLIENT_ID", "test-client")
+    response = client.post(
+        "/login/forgot-password",
+        data={"token": "old-token", "password": "unused", "password_confirm": "unused"},
+    )
+    assert response.status_code == 409
+    response = client.get("/login/forgot-password", follow_redirects=False)
+    assert response.headers["location"] == "https://auth.jackharrhy.dev/forgot-password"
+    with test_engine.begin() as conn:
+        conn.execute(
+            update(users).where(users.c.id == seed_user["id"]).values(is_admin=True)
+        )
+        conn.execute(
+            insert(external_identities).values(
+                issuer="https://auth.jackharrhy.dev",
+                subject="admin-subject",
+                user_id=seed_user["id"],
+            )
+        )
+    monkeypatch.setattr(
+        oidc,
+        "complete",
+        lambda *args: (
+            {
+                "iss": "https://auth.jackharrhy.dev",
+                "sub": "admin-subject",
+                "exp": int(time.time()) + 300,
+            },
+            "",
+        ),
+    )
+    client.get("/auth/callback?state=state&code=code", follow_redirects=False)
+    response = client.post(
+        f"/admin/users/{seed_user['id']}/password-reset-link", follow_redirects=False
+    )
+    assert response.status_code == 303
+    assert (
+        response.headers["location"]
+        == "https://auth.jackharrhy.dev/manage/users/admin-subject"
+    )
+    with test_engine.begin() as conn:
+        assert (
+            conn.execute(
+                select(func.count()).select_from(password_reset_tokens)
+            ).scalar_one()
+            == 0
+        )

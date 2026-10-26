@@ -1,12 +1,14 @@
 """Admin dashboard routes."""
 
 import random
+from urllib.parse import quote
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func, insert, select, update
 
 import app.deps as deps
+from app import oidc
 from app.deps import (
     _saved_or_redirect,
     get_engine,
@@ -20,6 +22,7 @@ from app.queries.admin import delete_user_prune, delete_user_reparent
 from app.queries.site import get_site_banner
 from app.queries.users import create_password_reset_token, get_user_by_id
 from app.schema import (
+    external_identities,
     forum_posts,
     forum_threads,
     media,
@@ -537,6 +540,21 @@ def admin_create_password_reset_link(request: Request, user_id: int):
         user = get_user_by_id(conn, user_id)
         if not user:
             raise HTTPException(404)
+        if oidc.enabled():
+            subject = conn.execute(
+                select(external_identities.c.subject).where(
+                    external_identities.c.user_id == user_id,
+                    external_identities.c.issuer == oidc.configuration()[0],
+                )
+            ).scalar_one_or_none()
+            if not subject:
+                raise HTTPException(409, "This account has no central identity link")
+            destination = (
+                oidc.configuration()[0] + "/manage/users/" + quote(subject, safe="")
+            )
+            if is_htmx(request):
+                return Response(headers={"HX-Redirect": destination})
+            return RedirectResponse(destination, 303)
         token = create_password_reset_token(
             conn,
             user_id=user_id,

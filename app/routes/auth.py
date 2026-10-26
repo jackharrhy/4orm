@@ -264,6 +264,15 @@ def forgot_password_post(
     password: str = Form(""),
     password_confirm: str = Form(""),
 ):
+    if oidc.enabled():
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Use Jack Auth to reset your password",
+                "redirect": oidc.configuration()[0] + "/forgot-password",
+            },
+            status_code=409,
+        )
     if not token:
         return templates.TemplateResponse(
             request,
