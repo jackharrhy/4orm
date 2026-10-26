@@ -66,7 +66,7 @@ def begin(session, next_kind=""):
         "nonce": nonce,
         "verifier": verifier,
         "created": int(time.time()),
-        "next": "oauth" if next_kind == "oauth" else "",
+        "next": next_kind if next_kind in {"oauth", "register"} else "",
     }
     challenge = (
         base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())

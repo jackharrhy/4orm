@@ -33,7 +33,9 @@ router = APIRouter(tags=["auth"])
 @router.get("/register", response_class=HTMLResponse, summary="Registration page")
 def register_get(request: Request, invite: str | None = None):
     return templates.TemplateResponse(
-        request, "register.html", {"invite": invite, "error": None}
+        request,
+        "register_central.html" if oidc.enabled() else "register.html",
+        {"invite": invite, "error": None},
     )
 
 
@@ -44,6 +46,10 @@ def register_post(
     password: str = Form(...),
     invite_code: str = Form(...),
 ):
+    if oidc.enabled():
+        return JSONResponse(
+            {"ok": False, "error": "Register through Jack Auth."}, status_code=409
+        )
     cleaned_username = username.strip().lower()
     if not USERNAME_RE.match(cleaned_username):
         if wants_json(request):

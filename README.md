@@ -49,5 +49,17 @@ Before enabling it, run the database migration and install the reviewed mapping
 with `scripts/link-central-identities.py --manifest PATH --database PATH --apply`.
 The private mapping comes from the auth repository's 4orm migration script.
 Identity links preserve existing user IDs and content ownership. Matching a
-username alone never links an account. Registration and the remaining OAuth
-consumers still need migration before retiring the old identity provider.
+username alone never links an account.
+
+Member invite links remain at `/register?invite=CODE`. In central mode, signup
+reserves an invite for 30 minutes and continues at Jack Auth for account creation
+and email verification. An existing Jack Auth account can sign in instead. Only
+the verified OIDC callback consumes the invite and creates the local profile.
+Existing linked members keep their original profile and do not consume an invite.
+Disabled, expired and exhausted invites cannot enroll new members.
+
+Mount the shared scoped integration key as JSON (`{"token":"..."}`) and set
+`CENTRAL_AUTH_ENROLLMENT_KEY_FILE` to its path. The matching Jack Auth secret is
+`FOURM_ENROLLMENT_KEY_FILE`. Keep both outside the source tree. This key authorizes
+only invite validation and binding, not general user administration. The remaining
+OAuth consumers still need migration before retiring the old identity provider.

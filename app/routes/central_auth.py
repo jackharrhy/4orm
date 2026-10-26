@@ -2,18 +2,42 @@
 
 import time
 from urllib.error import URLError
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from joserfc.errors import JoseError
 from sqlalchemy import select
 
-from app import oidc
-from app.deps import get_engine
+from app import enrollment, oidc
+from app.deps import get_engine, templates
 from app.routes.auth import _pop_oauth_redirect
 from app.schema import external_identities, users
 
 router = APIRouter(tags=["auth"])
+
+
+@router.post("/auth/register")
+def register(request: Request, invite_code: str = Form(...)):
+    if not oidc.enabled():
+        raise HTTPException(404)
+    issuer, _, _ = oidc.configuration()
+    try:
+        enrollment.integration_key()
+        with get_engine(request).begin() as conn:
+            row = enrollment.reserve(
+                conn, invite_code.strip(), request.session.get("central_enrollment")
+            )
+            signed = enrollment.ticket(row)
+    except ValueError as error:
+        return templates.TemplateResponse(
+            request,
+            "register_central.html",
+            {"invite": invite_code, "error": str(error)},
+            status_code=400,
+        )
+    request.session["central_enrollment"] = row["id"]
+    return RedirectResponse(issuer + "/enroll?" + urlencode({"ticket": signed}), 303)
 
 
 @router.get("/auth/start")
@@ -40,18 +64,31 @@ def callback(request: Request):
             400, "Sign-in failed. Start again from the login page."
         ) from None
     with get_engine(request).begin() as conn:
-        user = (
-            conn.execute(
-                select(users)
-                .join(external_identities, external_identities.c.user_id == users.c.id)
-                .where(
-                    external_identities.c.issuer == claims["iss"],
-                    external_identities.c.subject == claims["sub"],
+        if next_kind == "register" and request.session.get("central_enrollment"):
+            try:
+                user = enrollment.finish(
+                    conn,
+                    request.session["central_enrollment"],
+                    claims["iss"],
+                    claims["sub"],
                 )
+            except ValueError as error:
+                raise HTTPException(403, str(error)) from None
+        else:
+            user = (
+                conn.execute(
+                    select(users)
+                    .join(
+                        external_identities, external_identities.c.user_id == users.c.id
+                    )
+                    .where(
+                        external_identities.c.issuer == claims["iss"],
+                        external_identities.c.subject == claims["sub"],
+                    )
+                )
+                .mappings()
+                .first()
             )
-            .mappings()
-            .first()
-        )
     if not user or user["is_disabled"]:
         raise HTTPException(
             403, "This identity is not linked to an active 4orm account."
@@ -63,4 +100,6 @@ def callback(request: Request):
         oidc_issuer=claims["iss"],
         oidc_expires_at=min(claims["exp"], int(time.time()) + 3600),
     )
+    if next_kind == "register" and not user["has_accepted_trust"]:
+        redirect = "/trust-agreement"
     return RedirectResponse(redirect or f"/u/{user['username']}", 303)

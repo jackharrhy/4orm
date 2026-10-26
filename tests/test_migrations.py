@@ -16,7 +16,7 @@ def test_alembic_upgrade_runs_initial_migration(tmp_path):
     with engine.begin() as conn:
         alembic_cfg.attributes["connection"] = conn
         command.upgrade(alembic_cfg, "head")
-        assert MigrationContext.configure(conn).get_current_revision() == "e92a6f3b1c40"
+        assert MigrationContext.configure(conn).get_current_revision() == "f73c1a982d60"
 
     actual_tables = set(inspect(engine).get_table_names())
     actual_tables.discard("alembic_version")

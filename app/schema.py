@@ -102,6 +102,25 @@ invites = Table(
     CheckConstraint("max_uses >= 1", name="ck_invites_max_uses"),
 )
 
+auth_enrollments = Table(
+    "auth_enrollments",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column(
+        "invite_id",
+        Integer,
+        ForeignKey("invites.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+    Column("expires_at", Integer, nullable=False),
+    Column("subject", String(255)),
+    Column("username", String(32)),
+    Column("display_name", String(80)),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE")),
+    Column("consumed_at", Integer),
+)
+
 password_reset_tokens = Table(
     "password_reset_tokens",
     metadata,
