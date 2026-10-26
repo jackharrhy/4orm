@@ -6,6 +6,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import update
 
+from app import oidc
 from app.deps import (
     USERNAME_INVALID_MSG,
     USERNAME_RE,
@@ -32,7 +33,9 @@ router = APIRouter(tags=["auth"])
 @router.get("/register", response_class=HTMLResponse, summary="Registration page")
 def register_get(request: Request, invite: str | None = None):
     return templates.TemplateResponse(
-        request, "register.html", {"invite": invite, "error": None}
+        request,
+        "register_central.html" if oidc.enabled() else "register.html",
+        {"invite": invite, "error": None},
     )
 
 
@@ -43,6 +46,10 @@ def register_post(
     password: str = Form(...),
     invite_code: str = Form(...),
 ):
+    if oidc.enabled():
+        return JSONResponse(
+            {"ok": False, "error": "Register through Jack Auth."}, status_code=409
+        )
     cleaned_username = username.strip().lower()
     if not USERNAME_RE.match(cleaned_username):
         if wants_json(request):
@@ -101,6 +108,9 @@ def _pop_oauth_redirect(request: Request) -> str | None:
 
 @router.get("/login", response_class=HTMLResponse, summary="Login page")
 def login_get(request: Request):
+    if oidc.enabled():
+        suffix = "?next=oauth" if request.query_params.get("next") == "oauth" else ""
+        return RedirectResponse("/auth/start" + suffix, 303)
     next_kind = request.query_params.get("next", "")
     client_id = request.query_params.get("client_id", "")
     return templates.TemplateResponse(
@@ -123,6 +133,15 @@ def login_post(
     next: str = Form(""),
     client_id: str = Form(""),
 ):
+    if oidc.enabled():
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Sign in through Jack Auth",
+                "redirect": "/auth/start",
+            },
+            status_code=409,
+        )
     with get_engine(request).begin() as conn:
         user = get_user_by_username(conn, username.strip())
     if not user or not verify_password(password, user["password_hash"]):
@@ -208,6 +227,8 @@ def logout(request: Request):
 
 @router.get("/login/forgot-password", response_class=HTMLResponse)
 def forgot_password_get(request: Request, token: str = ""):
+    if oidc.enabled():
+        return RedirectResponse(oidc.configuration()[0] + "/forgot-password", 303)
     if not token:
         return templates.TemplateResponse(
             request,
@@ -249,6 +270,15 @@ def forgot_password_post(
     password: str = Form(""),
     password_confirm: str = Form(""),
 ):
+    if oidc.enabled():
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Use Jack Auth to reset your password",
+                "redirect": oidc.configuration()[0] + "/forgot-password",
+            },
+            status_code=409,
+        )
     if not token:
         return templates.TemplateResponse(
             request,

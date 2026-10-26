@@ -64,6 +64,21 @@ users = Table(
     ),
 )
 
+external_identities = Table(
+    "external_identities",
+    metadata,
+    Column("issuer", String(255), primary_key=True),
+    Column("subject", String(255), primary_key=True),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+)
+
+
 invites = Table(
     "invites",
     metadata,
@@ -85,6 +100,25 @@ invites = Table(
     ),
     Column("used_at", DateTime(timezone=True)),
     CheckConstraint("max_uses >= 1", name="ck_invites_max_uses"),
+)
+
+auth_enrollments = Table(
+    "auth_enrollments",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column(
+        "invite_id",
+        Integer,
+        ForeignKey("invites.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+    Column("expires_at", Integer, nullable=False),
+    Column("subject", String(255)),
+    Column("username", String(32)),
+    Column("display_name", String(80)),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE")),
+    Column("consumed_at", Integer),
 )
 
 password_reset_tokens = Table(

@@ -16,7 +16,7 @@ def test_alembic_upgrade_runs_initial_migration(tmp_path):
     with engine.begin() as conn:
         alembic_cfg.attributes["connection"] = conn
         command.upgrade(alembic_cfg, "head")
-        assert MigrationContext.configure(conn).get_current_revision() == "d83f7a2c9b61"
+        assert MigrationContext.configure(conn).get_current_revision() == "f73c1a982d60"
 
     actual_tables = set(inspect(engine).get_table_names())
     actual_tables.discard("alembic_version")
@@ -96,3 +96,33 @@ def test_migrations_match_schema(tmp_path):
     assert not diffs, "schema drift between migrations and models:\n" + "\n".join(
         f"  - {d}" for d in diffs
     )
+
+
+def test_identity_migration_preserves_existing_users(tmp_path):
+    from sqlalchemy import text
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'identity-upgrade.db'}")
+    config = Config("alembic.ini")
+    with engine.begin() as conn:
+        config.attributes["connection"] = conn
+        command.upgrade(config, "d83f7a2c9b61")
+        conn.execute(
+            text(
+                "INSERT INTO users (id, username, password_hash, display_name) "
+                "VALUES (1, 'existing', 'original-hash', 'Existing User')"
+            )
+        )
+        command.upgrade(config, "head")
+        assert conn.execute(
+            text("SELECT id, username, password_hash FROM users")
+        ).one() == (1, "existing", "original-hash")
+        conn.execute(
+            text(
+                "INSERT INTO external_identities (issuer, subject, user_id) "
+                "VALUES ('https://auth.example', 'subject', 1)"
+            )
+        )
+        assert (
+            conn.execute(text("SELECT user_id FROM external_identities")).scalar_one()
+            == 1
+        )
