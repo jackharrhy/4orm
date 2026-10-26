@@ -64,6 +64,21 @@ users = Table(
     ),
 )
 
+external_identities = Table(
+    "external_identities",
+    metadata,
+    Column("issuer", String(255), primary_key=True),
+    Column("subject", String(255), primary_key=True),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+)
+
+
 invites = Table(
     "invites",
     metadata,

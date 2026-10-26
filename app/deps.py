@@ -268,6 +268,17 @@ def json_response(model: BaseModel, status_code: int = 200) -> JSONResponse:
 
 
 def current_user(request: Request):
+    from app import oidc
+
+    if oidc.enabled():
+        import time
+
+        if (
+            request.session.get("oidc_issuer") != oidc.configuration()[0]
+            or request.session.get("oidc_expires_at", 0) <= time.time()
+        ):
+            request.session.clear()
+            return None
     user_id = request.session.get("user_id")
     if not user_id:
         return None

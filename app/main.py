@@ -41,6 +41,7 @@ from app.routes import (
     api,
     auth,
     chat,
+    central_auth,
     feeds,
     forum,
     guestbook,
@@ -234,6 +235,7 @@ app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads
 
 # Include all route modules
 app.include_router(auth.router)
+app.include_router(central_auth.router)
 app.include_router(api.router)
 app.include_router(chat.router)
 app.include_router(pages.router)

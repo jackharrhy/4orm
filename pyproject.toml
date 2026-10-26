@@ -18,6 +18,7 @@ dependencies = [
   "pywebpush==2.5.0",
   "loguru==0.7.3",
   "authlib==1.8.0",
+  "joserfc==1.7.5",
 ]
 
 [dependency-groups]

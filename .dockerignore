@@ -1,0 +1,16 @@
+.git
+.venv
+node_modules
+.env
+.env.*
+.runtime-secrets
+__pycache__
+.pytest_cache
+.ruff_cache
+backups
+artifacts
+dist
+data/*
+!data/.gitkeep
+uploads/*
+!uploads/.gitkeep
