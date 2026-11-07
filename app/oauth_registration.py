@@ -14,8 +14,6 @@ from app.oauth_policy import (
     ARTBIN_MCP_RESOURCE,
     MAPS_ADMIN_SCOPE,
     MAPS_MCP_RESOURCE,
-    NEWPORT_SHELL_RESOURCE,
-    NEWPORT_SHELL_SCOPE,
     WORLDVIEW_ADMIN_SCOPE,
     WORLDVIEW_MCP_RESOURCE,
 )
@@ -157,12 +155,13 @@ def validate_registration_metadata(metadata: object) -> dict:
         # bounding the accepted client to one MCP resource. Authorization and
         # token issuance enforce that bound again.
     requested_scopes = set(str(metadata.get("scope", "")).split())
+    if "newport-shell:execute" in requested_scopes:
+        raise _registration_error("The requested MCP scope has been retired.")
     requested_resource = metadata.get("resource")
     policies = {
         ARTBIN_MCP_RESOURCE: (ARTBIN_ADMIN_SCOPE, "Artbin", "artbin"),
         WORLDVIEW_MCP_RESOURCE: (WORLDVIEW_ADMIN_SCOPE, "Worldview", "worldview"),
         MAPS_MCP_RESOURCE: (MAPS_ADMIN_SCOPE, "Tea Maps", "maps"),
-        NEWPORT_SHELL_RESOURCE: (NEWPORT_SHELL_SCOPE, "Newport Shell", "newport-shell"),
     }
     if requested_resource is not None and requested_resource not in policies:
         raise _registration_error("resource must name a supported MCP endpoint.")
@@ -211,7 +210,6 @@ def register_dynamic_client(conn, metadata: object) -> dict:
         ARTBIN_MCP_RESOURCE: "artbin",
         WORLDVIEW_MCP_RESOURCE: "worldview",
         MAPS_MCP_RESOURCE: "maps",
-        NEWPORT_SHELL_RESOURCE: "newport-shell",
     }[accepted["resource"]]
     client_id = f"{client_prefix}-mcp-{secrets.token_urlsafe(18)}"
     conn.execute(

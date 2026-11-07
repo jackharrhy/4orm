@@ -10,8 +10,6 @@ WORLDVIEW_ADMIN_SCOPE = "worldview:admin"
 WORLDVIEW_MCP_RESOURCE = "https://worldview.harrhy.xyz/mcp"
 MAPS_ADMIN_SCOPE = "maps:admin"
 MAPS_MCP_RESOURCE = "https://maps.jackharrhy.dev/mcp"
-NEWPORT_SHELL_SCOPE = "newport-shell:execute"
-NEWPORT_SHELL_RESOURCE = "https://jackharrhy.dev/mcp"
 
 
 @dataclass(frozen=True)
@@ -24,11 +22,6 @@ class OAuthScopeDefinition:
 
 
 OAUTH_SCOPE_DEFINITIONS = (
-    OAuthScopeDefinition(
-        NEWPORT_SHELL_SCOPE,
-        "Execute shell commands on Newport as the designated Unix account.",
-        "Newport Shell MCP",
-    ),
     OAuthScopeDefinition(
         "openid",
         "Identify the signed-in 4orm account.",
