@@ -24,7 +24,6 @@ from app.oauth2 import create_authorization_server
 from app.oauth_policy import (
     ARTBIN_MCP_RESOURCE,
     MAPS_MCP_RESOURCE,
-    NEWPORT_SHELL_RESOURCE,
     OAUTH_SCOPE_NAMES,
     WORLDVIEW_MCP_RESOURCE,
 )
@@ -173,7 +172,6 @@ async def authorize_post(request: Request):
 
 
 @router.post("/oauth/register")
-@router.post("/oauth/register/newport-shell")
 async def dynamic_client_registration(request: Request):
     content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
     if content_type != "application/json":
@@ -215,24 +213,9 @@ async def dynamic_client_registration(request: Request):
             )
         )
 
-    selected_metadata = metadata
     try:
-        # The discovery-selected endpoint supplies the resource even when generic
-        # DCR clients omit nonstandard resource metadata and optional scope.
-        if request.url.path == "/oauth/register/newport-shell" and isinstance(
-            metadata, dict
-        ):
-            if (
-                metadata.get("resource", NEWPORT_SHELL_RESOURCE)
-                != NEWPORT_SHELL_RESOURCE
-            ):
-                raise OAuthRegistrationError(
-                    "invalid_client_metadata",
-                    "resource and registration endpoint disagree.",
-                )
-            selected_metadata = {**metadata, "resource": NEWPORT_SHELL_RESOURCE}
         with get_engine(request).begin() as conn:
-            registration = register_dynamic_client(conn, selected_metadata)
+            registration = register_dynamic_client(conn, metadata)
     except OAuthRegistrationError as error:
         _log_oauth_diagnostic("registration", metadata, error.error)
         return _registration_error_response(error)
@@ -360,21 +343,6 @@ def userinfo(request: Request):
 # ---------------------------------------------------------------------------
 
 
-@router.get("/.well-known/oauth-authorization-server/newport-shell")
-@router.get("/.well-known/openid-configuration/newport-shell")
-@router.get("/newport-shell/.well-known/openid-configuration")
-def shell_authorization_server_metadata():
-    metadata = json.loads(authorization_server_metadata().body)
-    metadata.update(
-        issuer=f"{SITE_URL}/newport-shell",
-        registration_endpoint=f"{SITE_URL}/oauth/register/newport-shell",
-        scopes_supported=["openid", "newport-shell:execute"],
-        protected_resources=[NEWPORT_SHELL_RESOURCE],
-        grant_types_supported=["authorization_code", "refresh_token"],
-    )
-    return JSONResponse(metadata)
-
-
 @router.get("/.well-known/oauth-authorization-server")
 @router.get("/.well-known/openid-configuration")
 def authorization_server_metadata():
@@ -397,7 +365,6 @@ def authorization_server_metadata():
                 ARTBIN_MCP_RESOURCE,
                 WORLDVIEW_MCP_RESOURCE,
                 MAPS_MCP_RESOURCE,
-                NEWPORT_SHELL_RESOURCE,
             ],
             "introspection_endpoint_auth_methods_supported": ["client_secret_basic"],
             "token_endpoint_auth_methods_supported": [
@@ -425,7 +392,6 @@ def _log_oauth_diagnostic(stage: str, params: object, error: str | None = "") ->
         ARTBIN_MCP_RESOURCE,
         MAPS_MCP_RESOURCE,
         WORLDVIEW_MCP_RESOURCE,
-        NEWPORT_SHELL_RESOURCE,
     )
     logger.info(
         "oauth_diagnostic {}",

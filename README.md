@@ -29,6 +29,15 @@ community it was built for. If that changes someday, serving member pages from
 a separate origin would provide a little more separation from the rest of the
 site.
 
+## OAuth provider lifecycle
+
+Newport shell MCP is retired: its discovery and registration endpoints, advertised
+resource/scope, and declarative introspection client are removed. Registration
+requests for its former scope/resource are rejected. Existing dedicated clients
+are disabled and their tokens revoked through the audited client lifecycle;
+historical rows and audit events remain available. Artbin, Worldview, Maps and
+other OAuth clients retain their existing policies and registrations.
+
 ## CLI
 
 Download the portable CLI at <https://4orm.harrhy.xyz/cli>.
