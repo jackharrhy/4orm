@@ -1,278 +1,108 @@
-from sqlalchemy import insert, select, update
+"""Central-only authentication and retired issuer boundaries."""
 
-from app.queries.users import create_invite
-from app.schema import password_reset_tokens, users
-from app.security import verify_password
-from tests.conftest import promote_to_admin
+import pytest
 
-
-def test_login_page_renders(client):
-    r = client.get("/login")
-    assert r.status_code == 200
-    assert "login" in r.text.lower()
+from tests.conftest import login_as
 
 
-def test_register_page_renders(client):
-    r = client.get("/register")
-    assert r.status_code == 200
-    assert "register" in r.text.lower()
+def test_login_redirects_to_central_start(client):
+    response = client.get("/login", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/auth/start"
 
 
-def test_login_invalid_credentials(client, seed_user):
-    r = client.post(
-        "/login",
-        data={"username": "testuser", "password": "wrong"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 400
-    assert "invalid credentials" in r.text
+def test_registration_uses_signed_invite_enrollment(client):
+    response = client.get("/register?invite=example")
+    assert response.status_code == 200
+    assert 'action="/auth/register"' in response.text
+    assert 'type="password"' not in response.text
 
 
-def test_login_success_redirects(client, seed_user):
-    r = client.post(
-        "/login",
-        data={"username": "testuser", "password": "testpass"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 303
-    assert "/u/testuser" in r.headers["location"]
-
-
-def test_register_with_invite(client, test_engine, seed_user):
-    with test_engine.begin() as conn:
-        code = create_invite(conn, seed_user["id"], max_uses=1)
-
-    r = client.post(
-        "/register",
-        data={"username": "newuser", "password": "newpass", "invite_code": code},
-        follow_redirects=False,
-    )
-    assert r.status_code == 303
-
-    # New user can log in
-    r2 = client.post(
-        "/login",
-        data={"username": "newuser", "password": "newpass"},
-        follow_redirects=False,
-    )
-    assert r2.status_code == 303
-
-
-def test_register_invalid_invite(client, seed_user):
-    r = client.post(
-        "/register",
-        data={"username": "newuser", "password": "newpass", "invite_code": "fake"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 400
-    assert "invalid" in r.text
-
-
-def test_register_exhausted_invite(client, test_engine, seed_user):
-    with test_engine.begin() as conn:
-        code = create_invite(conn, seed_user["id"], max_uses=1)
-
-    # Use the invite once
-    client.post(
-        "/register",
-        data={"username": "first", "password": "pass", "invite_code": code},
+@pytest.mark.parametrize("path", ["/login", "/register", "/login/forgot-password"])
+def test_local_password_authority_is_removed(client, path, monkeypatch):
+    monkeypatch.setenv("CENTRAL_AUTH_ENABLED", "0")
+    assert (
+        client.post(
+            path, data={"username": "testuser", "password": "testpass"}
+        ).status_code
+        == 405
     )
 
-    # Second attempt should fail
-    r = client.post(
-        "/register",
-        data={"username": "second", "password": "pass", "invite_code": code},
-        follow_redirects=False,
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/oauth/authorize",
+        "/oauth/token",
+        "/oauth/introspect",
+        "/oauth/register",
+        "/oauth/userinfo",
+        "/.well-known/oauth-authorization-server",
+        "/.well-known/openid-configuration",
+        "/admin/oauth",
+    ],
+)
+def test_legacy_provider_surfaces_are_gone(client, path):
+    assert client.get(path).status_code == 404
+    assert client.post(path).status_code in {404, 405}
+
+
+def test_old_local_session_cannot_be_used(client, seed_user):
+    import json
+    from base64 import b64encode
+
+    from itsdangerous import TimestampSigner
+
+    from app.config import session_config
+
+    cookie = (
+        TimestampSigner(session_config()["secret_key"])
+        .sign(b64encode(json.dumps({"user_id": seed_user["id"]}).encode()))
+        .decode()
     )
-    assert r.status_code == 400
+    client.cookies.set("session", cookie)
+    assert client.get("/settings", follow_redirects=False).status_code == 303
 
 
-def test_logout(authed_client):
-    r = authed_client.post("/logout", follow_redirects=False)
-    assert r.status_code == 303
-
-    # Settings should redirect to login now
-    r2 = authed_client.get("/settings", follow_redirects=False)
-    assert r2.status_code == 303
-    assert "/login" in r2.headers["location"]
+def test_logout_clears_central_member_session(client, seed_user):
+    login_as(client, seed_user["username"])
+    assert client.get("/settings").status_code == 200
+    assert client.post("/logout", follow_redirects=False).status_code == 303
+    assert client.get("/settings", follow_redirects=False).status_code == 303
 
 
-def test_forgot_password_rejects_invalid_token(client):
-    r = client.get("/login/forgot-password?token=invalid")
-    assert r.status_code == 400
-    assert "invalid or expired reset link" in r.text
+def test_central_signin_outage_has_no_local_fallback(client, monkeypatch):
+    from app import oidc
 
+    def unavailable(*args):
+        raise OSError("offline")
 
-def test_forgot_password_resets_password(client, authed_client, test_engine, seed_user):
-    with test_engine.begin() as conn:
-        conn.execute(
-            update(users).where(users.c.id == seed_user["id"]).values(is_admin=True)
-        )
-
-    r = authed_client.post(
-        f"/admin/users/{seed_user['id']}/password-reset-link",
-        headers={"HX-Request": "true"},
+    monkeypatch.setattr(oidc, "discovery", unavailable)
+    assert client.get("/auth/start").status_code == 503
+    assert (
+        client.post(
+            "/login", data={"username": "testuser", "password": "testpass"}
+        ).status_code
+        == 405
     )
-    assert r.status_code == 200
-    assert "data-url=" in r.text
-    token = r.text.split("token=", 1)[1].split('"', 1)[0]
 
-    r2 = client.post(
-        "/login/forgot-password",
-        data={
-            "token": token,
-            "password": "newpass123",
-            "password_confirm": "newpass123",
-        },
-        follow_redirects=False,
+
+def test_member_trust_acceptance_is_preserved(authed_client, test_engine, seed_user):
+    from sqlalchemy import select
+
+    from app.schema import users
+
+    assert authed_client.get("/trust-agreement").status_code == 200
+    assert (
+        authed_client.post(
+            "/trust-agreement", data={"accept": "yes"}, follow_redirects=False
+        ).status_code
+        == 303
     )
-    assert r2.status_code == 303
-    assert "/login?success=" in r2.headers["location"]
-
-    with test_engine.begin() as conn:
-        user = (
-            conn.execute(select(users).where(users.c.id == seed_user["id"]))
-            .mappings()
-            .first()
-        )
-        assert verify_password("newpass123", user["password_hash"])
-        row = (
+    with test_engine.connect() as conn:
+        assert (
             conn.execute(
-                select(password_reset_tokens).where(
-                    password_reset_tokens.c.user_id == seed_user["id"]
-                )
-            )
-            .mappings()
-            .first()
+                select(users.c.has_accepted_trust).where(users.c.id == seed_user["id"])
+            ).scalar_one()
+            is True
         )
-        assert row["used_at"] is not None
-
-
-def test_forgot_password_requires_matching_confirmation(
-    client, authed_client, test_engine, seed_user
-):
-    with test_engine.begin() as conn:
-        conn.execute(
-            update(users).where(users.c.id == seed_user["id"]).values(is_admin=True)
-        )
-
-    r = authed_client.post(
-        f"/admin/users/{seed_user['id']}/password-reset-link",
-        headers={"HX-Request": "true"},
-    )
-    token = r.text.split("token=", 1)[1].split('"', 1)[0]
-
-    r2 = client.post(
-        "/login/forgot-password",
-        data={"token": token, "password": "a", "password_confirm": "b"},
-        follow_redirects=False,
-    )
-    assert r2.status_code == 400
-    assert "passwords do not match" in r2.text
-
-
-def test_forgot_password_rejects_expired_token(client, test_engine, seed_user):
-    import hashlib
-    from datetime import UTC, datetime, timedelta
-
-    raw = "expired-token"
-    with test_engine.begin() as conn:
-        conn.execute(
-            insert(password_reset_tokens).values(
-                user_id=seed_user["id"],
-                token_hash=hashlib.sha256(raw.encode("utf-8")).hexdigest(),
-                expires_at=datetime.now(UTC) - timedelta(minutes=1),
-                created_by_user_id=seed_user["id"],
-            )
-        )
-
-    r = client.post(
-        "/login/forgot-password",
-        data={"token": raw, "password": "newpass", "password_confirm": "newpass"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 400
-    assert "invalid or expired reset link" in r.text
-
-
-def test_full_password_reset_flow(client, test_engine, seed_user):
-    """End-to-end: register, login, get reset link, reset, login with new pw."""
-    from app.queries.users import create_invite
-
-    # 1. Create an invite and register a new user
-    with test_engine.begin() as conn:
-        code = create_invite(conn, seed_user["id"], max_uses=1)
-
-    client.post(
-        "/register",
-        data={
-            "username": "resetuser",
-            "password": "original123",
-            "invite_code": code,
-        },
-    )
-
-    # 2. Login works with original password
-    r = client.post(
-        "/login",
-        data={"username": "resetuser", "password": "original123"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 303, "login with original password should work"
-
-    # 3. Login fails with wrong password
-    r = client.post(
-        "/login",
-        data={"username": "resetuser", "password": "wrongpassword"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 400, "login with wrong password should fail"
-
-    # 4. Admin creates a password reset link
-    with test_engine.begin() as conn:
-        promote_to_admin(conn, seed_user["id"])
-        target = conn.execute(
-            select(users.c.id).where(users.c.username == "resetuser")
-        ).scalar()
-
-    # Log in as admin
-    client.post(
-        "/login",
-        data={"username": seed_user["username"], "password": seed_user["password"]},
-    )
-
-    r = client.post(
-        f"/admin/users/{target}/password-reset-link",
-        headers={"HX-Request": "true"},
-    )
-    assert r.status_code == 200, f"expected 200 got {r.status_code}"
-    assert "data-url=" in r.text
-    token = r.text.split("token=", 1)[1].split('"', 1)[0]
-
-    # 5. Use the reset link to set a new password
-    r = client.post(
-        "/login/forgot-password",
-        data={
-            "token": token,
-            "password": "newpassword456",
-            "password_confirm": "newpassword456",
-        },
-        follow_redirects=False,
-    )
-    assert r.status_code == 303, "password reset should redirect to login"
-
-    # 6. Login fails with old password
-    r = client.post(
-        "/login",
-        data={"username": "resetuser", "password": "original123"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 400, "old password should no longer work"
-
-    # 7. Login succeeds with new password
-    r = client.post(
-        "/login",
-        data={"username": "resetuser", "password": "newpassword456"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 303, "new password should work after reset"

@@ -11,7 +11,6 @@ from sqlalchemy import select
 
 from app import enrollment, enrollment_completion, oidc
 from app.deps import get_engine, templates
-from app.routes.auth import _pop_oauth_redirect
 from app.schema import external_identities, users
 
 router = APIRouter(tags=["auth"])
@@ -19,8 +18,6 @@ router = APIRouter(tags=["auth"])
 
 @router.post("/auth/register")
 def register(request: Request, invite_code: str = Form(...)):
-    if not oidc.enabled():
-        raise HTTPException(404)
     issuer, _, _ = oidc.configuration()
     try:
         enrollment.integration_key()
@@ -42,17 +39,15 @@ def register(request: Request, invite_code: str = Form(...)):
 
 @router.get("/auth/start")
 def start(request: Request):
-    if not oidc.enabled():
-        raise HTTPException(404)
-    return RedirectResponse(
-        oidc.begin(request.session, request.query_params.get("next")), 303
-    )
+    try:
+        destination = oidc.begin(request.session, request.query_params.get("next"))
+    except (ValueError, OSError, URLError):
+        raise HTTPException(503, "Central sign-in is unavailable") from None
+    return RedirectResponse(destination, 303)
 
 
 @router.get("/auth/callback")
 def callback(request: Request, background_tasks: BackgroundTasks):
-    if not oidc.enabled():
-        raise HTTPException(404)
     try:
         claims, next_kind = oidc.complete(
             request.session,
@@ -99,7 +94,7 @@ def callback(request: Request, background_tasks: BackgroundTasks):
         background_tasks.add_task(
             enrollment_completion.deliver, get_engine(request), completed_request
         )
-    redirect = _pop_oauth_redirect(request) if next_kind == "oauth" else None
+    redirect = None
     request.session.clear()
     request.session.update(
         user_id=user["id"],

@@ -1,13 +1,13 @@
 from sqlalchemy import update
 
 from app.schema import users
-from tests.conftest import make_test_user
+from tests.conftest import login_as, make_test_user
 
 
 def _create_second_user(test_engine):
     """Create a second user for guestbook interaction."""
     with test_engine.begin() as conn:
-        uid = make_test_user(conn, "visitor", password="visitorpass")
+        uid = make_test_user(conn, "visitor")
         conn.execute(
             update(users).where(users.c.id == uid).values(display_name="Visitor")
         )
@@ -70,10 +70,7 @@ def test_guestbook_post_requires_login(client, seed_user):
 def test_guestbook_post_and_display(client, test_engine, seed_user):
     visitor = _create_second_user(test_engine)
     # Log in as visitor
-    client.post(
-        "/login",
-        data={"username": visitor["username"], "password": visitor["password"]},
-    )
+    login_as(client, visitor["username"])
 
     r = client.post(
         f"/u/{seed_user['username']}/guestbook",
@@ -87,10 +84,7 @@ def test_guestbook_post_and_display(client, test_engine, seed_user):
 
 def test_guestbook_post_htmx(client, test_engine, seed_user):
     visitor = _create_second_user(test_engine)
-    client.post(
-        "/login",
-        data={"username": visitor["username"], "password": visitor["password"]},
-    )
+    login_as(client, visitor["username"])
 
     r = client.post(
         f"/u/{seed_user['username']}/guestbook",
@@ -103,10 +97,7 @@ def test_guestbook_post_htmx(client, test_engine, seed_user):
 
 def test_guestbook_message_truncated(client, test_engine, seed_user):
     visitor = _create_second_user(test_engine)
-    client.post(
-        "/login",
-        data={"username": visitor["username"], "password": visitor["password"]},
-    )
+    login_as(client, visitor["username"])
 
     long_msg = "a" * 600
     client.post(
@@ -125,10 +116,7 @@ def test_guestbook_owner_can_delete(client, test_engine, seed_user):
     visitor = _create_second_user(test_engine)
 
     # Visitor signs the guestbook
-    client.post(
-        "/login",
-        data={"username": visitor["username"], "password": visitor["password"]},
-    )
+    login_as(client, visitor["username"])
     client.post(
         f"/u/{seed_user['username']}/guestbook",
         data={"message": "delete me"},
@@ -143,10 +131,7 @@ def test_guestbook_owner_can_delete(client, test_engine, seed_user):
         entry = conn.execute(select(guestbook_entries.c.id)).first()
 
     # Log in as owner
-    client.post(
-        "/login",
-        data={"username": seed_user["username"], "password": seed_user["password"]},
-    )
+    login_as(client, seed_user["username"])
 
     r = client.post(
         f"/u/{seed_user['username']}/guestbook/{entry[0]}/delete",
@@ -160,10 +145,7 @@ def test_guestbook_non_owner_cannot_delete(client, test_engine, seed_user):
     visitor = _create_second_user(test_engine)
 
     # Visitor signs the guestbook
-    client.post(
-        "/login",
-        data={"username": visitor["username"], "password": visitor["password"]},
-    )
+    login_as(client, visitor["username"])
     client.post(
         f"/u/{seed_user['username']}/guestbook",
         data={"message": "keep me"},

@@ -1,56 +1,6 @@
-import json
-import time
-
 import pytest
-from sqlalchemy import insert
 
 from app import oidc
-from app.schema import external_identities
-
-
-@pytest.fixture
-def central_api(monkeypatch, tmp_path, seed_user, test_engine):
-    monkeypatch.setenv("CENTRAL_API_ENABLED", "1")
-    monkeypatch.setenv("OIDC_CLIENT_ID", "browser")
-    monkeypatch.setenv("OIDC_PROJECT_ID", "project")
-    monkeypatch.setenv("OIDC_ORGANIZATION_ID", "org")
-    secret = tmp_path / "resource.json"
-    secret.write_text(json.dumps({"clientId": "resource", "clientSecret": "private"}))
-    monkeypatch.setenv("OIDC_API_CREDENTIALS_FILE", str(secret))
-    claims = {
-        "active": True,
-        "iss": "https://auth.jackharrhy.dev",
-        "sub": "explicit-subject",
-        "aud": ["project"],
-        "client_id": "native-cli",
-        "exp": int(time.time()) + 300,
-        "jack_auth_principal_type": "user",
-        "token_type": "Bearer",
-        "scope": (
-            "urn:zitadel:iam:org:project:id:project:aud "
-            "urn:zitadel:iam:org:projects:roles "
-            "urn:zitadel:iam:org:project:role:member"
-        ),
-        "urn:zitadel:iam:org:project:project:roles": {"member": {"org": "domain"}},
-    }
-    for permission in ("pages-read", "pages-write", "media-read", "media-write"):
-        claims["scope"] += f" urn:zitadel:iam:org:project:role:{permission}"
-        claims["urn:zitadel:iam:org:project:project:roles"][permission] = {
-            "org": "domain"
-        }
-    monkeypatch.setattr(
-        oidc,
-        "discovery",
-        lambda _: {"introspection_endpoint": "https://auth.jackharrhy.dev/introspect"},
-    )
-    monkeypatch.setattr(oidc, "provider_json", lambda *a, **kw: claims)
-    with test_engine.begin() as conn:
-        conn.execute(
-            insert(external_identities).values(
-                issuer=claims["iss"], subject=claims["sub"], user_id=seed_user["id"]
-            )
-        )
-    return claims
 
 
 def test_central_api_resolves_explicit_link_and_preserves_content_owner(
@@ -118,6 +68,36 @@ def test_scope_without_role_does_not_grant_content_access(client, central_api):
     assert (
         client.get(
             "/api/v1/media", headers={"Authorization": "Bearer scope-without-grant"}
+        ).status_code
+        == 401
+    )
+
+
+def test_stored_legacy_token_cannot_enable_fallback(
+    client, central_api, test_engine, seed_user, monkeypatch
+):
+    import time
+
+    from sqlalchemy import insert
+
+    from app.schema import oauth2_clients, oauth2_tokens
+
+    monkeypatch.setenv("CENTRAL_API_ENABLED", "0")
+    with test_engine.begin() as conn:
+        conn.execute(insert(oauth2_clients).values(client_id="old", client_name="Old"))
+        conn.execute(
+            insert(oauth2_tokens).values(
+                client_id="old",
+                user_id=seed_user["id"],
+                access_token="old-bearer",
+                issued_at=int(time.time()),
+                expires_in=3600,
+            )
+        )
+    central_api["active"] = False
+    assert (
+        client.get(
+            "/api/v1/me", headers={"Authorization": "Bearer old-bearer"}
         ).status_code
         == 401
     )

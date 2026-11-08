@@ -17,10 +17,6 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def enabled():
-    return os.environ.get("CENTRAL_AUTH_ENABLED") == "1"
-
-
 def configuration():
     issuer = os.environ.get("OIDC_ISSUER", "https://auth.jackharrhy.dev").rstrip("/")
     client_id = os.environ.get("OIDC_CLIENT_ID", "")
@@ -73,7 +69,7 @@ def begin(session, next_kind=""):
         "nonce": nonce,
         "verifier": verifier,
         "created": int(time.time()),
-        "next": next_kind if next_kind in {"oauth", "register"} else "",
+        "next": next_kind if next_kind == "register" else "",
     }
     challenge = (
         base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())

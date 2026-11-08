@@ -1,19 +1,17 @@
 from sqlalchemy import insert, select, update
 
-from app.schema import pages, password_reset_tokens, profile_cards, site_settings, users
+from app.schema import pages, profile_cards, site_settings, users
 from tests.conftest import make_test_user
 
 
 def test_admin_requires_login(client):
     r = client.get("/admin")
     assert r.status_code == 403
-    assert client.get("/admin/oauth").status_code == 403
 
 
 def test_admin_requires_admin_role(authed_client):
     r = authed_client.get("/admin")
     assert r.status_code == 403
-    assert authed_client.get("/admin/oauth").status_code == 403
 
 
 def test_admin_dashboard(authed_client, test_engine, seed_user):
@@ -190,12 +188,10 @@ def test_admin_can_toggle_user_disabled(authed_client, test_engine, seed_user):
 
     # Create a separate target user so the admin doesn't disable themselves
     with test_engine.begin() as conn:
-        from app.security import hash_password
-
         result = conn.execute(
             insert(users).values(
                 username="targetuser",
-                password_hash=hash_password("pass"),
+                password_hash="",
                 display_name="Target User",
                 content="",
             )
@@ -258,39 +254,3 @@ def test_admin_can_toggle_user_webring(authed_client, test_engine, seed_user):
             select(users.c.in_webring).where(users.c.id == seed_user["id"])
         ).scalar_one()
     assert enabled is False
-
-
-def test_admin_can_create_password_reset_link(authed_client, test_engine, seed_user):
-    _promote_admin(test_engine, seed_user["id"])
-
-    with test_engine.begin() as conn:
-        from app.security import hash_password
-
-        target_id = conn.execute(
-            insert(users).values(
-                username="resetme",
-                password_hash=hash_password("oldpass"),
-                display_name="Reset Me",
-                content="",
-            )
-        ).inserted_primary_key[0]
-
-    r = authed_client.post(
-        f"/admin/users/{target_id}/password-reset-link",
-        headers={"HX-Request": "true"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 200
-    assert "/login/forgot-password?token=" in r.text
-
-    with test_engine.begin() as conn:
-        row = (
-            conn.execute(
-                select(password_reset_tokens).where(
-                    password_reset_tokens.c.user_id == target_id
-                )
-            )
-            .mappings()
-            .first()
-        )
-    assert row is not None

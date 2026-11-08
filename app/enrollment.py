@@ -20,7 +20,6 @@ from app.schema import (
     profile_cards,
     users,
 )
-from app.security import hash_password
 
 LIFETIME = 1800
 
@@ -244,7 +243,7 @@ def finish(conn, request_id, issuer, subject):
         insert(users).values(
             username=row["username"],
             display_name=row["display_name"],
-            password_hash=hash_password(secrets.token_urlsafe(48)),
+            password_hash="",
             invited_by_user_id=invite,
             invite_id=row["invite_id"],
         )

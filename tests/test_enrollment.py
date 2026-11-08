@@ -165,7 +165,7 @@ def test_member_invite_routes_signup_through_central_and_keeps_local_ownership(
         "/register",
         data={"username": "newperson", "password": "ignored", "invite_code": code},
     )
-    assert blocked.status_code == 409
+    assert blocked.status_code == 405
     response = client.post(
         "/auth/register", data={"invite_code": code}, follow_redirects=False
     )

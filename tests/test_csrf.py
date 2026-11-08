@@ -2,20 +2,18 @@
 
 import pytest
 
-from tests.conftest import make_test_user
+from tests.conftest import login_as, make_test_user
 
 
 @pytest.fixture()
 def csrf_seed_user(test_engine):
     with test_engine.begin() as conn:
-        uid = make_test_user(conn, "csrfuser", password="csrfpass")
+        uid = make_test_user(conn, "csrfuser")
     return {"id": uid, "username": "csrfuser", "password": "csrfpass"}
 
 
 def _login(client, user):
-    client.post(
-        "/login", data={"username": user["username"], "password": user["password"]}
-    )
+    login_as(client, user["username"])
 
 
 class TestCSRFBlocksCrossOrigin:

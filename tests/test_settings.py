@@ -114,13 +114,16 @@ def test_create_invite(authed_client):
 def test_disable_invite(authed_client, test_engine, seed_user):
     from sqlalchemy import select
 
-    from app.queries.users import create_invite, create_user_with_invite
+    from app import enrollment
+    from app.queries.users import create_invite
     from app.schema import invites
 
     with test_engine.begin() as conn:
         code = create_invite(conn, seed_user["id"], max_uses=2)
-        create_user_with_invite(
-            conn, username="invited_user", password="pass", invite_code=code
+        row = enrollment.reserve(conn, code)
+        enrollment.claim(conn, row["id"], "invited-subject", "invited_user", "Invited")
+        enrollment.finish(
+            conn, row["id"], "https://auth.jackharrhy.dev", "invited-subject"
         )
         inv = conn.execute(select(invites.c.id).where(invites.c.code == code)).first()
 

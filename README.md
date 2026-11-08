@@ -29,78 +29,86 @@ community it was built for. If that changes someday, serving member pages from
 a separate origin would provide a little more separation from the rest of the
 site.
 
-## OAuth provider lifecycle
+## Central identity
 
-Newport shell MCP is retired: its discovery and registration endpoints, advertised
-resource/scope, and declarative introspection client are removed. Registration
-requests for its former scope/resource are rejected. Existing dedicated clients
-are disabled and their tokens revoked through the audited client lifecycle;
-historical rows and audit events remain available. Artbin, Worldview, Maps and
-other OAuth clients retain their existing policies and registrations.
+4orm uses `https://auth.jackharrhy.dev` for browser and CLI authentication. Its
+built-in authorization server, local password login/reset, client registration,
+consent and provider administration are removed. Historical database tables and
+migration backups remain available for audit; they cannot authorize requests.
+Artbin, Maps and Burger consume central Auth. Worldview was replaced by Maps and
+its historical registrations are retired rather than recreated.
 
-## CLI
+Configure `OIDC_ISSUER=https://auth.jackharrhy.dev`, `OIDC_CLIENT_ID` and the exact
+registered `OIDC_REDIRECT_URI` ending in `/auth/callback`. Discovery, S256 PKCE,
+state, nonce and RS256 ID-token validation establish the member session. Sessions
+expire within one hour; existing local user IDs and ownership remain authoritative.
+Only explicit `external_identities` issuer/subject links identify members. Names
+and email addresses never merge accounts. Admin identity management opens Auth.
 
-Download the portable CLI at <https://4orm.harrhy.xyz/cli>.
+New installations need a centrally registered client and reviewed initial identity
+links. Existing links can be validated/applied with
+`scripts/link-central-identities.py --manifest PATH --database PATH --apply`.
+Keep manifests private and review current links before applying; an old import
+must not replace later enrollments.
 
-The CLI supports publishing pages, managing media, and updating itself with
-`4orm update`.
+Member invite links stay at `/register?invite=CODE`. Enrollment reserves an invite
+for 30 minutes and continues at Auth for account creation and email verification.
+Only the verified callback consumes the invite and creates the local profile.
+Existing linked members retain their profile without consuming an invite.
+Disabled, expired and exhausted invites cannot create members.
 
-## Central auth migration
+Mount the scoped integration JSON key (`{"token":"..."}`) outside source control
+and configure `CENTRAL_AUTH_ENROLLMENT_KEY_FILE`; Auth uses the matching
+`FOURM_ENROLLMENT_KEY_FILE`. New-profile commit also creates a durable completion
+event. Auth processes only Maps/Burger MEMBER eligibility after that commit, with
+per-application reservations and terminal receipts. Existing-member re-enrollment
+creates no event; completed replay cannot restore a revoked companion grant.
+Receipts remain valid after the original invite expires. An ambiguous HTTP 409
+requires operator reconciliation. Profile/invite ownership survives broker errors.
+Retry pending events in the configured app environment with:
 
-`CENTRAL_AUTH_ENABLED=1` routes browser login through Jack Auth. Set
-`OIDC_ISSUER=https://auth.jackharrhy.dev`, `OIDC_CLIENT_ID` to the registered 4orm
-client and `OIDC_REDIRECT_URI` to this deployment's `/auth/callback` URL.
-The client uses discovery, PKCE, state, nonce and signed ID-token validation.
-Central sessions expire after at most one hour; local password login is disabled
-in this mode. Leaving the flag unset retains the existing login during rollout.
+```bash
+uv run python scripts/retry-enrollment-completions.py --limit 100
+```
 
-Before enabling it, run the database migration and install the reviewed mapping
-with `scripts/link-central-identities.py --manifest PATH --database PATH --apply`.
-The private mapping comes from the auth repository's 4orm migration script.
-Identity links preserve existing user IDs and content ownership. Matching a
-username alone never links an account.
+## CLI and API
 
-Member invite links remain at `/register?invite=CODE`. In central mode, signup
-reserves an invite for 30 minutes and continues at Jack Auth for account creation
-and email verification. An existing Jack Auth account can sign in instead. Only
-the verified OIDC callback consumes the invite and creates the local profile.
-Existing linked members keep their original profile and do not consume an invite.
-Disabled, expired and exhausted invites cannot enroll new members.
+Download the portable CLI at <https://4orm.harrhy.xyz/cli>. It publishes pages,
+manages media and updates itself with `4orm update`. Legacy cached credentials
+require version 0.4.0 or later and a fresh `4orm login`; tokens are never transferred
+or refreshed across issuers.
 
-Mount the shared scoped integration key as JSON (`{"token":"..."}`) and set
-`CENTRAL_AUTH_ENROLLMENT_KEY_FILE` to its path. The matching Jack Auth secret is
-`FOURM_ENROLLMENT_KEY_FILE`. Keep both outside the source tree. This key authorizes
-only invite validation and binding, not general user administration. The remaining
-OAuth consumers still need migration before retiring the old identity provider.
+Set `OIDC_PROJECT_ID`, `OIDC_ORGANIZATION_ID`, `OIDC_CLI_CLIENT_ID` and mount the
+BASIC resource client JSON (`clientId`, `clientSecret`) at
+`OIDC_API_CREDENTIALS_FILE`. `/api/v1/auth-config` advertises the central native
+client/scopes. Authenticated introspection supplies exact scopes and revocation
+state. API requests require the central issuer, project audience, human principal,
+organization-qualified member role and explicit local identity link. Page/media
+operations require both the exact requested permission scope and matching
+`pages-read`, `pages-write`, `media-read` or `media-write` role. Local disabled,
+admin and content-ownership checks stay authoritative. Provider/configuration
+failures fail closed.
 
-The next CLI/API migration is staged behind `CENTRAL_API_ENABLED=1`. Configure
-`OIDC_PROJECT_ID`, `OIDC_ORGANIZATION_ID`, `OIDC_CLI_CLIENT_ID`, and mount the
-dedicated resource client JSON (`clientId`, `clientSecret`) at
-`OIDC_API_CREDENTIALS_FILE`. The public `/api/v1/auth-config` gives the native CLI
-its central client and requested scopes. API requests use central introspection,
-require the 4orm audience and member grant, and resolve only explicit identity
-links. Page/media operations also require the matching `pages-read`, `pages-write`,
-`media-read`, or `media-write` role and exact requested role scope. Local disabled
-accounts remain blocked. Provider failures fail closed.
+Historical provider metadata can be inspected without exporting credentials:
+`python scripts/inventory-oauth.py --database PATH`. Audited legacy retirement is
+performed only after consumer acceptance and a recoverable backup; keep the first
+migration backup intact. `scripts/retire-legacy-oauth.py` defaults to read-only;
+`--apply` requires reviewed inventory, accepted client coverage, a current separate
+SQLite backup and a new protected receipt path. It verifies removed live issuer
+and local-password endpoints before disabling clients, revoking tokens and
+expiring any still-valid historical authorization/reset credentials. The audit
+event and backup hashes identify the committed operation; do not blindly repeat
+a prepared-only receipt.
 
-The updated CLI validates central discovery, signed ID tokens, nonce, state and
-PKCE. Its saved credentials include issuer and client identity. Existing legacy
-CLI credentials require `4orm login`; they are never refreshed at the new issuer.
-Keep legacy issuance available until all consumer classes have live acceptance.
-To inspect remaining client policies and aggregate token activity without
-exporting credentials, run `python scripts/inventory-oauth.py --database PATH`.
+Maps browser/automation sessions and dynamic MCP clients
+must reauthorize centrally; historical bearer credentials are never imported.
 
-Committed invite enrollments create a durable completion event only when a new
-4orm profile and its explicit central identity link commit. After the response,
-4orm asks Auth to process Maps/Burger member eligibility with the existing scoped
-enrollment key. Auth chooses the projects and roles; these endpoints cannot grant
-admin or arbitrary application access. Existing-member enrollment creates no event.
+## Browser verification
 
-Completion receipts remain valid after the original ticket expires. Per-application
-reservations retain the original attempt and terminal receipt across retries and
-later grant deletion. An ambiguous HTTP 409 stops automatic delivery and requires
-operator reconciliation; it never rolls back the committed profile or consumes
-another invite. Inspect `enrollment_completions.last_status` for pending failures.
-Run `uv run python scripts/retry-enrollment-completions.py --limit 100` in the
-configured application environment to retry pending delivery after an interruption.
-This command prints aggregate outcomes only and does not retry ambiguous receipts.
+```bash
+uv run python .agents/skills/verify-4orm/scripts/verify_4orm.py
+```
+
+This uses a disposable loopback HTTPS OIDC provider with signed tokens, temporary
+certificate trust and an isolated database. Desktop/mobile screenshots, console
+logs and layout assertions are retained under `artifacts/verification/central/`.

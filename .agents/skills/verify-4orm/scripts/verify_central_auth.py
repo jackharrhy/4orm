@@ -161,6 +161,16 @@ def verify_viewport(browser, width, base_url, evidence, events):
             delete = row.get_by_role("button", name="delete", exact=True).bounding_box()
             assert edit and delete and abs(edit["y"] - delete["y"]) < 4
         page.screenshot(path=evidence / f"settings-{width}.png", full_page=True)
+        page.goto(base_url + "/admin")
+        page.get_by_role("heading", name="admin", exact=True).wait_for()
+        assert page.locator("#oauth-clients").count() == 0
+        assert page.locator('a[href="/admin/oauth"]').count() == 0
+        page.locator("#user-row-1 > summary").click()
+        assert page.get_by_role(
+            "button", name="manage Jack Auth", exact=True
+        ).is_visible()
+        assert page.evaluate(no_overflow)
+        page.screenshot(path=evidence / f"admin-{width}.png", full_page=True)
         invalid_url = base_url + "/auth/callback?state=invalid&code=invalid"
         assert context.request.get(invalid_url).status == 400
         return {
@@ -168,6 +178,8 @@ def verify_viewport(browser, width, base_url, evidence, events):
             "signedOidcLogin": True,
             "settings": True,
             "pageActionsAligned": True,
+            "centralIdentityAdmin": True,
+            "issuerAdminRemoved": True,
             "invalidStateRejected": True,
             "noHorizontalOverflow": True,
         }
@@ -205,8 +217,7 @@ def main():
                     "FOURM_ENV": "test",
                     "SECRET_KEY": "isolated-central-browser-verification-only",
                     "SITE_URL": base_url,
-                    "CENTRAL_AUTH_ENABLED": "1",
-                    "CENTRAL_API_ENABLED": "0",
+                    "UVICORN_RELOAD": "1",
                     "OIDC_ISSUER": issuer,
                     "OIDC_CLIENT_ID": CLIENT_ID,
                     "OIDC_REDIRECT_URI": base_url + "/auth/callback",

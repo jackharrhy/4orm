@@ -26,7 +26,7 @@ uv run python .agents/skills/verify-4orm/scripts/verify_4orm.py
 
 The helper chooses an unused loopback port, creates and seeds a temporary SQLite database, starts 4orm with test-only environment values, waits for HTTP readiness, and removes only the runtime state and process it created. It never reads or writes `data/4orm.db`.
 
-For central authentication, run the signed OIDC browser verification:
+The default runner uses signed OIDC authentication. Its implementation can also be run directly:
 
 ```bash
 uv run python .agents/skills/verify-4orm/scripts/verify_central_auth.py
@@ -47,8 +47,8 @@ Run the helper first. It checks that the spawned server answers `/`, that the pa
 
 The default flow verifies:
 
-1. The homepage at desktop width, including the centered chat link.
-2. Login through the visible form using the isolated seeded member.
+1. The homepage at desktop width and horizontal-overflow checks.
+2. Sign in through the visible external fixture form and real signed OIDC callback.
 3. Settings and page-management controls, including edit/delete alignment.
 4. Homepage and settings at mobile width.
 
@@ -58,7 +58,7 @@ For focused or new flows, read [features/README.md](features/README.md) and exte
 
 ## Evidence
 
-Evidence is written beneath `artifacts/verification/4orm/<UTC timestamp>/` unless `--evidence <directory>` is provided:
+Evidence is written beneath `artifacts/verification/central/<UTC timestamp>/` unless `--evidence <directory>` is provided:
 
 - desktop and mobile screenshots capture the relevant visible states;
 - `report.json` records each assertion and its measured values;
