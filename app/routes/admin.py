@@ -3,7 +3,7 @@
 import random
 from urllib.parse import quote
 
-from fastapi import APIRouter, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func, insert, select, update
 
@@ -17,10 +17,9 @@ from app.deps import (
     require_admin,
     templates,
 )
-from app.oauth_client_admin import get_oauth_admin_inventory, get_oauth_admin_summary
 from app.queries.admin import delete_user_prune, delete_user_reparent
 from app.queries.site import get_site_banner
-from app.queries.users import create_password_reset_token, get_user_by_id
+from app.queries.users import get_user_by_id
 from app.schema import (
     external_identities,
     forum_posts,
@@ -158,8 +157,6 @@ def admin_dashboard(request: Request):
         )
         site_banner = get_site_banner(conn)
 
-        oauth_summary = get_oauth_admin_summary(conn)
-
     scheduler = getattr(request.app.state, "backup_scheduler", None)
     backup_summary = None
     if scheduler:
@@ -185,20 +182,7 @@ def admin_dashboard(request: Request):
             "recent_posts": recent_posts,
             "backup_summary": backup_summary,
             "site_banner_settings": site_banner,
-            "oauth_summary": oauth_summary,
         },
-    )
-
-
-@router.get("/admin/oauth", response_class=HTMLResponse, summary="OAuth administration")
-def admin_oauth_dashboard(request: Request, dynamic_page: int = Query(1, ge=1)):
-    me = require_admin(request)
-    with get_engine(request).begin() as conn:
-        oauth_admin = get_oauth_admin_inventory(conn, dynamic_page=dynamic_page)
-    return templates.TemplateResponse(
-        request,
-        "admin_oauth.html",
-        {"me": me, "oauth_admin": oauth_admin},
     )
 
 
@@ -533,64 +517,6 @@ def admin_toggle_webring(
         return _admin_user_row_response(request, conn, user_id)
 
 
-@router.post("/admin/users/{user_id}/password-reset-link")
-def admin_create_password_reset_link(request: Request, user_id: int):
-    me = require_admin(request)
-    with get_engine(request).begin() as conn:
-        user = get_user_by_id(conn, user_id)
-        if not user:
-            raise HTTPException(404)
-        if oidc.enabled():
-            subject = conn.execute(
-                select(external_identities.c.subject).where(
-                    external_identities.c.user_id == user_id,
-                    external_identities.c.issuer == oidc.configuration()[0],
-                )
-            ).scalar_one_or_none()
-            if not subject:
-                raise HTTPException(409, "This account has no central identity link")
-            destination = (
-                oidc.configuration()[0] + "/manage/users/" + quote(subject, safe="")
-            )
-            if is_htmx(request):
-                return Response(headers={"HX-Redirect": destination})
-            return RedirectResponse(destination, 303)
-        token = create_password_reset_token(
-            conn,
-            user_id=user_id,
-            created_by_user_id=me["id"],
-            ttl_minutes=20,
-        )
-
-        reset_url = f"{deps.SITE_URL}/login/forgot-password?token={token}"
-
-        if is_htmx(request):
-            stats = (
-                conn.execute(
-                    select(
-                        func.count(media.c.id).label("file_count"),
-                        func.coalesce(func.sum(media.c.size_bytes), 0).label(
-                            "total_bytes"
-                        ),
-                    ).where(media.c.user_id == user_id)
-                )
-                .mappings()
-                .first()
-            )
-            return templates.TemplateResponse(
-                request,
-                "fragments/admin_user_row.html",
-                {
-                    "u": user,
-                    "stats": stats,
-                    "reset_url": reset_url,
-                    "detail_open": True,
-                },
-            )
-
-    return RedirectResponse(url="/admin", status_code=303)
-
-
 @router.post("/admin/users/{user_id}/rename")
 def admin_rename_user(
     request: Request,
@@ -761,3 +687,24 @@ def admin_toggle_disabled(request: Request, user_id: int):
             {"u": u, "stats": stats, "reset_url": None, "detail_open": True},
         )
     return RedirectResponse(url="/admin", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/identity")
+def admin_manage_identity(request: Request, user_id: int):
+    require_admin(request)
+    issuer = oidc.configuration()[0]
+    with get_engine(request).begin() as conn:
+        if not get_user_by_id(conn, user_id):
+            raise HTTPException(404)
+        subject = conn.execute(
+            select(external_identities.c.subject).where(
+                external_identities.c.user_id == user_id,
+                external_identities.c.issuer == issuer,
+            )
+        ).scalar_one_or_none()
+    if not subject:
+        raise HTTPException(409, "This account has no central identity link")
+    destination = issuer + "/manage/users/" + quote(subject, safe="")
+    if is_htmx(request):
+        return Response(headers={"HX-Redirect": destination})
+    return RedirectResponse(destination, 303)

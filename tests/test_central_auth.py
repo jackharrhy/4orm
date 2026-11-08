@@ -115,12 +115,12 @@ def test_central_mode_redirects_login_and_rejects_local_password_login(
     monkeypatch.setenv("CENTRAL_AUTH_ENABLED", "1")
     monkeypatch.setenv("OIDC_CLIENT_ID", "test-client")
     response = client.get("/login?next=oauth", follow_redirects=False)
-    assert response.headers["location"] == "/auth/start?next=oauth"
+    assert response.headers["location"] == "/auth/start"
     response = client.post(
         "/login",
-        data={"username": seed_user["username"], "password": seed_user["password"]},
+        data={"username": seed_user["username"], "password": "retired-password"},
     )
-    assert response.status_code == 409
+    assert response.status_code == 405
 
 
 def test_browser_code_flow_uses_pkce_and_preserves_local_ownership(
@@ -209,7 +209,7 @@ def test_central_mode_blocks_legacy_reset_and_routes_admin_recovery(
         "/login/forgot-password",
         data={"token": "old-token", "password": "unused", "password_confirm": "unused"},
     )
-    assert response.status_code == 409
+    assert response.status_code == 405
     response = client.get("/login/forgot-password", follow_redirects=False)
     assert response.headers["location"] == "https://auth.jackharrhy.dev/forgot-password"
     with test_engine.begin() as conn:
@@ -237,7 +237,7 @@ def test_central_mode_blocks_legacy_reset_and_routes_admin_recovery(
     )
     client.get("/auth/callback?state=state&code=code", follow_redirects=False)
     response = client.post(
-        f"/admin/users/{seed_user['id']}/password-reset-link", follow_redirects=False
+        f"/admin/users/{seed_user['id']}/identity", follow_redirects=False
     )
     assert response.status_code == 303
     assert (

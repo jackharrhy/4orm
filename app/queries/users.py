@@ -1,12 +1,9 @@
-import hashlib
 import secrets
-from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 
-from app.schema import invites, pages, password_reset_tokens, profile_cards, users
-from app.security import hash_password
+from app.schema import invites, pages, profile_cards, users
 
 
 def get_user_by_username(conn: Connection, username: str):
@@ -19,56 +16,6 @@ def get_user_by_username(conn: Connection, username: str):
 
 def get_user_by_id(conn: Connection, user_id: int):
     return conn.execute(select(users).where(users.c.id == user_id)).mappings().first()
-
-
-def create_user_with_invite(
-    conn: Connection, *, username: str, password: str, invite_code: str
-):
-    invite = (
-        conn.execute(
-            select(invites).where(
-                and_(
-                    invites.c.code == invite_code,
-                    invites.c.disabled.is_(False),
-                    invites.c.uses_count < invites.c.max_uses,
-                )
-            )
-        )
-        .mappings()
-        .first()
-    )
-
-    if not invite:
-        return None, "invalid or exhausted invite code"
-
-    if get_user_by_username(conn, username):
-        return None, "username already exists"
-
-    result = conn.execute(
-        insert(users).values(
-            username=username,
-            password_hash=hash_password(password),
-            display_name=username,
-            invited_by_user_id=invite["created_by_user_id"],
-            invite_id=invite["id"],
-        )
-    )
-    user_id = result.inserted_primary_key[0]
-
-    conn.execute(
-        update(invites)
-        .where(invites.c.id == invite["id"])
-        .values(
-            uses_count=invites.c.uses_count + 1,
-            used_by_user_id=user_id,
-            used_at=func.now(),
-        )
-    )
-
-    conn.execute(
-        insert(profile_cards).values(user_id=user_id, headline=f"{username}'s page")
-    )
-    return get_user_by_id(conn, user_id), None
 
 
 def create_invite(conn: Connection, creator_user_id: int, max_uses: int = 1) -> str:
@@ -220,66 +167,3 @@ def get_invite_tree(conn: Connection):
             roots.append(node)
 
     return roots
-
-
-def _hash_reset_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-def create_password_reset_token(
-    conn: Connection,
-    *,
-    user_id: int,
-    created_by_user_id: int | None,
-    ttl_minutes: int = 20,
-) -> str:
-    raw_token = secrets.token_urlsafe(32)
-    expires_at = datetime.now(UTC) + timedelta(minutes=ttl_minutes)
-    conn.execute(
-        insert(password_reset_tokens).values(
-            user_id=user_id,
-            token_hash=_hash_reset_token(raw_token),
-            expires_at=expires_at,
-            created_at=datetime.now(UTC),
-            created_by_user_id=created_by_user_id,
-        )
-    )
-    return raw_token
-
-
-def get_valid_password_reset_token(conn: Connection, token: str):
-    now = datetime.now(UTC)
-    return (
-        conn.execute(
-            select(password_reset_tokens).where(
-                and_(
-                    password_reset_tokens.c.token_hash == _hash_reset_token(token),
-                    password_reset_tokens.c.used_at.is_(None),
-                    password_reset_tokens.c.expires_at > now,
-                )
-            )
-        )
-        .mappings()
-        .first()
-    )
-
-
-def mark_password_reset_token_used(conn: Connection, token_id: int) -> None:
-    conn.execute(
-        update(password_reset_tokens)
-        .where(password_reset_tokens.c.id == token_id)
-        .values(used_at=func.now())
-    )
-
-
-def invalidate_user_password_reset_tokens(conn: Connection, user_id: int) -> None:
-    conn.execute(
-        update(password_reset_tokens)
-        .where(
-            and_(
-                password_reset_tokens.c.user_id == user_id,
-                password_reset_tokens.c.used_at.is_(None),
-            )
-        )
-        .values(used_at=func.now())
-    )

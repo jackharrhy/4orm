@@ -9,7 +9,7 @@ from tests.conftest import login_as, make_test_user, promote_to_admin
 def _create_second_user(test_engine):
     """Create a second user for multi-user tests."""
     with test_engine.begin() as conn:
-        uid = make_test_user(conn, "user2", password="pass2")
+        uid = make_test_user(conn, "user2")
     return {"id": uid, "username": "user2", "password": "pass2"}
 
 
@@ -145,12 +145,12 @@ def test_edit_thread_meta_author(authed_client):
 def test_edit_thread_non_author_rejected(client, test_engine, seed_user):
     """8. Non-author cannot edit a thread."""
     # Log in as seed_user and create a thread
-    login_as(client, seed_user["username"], seed_user["password"])
+    login_as(client, seed_user["username"])
     thread_id = _create_thread(client, title="Owner's Thread")
 
     # Create second user and log in as them
     user2 = _create_second_user(test_engine)
-    login_as(client, user2["username"], user2["password"])
+    login_as(client, user2["username"])
 
     r = client.post(
         f"/forum/{thread_id}/edit",
@@ -178,13 +178,13 @@ def test_delete_thread_author(authed_client, test_engine):
 def test_delete_thread_admin(client, test_engine, seed_user):
     """10. Admin can delete anyone's thread."""
     # Create a thread as seed_user
-    login_as(client, seed_user["username"], seed_user["password"])
+    login_as(client, seed_user["username"])
     thread_id = _create_thread(client, title="User Thread")
 
     # Create admin user
     user2 = _create_second_user(test_engine)
     _promote_to_admin(test_engine, user2["id"])
-    login_as(client, user2["username"], user2["password"])
+    login_as(client, user2["username"])
 
     r = client.post(f"/forum/{thread_id}/delete", follow_redirects=False)
     assert r.status_code == 303
@@ -242,7 +242,7 @@ def test_reply_with_quote(authed_client):
 
 def test_reply_to_locked_thread_fails(client, test_engine, seed_user):
     """13. Replying to a locked thread returns 403."""
-    login_as(client, seed_user["username"], seed_user["password"])
+    login_as(client, seed_user["username"])
     thread_id = _create_thread(client)
 
     # Lock the thread via admin
@@ -282,13 +282,13 @@ def test_edit_own_post(authed_client, test_engine):
 
 def test_edit_post_non_author_rejected(client, test_engine, seed_user):
     """15. Non-author cannot edit someone else's post."""
-    login_as(client, seed_user["username"], seed_user["password"])
+    login_as(client, seed_user["username"])
     thread_id = _create_thread(client, content="My post")
     post_id = _get_first_post_id(test_engine, thread_id)
 
     # Switch to second user
     user2 = _create_second_user(test_engine)
-    login_as(client, user2["username"], user2["password"])
+    login_as(client, user2["username"])
 
     r = client.post(
         f"/forum/posts/{post_id}/edit",
@@ -332,7 +332,7 @@ def test_delete_own_post(authed_client, test_engine):
 
 def test_admin_can_delete_any_post(client, test_engine, seed_user):
     """17. Admin can delete any user's post."""
-    login_as(client, seed_user["username"], seed_user["password"])
+    login_as(client, seed_user["username"])
     thread_id = _create_thread(client, content="User post")
 
     # Add a reply from seed_user
@@ -352,7 +352,7 @@ def test_admin_can_delete_any_post(client, test_engine, seed_user):
     # Create admin user and delete the post
     user2 = _create_second_user(test_engine)
     _promote_to_admin(test_engine, user2["id"])
-    login_as(client, user2["username"], user2["password"])
+    login_as(client, user2["username"])
 
     r = client.post(f"/forum/posts/{reply_post_id}/delete", follow_redirects=False)
     assert r.status_code == 303
@@ -409,7 +409,7 @@ def test_signature_renders(client, test_engine, seed_user):
             .values(forum_signature="[i]my sig[/i]")
         )
 
-    login_as(client, seed_user["username"], seed_user["password"])
+    login_as(client, seed_user["username"])
     thread_id = _create_thread(client, content="Post with signature")
 
     r = client.get(f"/forum/{thread_id}")
@@ -424,7 +424,7 @@ def test_signature_renders(client, test_engine, seed_user):
 
 def test_pin_thread(client, test_engine, seed_user):
     """21. Admin can pin a thread (toggles is_pinned)."""
-    login_as(client, seed_user["username"], seed_user["password"])
+    login_as(client, seed_user["username"])
     thread_id = _create_thread(client)
 
     _promote_to_admin(test_engine, seed_user["id"])
@@ -449,7 +449,7 @@ def test_pin_thread(client, test_engine, seed_user):
 
 def test_lock_thread(client, test_engine, seed_user):
     """22. Admin can lock a thread (toggles is_locked)."""
-    login_as(client, seed_user["username"], seed_user["password"])
+    login_as(client, seed_user["username"])
     thread_id = _create_thread(client)
 
     _promote_to_admin(test_engine, seed_user["id"])

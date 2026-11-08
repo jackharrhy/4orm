@@ -268,19 +268,22 @@ def json_response(model: BaseModel, status_code: int = 200) -> JSONResponse:
 
 
 def current_user(request: Request):
+    import time
+
     from app import oidc
 
-    if oidc.enabled():
-        import time
-
-        if (
-            request.session.get("oidc_issuer") != oidc.configuration()[0]
-            or request.session.get("oidc_expires_at", 0) <= time.time()
-        ):
-            request.session.clear()
-            return None
     user_id = request.session.get("user_id")
     if not user_id:
+        return None
+    try:
+        issuer = oidc.configuration()[0]
+    except ValueError:
+        raise HTTPException(503, "Central identity is not configured") from None
+    if (
+        request.session.get("oidc_issuer") != issuer
+        or request.session.get("oidc_expires_at", 0) <= time.time()
+    ):
+        request.session.clear()
         return None
     with get_engine(request).begin() as conn:
         user = get_user_by_id(conn, user_id)
@@ -309,7 +312,6 @@ def require_user_dep(request: Request):
 
 def require_api_user(request: Request):
     """Authenticate a versioned API request with a bearer token."""
-    from app.auth import get_user_for_access_token
 
     authorization = request.headers.get("authorization", "")
     if not authorization.lower().startswith("bearer "):
@@ -321,28 +323,21 @@ def require_api_user(request: Request):
 
     if len(token) > 32768:
         raise HTTPException(401, detail="invalid bearer token")
-    if os.environ.get("CENTRAL_API_ENABLED") == "1":
-        from app.central_api import get_api_user
+    from app.central_api import get_api_user
 
-        permission = None
-        for section in ("pages", "media"):
-            prefix = f"/api/v1/{section}"
-            if request.url.path == prefix or request.url.path.startswith(prefix + "/"):
-                action = "read" if request.method in {"GET", "HEAD"} else "write"
-                permission = f"{section}-{action}"
-        try:
-            with get_engine(request).begin() as conn:
-                user = get_api_user(conn, token, permission)
-        except (OSError, ValueError, KeyError):
-            raise HTTPException(503, detail="identity service unavailable") from None
-        if not user:
-            raise HTTPException(401, detail="invalid or unauthorized bearer token")
-        return user
-
-    with get_engine(request).begin() as conn:
-        user = get_user_for_access_token(conn, token)
+    permission = None
+    for section in ("pages", "media"):
+        prefix = f"/api/v1/{section}"
+        if request.url.path == prefix or request.url.path.startswith(prefix + "/"):
+            action = "read" if request.method in {"GET", "HEAD"} else "write"
+            permission = f"{section}-{action}"
+    try:
+        with get_engine(request).begin() as conn:
+            user = get_api_user(conn, token, permission)
+    except (OSError, ValueError, KeyError):
+        raise HTTPException(503, detail="identity service unavailable") from None
     if not user:
-        raise HTTPException(401, detail="invalid or expired bearer token")
+        raise HTTPException(401, detail="invalid or unauthorized bearer token")
     return user
 
 

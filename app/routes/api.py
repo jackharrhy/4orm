@@ -37,8 +37,6 @@ router = APIRouter(prefix="/api/v1", tags=["api-v1"])
 def api_auth_config():
     from app import oidc
 
-    if os.environ.get("CENTRAL_API_ENABLED") != "1":
-        raise HTTPException(503, detail="central API login is not enabled")
     issuer, _, _ = oidc.configuration()
     project = os.environ.get("OIDC_PROJECT_ID")
     client_id = os.environ.get("OIDC_CLI_CLIENT_ID")

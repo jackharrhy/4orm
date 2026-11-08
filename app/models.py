@@ -6,15 +6,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# --- Auth ---
-
-
-class AuthResponse(BaseModel):
-    username: str
-    display_name: str
-    redirect: str
-
-
 # --- Profile ---
 
 

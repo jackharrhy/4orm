@@ -1,18 +1,24 @@
+import json
 import os
+import time
+from base64 import b64encode
 from contextlib import asynccontextmanager
 
 # Application imports validate deployment configuration. Tests intentionally use
 # the local-only session key rather than requiring a production secret.
 os.environ.setdefault("FOURM_ENV", "test")
+os.environ.setdefault("OIDC_CLIENT_ID", "test-browser-client")
 
 import pytest
 from fastapi.testclient import TestClient
+from itsdangerous import TimestampSigner
 from sqlalchemy import create_engine, event, insert
 from sqlalchemy.pool import StaticPool
 
+from app import oidc
+from app.config import session_config
 from app.main import app
-from app.schema import metadata, profile_cards, users
-from app.security import hash_password
+from app.schema import external_identities, metadata, profile_cards, users
 
 
 @asynccontextmanager
@@ -65,7 +71,7 @@ def seed_user(test_engine):
         result = conn.execute(
             insert(users).values(
                 username="testuser",
-                password_hash=hash_password("testpass"),
+                password_hash="",
                 display_name="Test User",
                 content="hello",
             )
@@ -97,10 +103,7 @@ def raw_client(test_engine):
 @pytest.fixture()
 def authed_client(client, seed_user):
     """A TestClient that is logged in as the seed user."""
-    client.post(
-        "/login",
-        data={"username": seed_user["username"], "password": seed_user["password"]},
-    )
+    login_as(client, seed_user["username"])
     return client
 
 
@@ -109,12 +112,12 @@ def authed_client(client, seed_user):
 # ---------------------------------------------------------------------------
 
 
-def make_test_user(conn, username, invited_by=None, password="pass"):
+def make_test_user(conn, username, invited_by=None):
     """Create a user with a profile card. Returns user id."""
     result = conn.execute(
         insert(users).values(
             username=username,
-            password_hash=hash_password(password),
+            password_hash="",
             display_name=username,
             invited_by_user_id=invited_by,
         )
@@ -136,13 +139,76 @@ def promote_to_admin(conn, user_id):
     conn.execute(sql_update_stmt)
 
 
-def make_admin_user(conn, username, password="pass"):
+def make_admin_user(conn, username):
     """Create a user and make them admin. Returns user id."""
-    uid = make_test_user(conn, username, password=password)
+    uid = make_test_user(conn, username)
     promote_to_admin(conn, uid)
     return uid
 
 
-def login_as(client, username, password="pass"):
-    """Log in the test client as the given user."""
-    client.post("/login", data={"username": username, "password": password})
+def login_as(client, username):
+    """Set a signed post-OIDC session for isolated route tests."""
+    from sqlalchemy import select
+
+    from app import oidc
+
+    with client.app.state.engine.connect() as conn:
+        uid = conn.execute(
+            select(users.c.id).where(users.c.username == username)
+        ).scalar_one()
+    session = {
+        "user_id": uid,
+        "oidc_issuer": oidc.configuration()[0],
+        "oidc_expires_at": int(time.time()) + 300,
+    }
+    signer = TimestampSigner(session_config()["secret_key"])
+    client.cookies.clear()
+    client.cookies.set(
+        "session",
+        signer.sign(b64encode(json.dumps(session).encode())).decode(),
+        domain="testserver.local",
+    )
+
+
+@pytest.fixture
+def central_api(monkeypatch, tmp_path, seed_user, test_engine):
+    monkeypatch.setenv("OIDC_CLIENT_ID", "browser")
+    monkeypatch.setenv("OIDC_PROJECT_ID", "project")
+    monkeypatch.setenv("OIDC_ORGANIZATION_ID", "org")
+    secret = tmp_path / "resource.json"
+    secret.write_text(json.dumps({"clientId": "resource", "clientSecret": "private"}))
+    monkeypatch.setenv("OIDC_API_CREDENTIALS_FILE", str(secret))
+    claims = {
+        "active": True,
+        "iss": "https://auth.jackharrhy.dev",
+        "sub": "explicit-subject",
+        "aud": ["project"],
+        "client_id": "native-cli",
+        "exp": int(time.time()) + 300,
+        "jack_auth_principal_type": "user",
+        "token_type": "Bearer",
+        "scope": (
+            "urn:zitadel:iam:org:project:id:project:aud "
+            "urn:zitadel:iam:org:projects:roles "
+            "urn:zitadel:iam:org:project:role:member"
+        ),
+        "urn:zitadel:iam:org:project:project:roles": {"member": {"org": "domain"}},
+    }
+    for permission in ("pages-read", "pages-write", "media-read", "media-write"):
+        claims["scope"] += f" urn:zitadel:iam:org:project:role:{permission}"
+        claims["urn:zitadel:iam:org:project:project:roles"][permission] = {
+            "org": "domain"
+        }
+    monkeypatch.setattr(
+        oidc,
+        "discovery",
+        lambda _: {"introspection_endpoint": "https://auth.jackharrhy.dev/introspect"},
+    )
+    monkeypatch.setattr(oidc, "provider_json", lambda *a, **kw: claims)
+    with test_engine.begin() as conn:
+        conn.execute(
+            insert(external_identities).values(
+                issuer=claims["iss"], subject=claims["sub"], user_id=seed_user["id"]
+            )
+        )
+    return claims
