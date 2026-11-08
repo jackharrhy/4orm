@@ -57,7 +57,7 @@ func TestMediaListResponse(t *testing.T) {
 }
 
 func TestCLIVersion(t *testing.T) {
-	if cliVersion != "0.3.0" {
+	if cliVersion != "0.4.0" {
 		t.Fatalf("cliVersion = %q", cliVersion)
 	}
 }

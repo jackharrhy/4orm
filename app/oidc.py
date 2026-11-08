@@ -32,9 +32,11 @@ def configuration():
     return issuer, client_id, redirect_uri
 
 
-def provider_json(url, values=None):
+def provider_json(url, values=None, *, headers=None):
     data = urlencode(values).encode() if values is not None else None
-    headers = {"Content-Type": "application/x-www-form-urlencoded"} if data else {}
+    headers = dict(headers or {})
+    if data:
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
     with build_opener(_NoRedirect).open(
         Request(url, data=data, headers=headers), timeout=12
     ) as response:

@@ -621,7 +621,7 @@ def main() -> int:
                         has_text="artbin:assets:content"
                     )
                     check(
-                        "1 configured" in content_scope.inner_text()
+                        "2 configured" in content_scope.inner_text()
                         and "0 / 0" in content_scope.inner_text(),
                         "defined zero-use scope omits aggregate client counts",
                     )

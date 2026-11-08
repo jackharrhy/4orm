@@ -319,6 +319,26 @@ def require_api_user(request: Request):
     if not token:
         raise HTTPException(401, detail="missing or invalid bearer token")
 
+    if len(token) > 32768:
+        raise HTTPException(401, detail="invalid bearer token")
+    if os.environ.get("CENTRAL_API_ENABLED") == "1":
+        from app.central_api import get_api_user
+
+        permission = None
+        for section in ("pages", "media"):
+            prefix = f"/api/v1/{section}"
+            if request.url.path == prefix or request.url.path.startswith(prefix + "/"):
+                action = "read" if request.method in {"GET", "HEAD"} else "write"
+                permission = f"{section}-{action}"
+        try:
+            with get_engine(request).begin() as conn:
+                user = get_api_user(conn, token, permission)
+        except (OSError, ValueError, KeyError):
+            raise HTTPException(503, detail="identity service unavailable") from None
+        if not user:
+            raise HTTPException(401, detail="invalid or unauthorized bearer token")
+        return user
+
     with get_engine(request).begin() as conn:
         user = get_user_for_access_token(conn, token)
     if not user:

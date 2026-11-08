@@ -72,3 +72,20 @@ Mount the shared scoped integration key as JSON (`{"token":"..."}`) and set
 `FOURM_ENROLLMENT_KEY_FILE`. Keep both outside the source tree. This key authorizes
 only invite validation and binding, not general user administration. The remaining
 OAuth consumers still need migration before retiring the old identity provider.
+
+The next CLI/API migration is staged behind `CENTRAL_API_ENABLED=1`. Configure
+`OIDC_PROJECT_ID`, `OIDC_ORGANIZATION_ID`, `OIDC_CLI_CLIENT_ID`, and mount the
+dedicated resource client JSON (`clientId`, `clientSecret`) at
+`OIDC_API_CREDENTIALS_FILE`. The public `/api/v1/auth-config` gives the native CLI
+its central client and requested scopes. API requests use central introspection,
+require the 4orm audience and member grant, and resolve only explicit identity
+links. Page/media operations also require the matching `pages-read`, `pages-write`,
+`media-read`, or `media-write` role and exact requested role scope. Local disabled
+accounts remain blocked. Provider failures fail closed.
+
+The updated CLI validates central discovery, signed ID tokens, nonce, state and
+PKCE. Its saved credentials include issuer and client identity. Existing legacy
+CLI credentials require `4orm login`; they are never refreshed at the new issuer.
+Keep legacy issuance available until all consumer classes have live acceptance.
+To inspect remaining client policies and aggregate token activity without
+exporting credentials, run `python scripts/inventory-oauth.py --database PATH`.
