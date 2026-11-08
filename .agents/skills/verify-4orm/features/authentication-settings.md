@@ -22,3 +22,7 @@ reservation/finish receipts are exercised in `tests/test_enrollment_completion.p
 including expiry, disabled users, concurrent reservations, terminal receipt replay
 and broker failure. Browser layout verification does not establish live companion
 grant eligibility; that requires the Auth/Maps/Burger integration receipt.
+
+`scripts/verify_central_auth.py` drives a visible sign-in form at a disposable HTTPS
+OIDC provider, then the real 4orm callback and authenticated settings. It verifies
+desktop/mobile layout and invalid state with real signed tokens and isolated data.

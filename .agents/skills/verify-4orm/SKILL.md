@@ -26,6 +26,19 @@ uv run python .agents/skills/verify-4orm/scripts/verify_4orm.py
 
 The helper chooses an unused loopback port, creates and seeds a temporary SQLite database, starts 4orm with test-only environment values, waits for HTTP readiness, and removes only the runtime state and process it created. It never reads or writes `data/4orm.db`.
 
+For central authentication, run the signed OIDC browser verification:
+
+```bash
+uv run python .agents/skills/verify-4orm/scripts/verify_central_auth.py
+```
+
+This launches a disposable HTTPS provider on loopback with a visible fixture sign-in
+form, one-use authorization codes, S256 and RS256 identity tokens. The application
+trusts its temporary certificate only in the spawned child. Desktop/mobile evidence
+covers the real redirect, token exchange, signed identity, settings, page-action
+alignment and invalid callback state. Runtime database, signing key, TLS key and
+processes are removed after the run; evidence stays under `artifacts/verification/central/`.
+
 ## Doctor
 
 Run the helper first. It checks that the spawned server answers `/`, that the page identifies itself as 4orm, and that Chromium can render the application. If it fails before driving, inspect `server.log`, `console.json`, and `report.json` in the reported evidence directory.
