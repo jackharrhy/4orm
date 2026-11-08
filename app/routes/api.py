@@ -1,5 +1,7 @@
 """Stable, machine-oriented API routes."""
 
+import os
+
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import func, select
 
@@ -29,6 +31,36 @@ from app.queries.pages import (
 from app.schema import media
 
 router = APIRouter(prefix="/api/v1", tags=["api-v1"])
+
+
+@router.get("/auth-config")
+def api_auth_config():
+    from app import oidc
+
+    if os.environ.get("CENTRAL_API_ENABLED") != "1":
+        raise HTTPException(503, detail="central API login is not enabled")
+    issuer, _, _ = oidc.configuration()
+    project = os.environ.get("OIDC_PROJECT_ID")
+    client_id = os.environ.get("OIDC_CLI_CLIENT_ID")
+    if not project or not client_id:
+        raise HTTPException(503, detail="central API login is not configured")
+    return {
+        "issuer": issuer,
+        "client_id": client_id,
+        "project_id": project,
+        "scopes": [
+            "openid",
+            "profile",
+            "offline_access",
+            f"urn:zitadel:iam:org:project:id:{project}:aud",
+            "urn:zitadel:iam:org:projects:roles",
+            "urn:zitadel:iam:org:project:role:member",
+            "urn:zitadel:iam:org:project:role:pages-read",
+            "urn:zitadel:iam:org:project:role:pages-write",
+            "urn:zitadel:iam:org:project:role:media-read",
+            "urn:zitadel:iam:org:project:role:media-write",
+        ],
+    }
 
 
 def _page_response(page) -> ApiPage:

@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -15,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -31,16 +33,20 @@ type client struct {
 	baseURL      string
 	accessToken  string
 	refreshToken string
+	issuer       string
+	clientID     string
 	http         *http.Client
 }
 
 type credentials struct {
+	Issuer       string `json:"issuer"`
+	ClientID     string `json:"client_id"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
 
 const cliCallbackAddress = "localhost:4444"
-const cliVersion = "0.3.0"
+const cliVersion = "0.4.0"
 const githubRepo = "jackharrhy/4orm"
 
 type page struct {
@@ -93,6 +99,7 @@ func main() {
 		stored := loadCredentials()
 		c.accessToken = stored.AccessToken
 		c.refreshToken = stored.RefreshToken
+		c.issuer, c.clientID = stored.Issuer, stored.ClientID
 	}
 
 	var err error
@@ -575,6 +582,17 @@ func (c client) whoami() error {
 }
 
 func (c client) login() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	configuration, provider, err := c.identityProvider(ctx)
+	if err != nil {
+		return err
+	}
+	nonce, err := randomString(32)
+	if err != nil {
+		return err
+	}
+
 	verifier, err := randomString(32)
 	if err != nil {
 		return err
@@ -588,7 +606,7 @@ func (c client) login() error {
 	redirectURI := "http://localhost:4444/auth/cli/callback"
 
 	callback := make(chan string, 1)
-	server := &http.Server{Addr: cliCallbackAddress}
+	server := &http.Server{Addr: cliCallbackAddress, ReadHeaderTimeout: 5 * time.Second}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/auth/cli/callback", func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Query().Get("state") != state {
@@ -596,70 +614,72 @@ func (c client) login() error {
 			return
 		}
 		if oauthError := req.URL.Query().Get("error"); oauthError != "" {
-			callback <- "error:" + oauthError
+			select {
+			case callback <- "error:" + oauthError:
+			default:
+			}
 		} else {
-			callback <- req.URL.Query().Get("code")
+			select {
+			case callback <- req.URL.Query().Get("code"):
+			default:
+			}
 		}
 		fmt.Fprintln(w, "4orm login complete. You can close this window.")
 	})
 	server.Handler = mux
-	go func() { _ = server.ListenAndServe() }()
+	listener, err := net.Listen("tcp", cliCallbackAddress)
+	if err != nil {
+		return errors.New("cannot start localhost login callback")
+	}
+	serveErrors := make(chan error, 1)
+	go func() { serveErrors <- server.Serve(listener) }()
 	defer server.Close()
 
 	params := url.Values{
 		"response_type":         {"code"},
-		"client_id":             {"cli"},
+		"client_id":             {configuration.ClientID},
 		"redirect_uri":          {redirectURI},
-		"scope":                 {"openid profile"},
+		"scope":                 {strings.Join(configuration.Scopes, " ")},
+		"nonce":                 {nonce},
 		"state":                 {state},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
 	}
-	authorizeURL := c.baseURL + "/oauth/authorize?" + params.Encode()
+	authorizeURL := provider.Endpoint().AuthURL + "?" + params.Encode()
 	fmt.Println("Open this URL in your browser:")
 	fmt.Println(authorizeURL)
-	code := <-callback
+	var code string
+	select {
+	case code = <-callback:
+	case <-ctx.Done():
+		return errors.New("login timed out")
+	case <-serveErrors:
+		return errors.New("login callback server stopped")
+	}
 	if strings.HasPrefix(code, "error:") || code == "" {
 		return errors.New("OAuth login was denied")
 	}
 
 	form := url.Values{
 		"grant_type":    {"authorization_code"},
-		"client_id":     {"cli"},
+		"client_id":     {configuration.ClientID},
 		"redirect_uri":  {redirectURI},
 		"code":          {code},
 		"code_verifier": {verifier},
 	}
-	response, err := c.http.PostForm(c.baseURL+"/oauth/token", form)
+	updated, idToken, err := c.exchangeCentral(provider.Endpoint().TokenURL, form)
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		data, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
-		return fmt.Errorf("token exchange failed: %s", strings.TrimSpace(string(data)))
-	}
-	var tokenResponse struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&tokenResponse); err != nil {
+	if err := verifyCentralIdentity(ctx, provider, configuration.ClientID, idToken, nonce); err != nil {
 		return err
 	}
-	if tokenResponse.AccessToken == "" {
-		return errors.New("token response did not contain an access token")
-	}
-	if tokenResponse.RefreshToken == "" {
-		return errors.New("token response did not contain a refresh token")
-	}
-	if err := saveCredentials(credentials{
-		AccessToken:  tokenResponse.AccessToken,
-		RefreshToken: tokenResponse.RefreshToken,
-	}); err != nil {
+	updated.Issuer, updated.ClientID = configuration.Issuer, configuration.ClientID
+	if err := saveCredentials(updated); err != nil {
 		return err
 	}
-	c.accessToken = tokenResponse.AccessToken
-	c.refreshToken = tokenResponse.RefreshToken
+	c.accessToken, c.refreshToken = updated.AccessToken, updated.RefreshToken
+	c.issuer, c.clientID = updated.Issuer, updated.ClientID
 	fmt.Println("logged in")
 	return nil
 }
@@ -712,9 +732,10 @@ func (c client) doWithToken(method, path string, body []byte, contentType string
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusUnauthorized && allowRefresh && c.refreshToken != "" {
 		io.Copy(io.Discard, resp.Body)
-		if err := c.refresh(); err == nil {
-			return c.doWithToken(method, path, body, contentType, output, false)
+		if err := c.refresh(); err != nil {
+			return err
 		}
+		return c.doWithToken(method, path, body, contentType, output, false)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
@@ -724,35 +745,6 @@ func (c client) doWithToken(method, path string, body []byte, contentType string
 		return nil
 	}
 	return json.NewDecoder(resp.Body).Decode(output)
-}
-
-func (c *client) refresh() error {
-	form := url.Values{
-		"grant_type":    {"refresh_token"},
-		"client_id":     {"cli"},
-		"refresh_token": {c.refreshToken},
-	}
-	response, err := c.http.PostForm(c.baseURL+"/oauth/token", form)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("refresh failed with %s", response.Status)
-	}
-	var tokenResponse credentials
-	if err := json.NewDecoder(response.Body).Decode(&tokenResponse); err != nil {
-		return err
-	}
-	if tokenResponse.AccessToken == "" || tokenResponse.RefreshToken == "" {
-		return errors.New("refresh response did not contain both tokens")
-	}
-	if err := saveCredentials(tokenResponse); err != nil {
-		return err
-	}
-	c.accessToken = tokenResponse.AccessToken
-	c.refreshToken = tokenResponse.RefreshToken
-	return nil
 }
 
 func slugFromFilename(filename string) string {
