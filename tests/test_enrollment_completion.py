@@ -146,6 +146,13 @@ def test_delivery_retries_outage_but_stops_on_unknown_outcome(
         "provider_json",
         lambda *args, **kwargs: {"requestId": request_id, "completed": True},
     )
+    assert completion.deliver(test_engine, request_id) == 502
+    with test_engine.begin() as conn:
+        for application in ("maps", "burger"):
+            completion.reserve(conn, request_id, application, "new-subject", "owned")
+            completion.finish(
+                conn, request_id, application, "new-subject", "owned", "123", "created"
+            )
     assert completion.deliver(test_engine, request_id) == 200
     assert completion.deliver(test_engine, request_id) is None
     assert calls == [{"requestId": request_id, "subject": "new-subject"}] * 2

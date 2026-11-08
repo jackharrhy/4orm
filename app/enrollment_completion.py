@@ -170,6 +170,17 @@ def deliver(engine, request_id):
     except (ValueError, OSError, URLError):
         status = 502
     with engine.begin() as conn:
+        if status == 200:
+            finished = set(
+                conn.execute(
+                    select(enrollment_grants.c.application_id).where(
+                        enrollment_grants.c.request_id == request_id,
+                        enrollment_grants.c.outcome.is_not(None),
+                    )
+                ).scalars()
+            )
+            if finished != {"maps", "burger"}:
+                status = 502
         conn.execute(
             update(enrollment_completions)
             .where(
