@@ -59,6 +59,7 @@ def run(args):
                 context = browser.new_context()
                 page = context.new_page()
                 config = Path(temporary) / "4orm/config.json"
+                issued = []
 
                 def revoke(credentials):
                     for kind in ("refresh_token", "access_token"):
@@ -84,6 +85,7 @@ def run(args):
                     assert process.wait(timeout=30) == 0
                     print("PASS: native PKCE, state, signed identity and nonce login")
                     credentials = json.loads(config.read_text())
+                    issued.append(dict(credentials))
                     assert credentials["issuer"] == "https://auth.jackharrhy.dev"
                     assert credentials["client_id"] == query["client_id"][0]
 
@@ -111,6 +113,7 @@ def run(args):
                     config.write_text(json.dumps(credentials))
                     assert command("whoami") == before
                     refreshed = json.loads(config.read_text())
+                    issued.append(dict(refreshed))
                     assert refreshed["access_token"] != credentials["access_token"]
                     print("PASS: central refresh restores the same local profile")
                     revoke(refreshed)
@@ -125,12 +128,18 @@ def run(args):
                 finally:
                     try:
                         if config.exists():
-                            revoke(json.loads(config.read_text()))
-                        page.goto("https://auth.jackharrhy.dev/account")
-                        page.get_by_role("button", name="Sign out", exact=True).click()
+                            issued.append(json.loads(config.read_text()))
+                        for credentials in issued:
+                            revoke(credentials)
                     finally:
-                        context.close()
-                        browser.close()
+                        try:
+                            page.goto("https://auth.jackharrhy.dev/account")
+                            page.get_by_role(
+                                "button", name="Sign out", exact=True
+                            ).click()
+                        finally:
+                            context.close()
+                            browser.close()
 
         finally:
             if process.poll() is None:
