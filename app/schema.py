@@ -121,6 +121,34 @@ auth_enrollments = Table(
     Column("consumed_at", Integer),
 )
 
+enrollment_completions = Table(
+    "enrollment_completions",
+    metadata,
+    Column(
+        "request_id", String(64), ForeignKey("auth_enrollments.id"), primary_key=True
+    ),
+    Column("issuer", String(255), nullable=False),
+    Column("delivered_at", Integer),
+    Column("last_status", Integer),
+)
+
+enrollment_grants = Table(
+    "enrollment_grants",
+    metadata,
+    Column(
+        "request_id",
+        String(64),
+        ForeignKey("enrollment_completions.request_id"),
+        primary_key=True,
+    ),
+    Column("application_id", String(16), primary_key=True),
+    Column("attempt_id", String(128), nullable=False),
+    Column("grant_id", String(255)),
+    Column("outcome", String(16)),
+    CheckConstraint("application_id IN ('maps', 'burger')"),
+    CheckConstraint("outcome IS NULL OR outcome IN ('created', 'preserved')"),
+)
+
 password_reset_tokens = Table(
     "password_reset_tokens",
     metadata,

@@ -15,3 +15,10 @@ Use visible labels to fill the login form. Confirm authenticated navigation appe
 ## Gotchas
 
 The runner's seeded member has already accepted the trust agreement. Add a separate member when verifying that first-login flow. CodeMirror is loaded only on editor-heavy settings pages and may produce additional network activity before the page settles.
+
+Central invite callback coverage also asserts that only a newly committed profile
+creates an enrollment-completion event. Scoped completion proof and per-application
+reservation/finish receipts are exercised in `tests/test_enrollment_completion.py`,
+including expiry, disabled users, concurrent reservations, terminal receipt replay
+and broker failure. Browser layout verification does not establish live companion
+grant eligibility; that requires the Auth/Maps/Burger integration receipt.

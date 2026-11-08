@@ -32,11 +32,16 @@ def configuration():
     return issuer, client_id, redirect_uri
 
 
-def provider_json(url, values=None, *, headers=None):
+def provider_json(url, values=None, *, headers=None, json_body=None):
     data = urlencode(values).encode() if values is not None else None
     headers = dict(headers or {})
     if data:
         headers["Content-Type"] = "application/x-www-form-urlencoded"
+    if json_body is not None:
+        if values is not None:
+            raise ValueError("Choose one provider request encoding")
+        data = json.dumps(json_body).encode()
+        headers["Content-Type"] = "application/json"
     with build_opener(_NoRedirect).open(
         Request(url, data=data, headers=headers), timeout=12
     ) as response:
