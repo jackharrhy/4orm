@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db import engine
 from app.enrollment_completion import deliver
@@ -30,9 +30,18 @@ with engine.connect() as conn:
         .all()
     )
 statuses = [deliver(engine, request_id) for request_id in pending]
+with engine.connect() as conn:
+    blocked = conn.execute(
+        select(func.count())
+        .select_from(enrollment_completions)
+        .where(
+            enrollment_completions.c.delivered_at.is_(None),
+            enrollment_completions.c.last_status == 409,
+        )
+    ).scalar_one()
 print(
     f"Attempted {len(statuses)}; acknowledged {statuses.count(200)}; "
-    f"needs reconciliation {statuses.count(409)}; "
+    f"needs reconciliation {blocked}; "
     f"other pending {sum(s not in {200, 409} for s in statuses)}"
 )
-raise SystemExit(0 if all(status == 200 for status in statuses) else 1)
+raise SystemExit(0 if not blocked and all(status == 200 for status in statuses) else 1)
