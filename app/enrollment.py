@@ -14,6 +14,7 @@ from sqlalchemy import func, insert, or_, select, update
 from app.deps import USERNAME_RE
 from app.schema import (
     auth_enrollments,
+    enrollment_completions,
     external_identities,
     invites,
     profile_cards,
@@ -263,5 +264,8 @@ def finish(conn, request_id, issuer, subject):
         update(auth_enrollments)
         .where(auth_enrollments.c.id == request_id)
         .values(user_id=uid, consumed_at=int(time.time()))
+    )
+    conn.execute(
+        insert(enrollment_completions).values(request_id=request_id, issuer=issuer)
     )
     return conn.execute(select(users).where(users.c.id == uid)).mappings().one()

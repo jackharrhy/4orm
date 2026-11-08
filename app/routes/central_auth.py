@@ -4,12 +4,12 @@ import time
 from urllib.error import URLError
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from joserfc.errors import JoseError
 from sqlalchemy import select
 
-from app import enrollment, oidc
+from app import enrollment, enrollment_completion, oidc
 from app.deps import get_engine, templates
 from app.routes.auth import _pop_oauth_redirect
 from app.schema import external_identities, users
@@ -50,7 +50,7 @@ def start(request: Request):
 
 
 @router.get("/auth/callback")
-def callback(request: Request):
+def callback(request: Request, background_tasks: BackgroundTasks):
     if not oidc.enabled():
         raise HTTPException(404)
     try:
@@ -63,6 +63,7 @@ def callback(request: Request):
         raise HTTPException(
             400, "Sign-in failed. Start again from the login page."
         ) from None
+    completed_request = None
     with get_engine(request).begin() as conn:
         if next_kind == "register" and request.session.get("central_enrollment"):
             try:
@@ -72,6 +73,7 @@ def callback(request: Request):
                     claims["iss"],
                     claims["sub"],
                 )
+                completed_request = request.session["central_enrollment"]
             except ValueError as error:
                 raise HTTPException(403, str(error)) from None
         else:
@@ -92,6 +94,10 @@ def callback(request: Request):
     if not user or user["is_disabled"]:
         raise HTTPException(
             403, "This identity is not linked to an active 4orm account."
+        )
+    if completed_request:
+        background_tasks.add_task(
+            enrollment_completion.deliver, get_engine(request), completed_request
         )
     redirect = _pop_oauth_redirect(request) if next_kind == "oauth" else None
     request.session.clear()

@@ -184,6 +184,9 @@ def test_member_invite_routes_signup_through_central_and_keeps_local_ownership(
         "sub": "new-subject",
         "exp": int(time.time()) + 300,
     }
+    from app import enrollment_completion
+
+    monkeypatch.setattr(enrollment_completion, "deliver", lambda *args: None)
     monkeypatch.setattr(oidc, "complete", lambda *args: (claims, "register"))
     response = client.get(
         "/auth/callback?state=state&code=code", follow_redirects=False
@@ -232,6 +235,9 @@ def test_callback_cannot_spend_reservation_for_a_different_subject(
         "sub": "unexpected",
         "exp": int(time.time()) + 300,
     }
+    from app import enrollment_completion
+
+    monkeypatch.setattr(enrollment_completion, "deliver", lambda *args: None)
     monkeypatch.setattr(oidc, "complete", lambda *args: (claims, "register"))
     response = client.get(
         "/auth/callback?state=state&code=code", follow_redirects=False

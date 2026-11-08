@@ -89,3 +89,18 @@ CLI credentials require `4orm login`; they are never refreshed at the new issuer
 Keep legacy issuance available until all consumer classes have live acceptance.
 To inspect remaining client policies and aggregate token activity without
 exporting credentials, run `python scripts/inventory-oauth.py --database PATH`.
+
+Committed invite enrollments create a durable completion event only when a new
+4orm profile and its explicit central identity link commit. After the response,
+4orm asks Auth to process Maps/Burger member eligibility with the existing scoped
+enrollment key. Auth chooses the projects and roles; these endpoints cannot grant
+admin or arbitrary application access. Existing-member enrollment creates no event.
+
+Completion receipts remain valid after the original ticket expires. Per-application
+reservations retain the original attempt and terminal receipt across retries and
+later grant deletion. An ambiguous HTTP 409 stops automatic delivery and requires
+operator reconciliation; it never rolls back the committed profile or consumes
+another invite. Inspect `enrollment_completions.last_status` for pending failures.
+Run `uv run python scripts/retry-enrollment-completions.py --limit 100` in the
+configured application environment to retry pending delivery after an interruption.
+This command prints aggregate outcomes only and does not retry ambiguous receipts.
