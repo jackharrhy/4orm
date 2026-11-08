@@ -58,6 +58,21 @@ def run(args):
                 browser = playwright.chromium.launch()
                 context = browser.new_context()
                 page = context.new_page()
+                config = Path(temporary) / "4orm/config.json"
+
+                def revoke(credentials):
+                    for kind in ("refresh_token", "access_token"):
+                        response = context.request.post(
+                            "https://auth.jackharrhy.dev/oauth/v2/revoke",
+                            form={
+                                "token": credentials[kind],
+                                "token_type_hint": kind,
+                                "client_id": credentials["client_id"],
+                            },
+                            max_redirects=0,
+                        )
+                        assert response.status == 200, "Token revocation failed"
+
                 try:
                     page.goto(authorization)
                     page.locator("input[name=username]").fill(args.account)
@@ -68,7 +83,6 @@ def run(args):
                     page.wait_for_url("http://localhost:4444/auth/cli/callback?**")
                     assert process.wait(timeout=30) == 0
                     print("PASS: native PKCE, state, signed identity and nonce login")
-                    config = Path(temporary) / "4orm/config.json"
                     credentials = json.loads(config.read_text())
                     assert credentials["issuer"] == "https://auth.jackharrhy.dev"
                     assert credentials["client_id"] == query["client_id"][0]
@@ -99,17 +113,7 @@ def run(args):
                     refreshed = json.loads(config.read_text())
                     assert refreshed["access_token"] != credentials["access_token"]
                     print("PASS: central refresh restores the same local profile")
-                    for kind in ("refresh_token", "access_token"):
-                        response = context.request.post(
-                            "https://auth.jackharrhy.dev/oauth/v2/revoke",
-                            form={
-                                "token": refreshed[kind],
-                                "token_type_hint": kind,
-                                "client_id": refreshed["client_id"],
-                            },
-                            max_redirects=0,
-                        )
-                        assert response.status == 200, "Token revocation failed"
+                    revoke(refreshed)
                     revoked = context.request.get(
                         origin + "/api/v1/me",
                         headers={
@@ -119,10 +123,14 @@ def run(args):
                     assert revoked.status == 401, "Revoked token was accepted"
                     print("PASS: central revocation immediately blocks API access")
                 finally:
-                    page.goto("https://auth.jackharrhy.dev/account")
-                    page.get_by_role("button", name="Sign out", exact=True).click()
-                    context.close()
-                    browser.close()
+                    try:
+                        if config.exists():
+                            revoke(json.loads(config.read_text()))
+                        page.goto("https://auth.jackharrhy.dev/account")
+                        page.get_by_role("button", name="Sign out", exact=True).click()
+                    finally:
+                        context.close()
+                        browser.close()
 
         finally:
             if process.poll() is None:
