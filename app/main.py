@@ -95,41 +95,20 @@ async def lifespan(application: FastAPI):
         application.state.backup_scheduler.stop()
 
 
-_CSRF_EXEMPT_PATHS = {
-    "/login",
-}
-_TRUSTED_ORIGINS: set[str] = set()  # add full origins like "https://example.com"
-
-
 class CSRFMiddleware(BaseHTTPMiddleware):
-    """Reject cross-origin non-safe requests using Sec-Fetch-Site / Origin.
+    """Reject cross-origin writes using Sec-Fetch-Site, then Origin/Host.
 
-    Algorithm from https://words.filippo.io/csrf/ and Go 1.25 CrossOriginProtection:
-    1. Allow safe methods (GET, HEAD, OPTIONS).
-    2. Allow exempt paths (login, feeds).
-    3. Allow trusted origins from the allowlist.
-    4. If Sec-Fetch-Site is present: allow same-origin/none, reject everything else.
-    5. If neither Sec-Fetch-Site nor Origin is present: allow (not a browser).
-    6. If Origin host == Host header: allow (old browser / HTTP origin fallback).
-    7. Reject.
+    Requests without either browser header remain usable by API clients.
+    See https://words.filippo.io/csrf/ for the browser-header policy.
     """
 
     async def dispatch(self, request: Request, call_next):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return await call_next(request)
 
-        path = request.url.path
-        if path in _CSRF_EXEMPT_PATHS or path.endswith("/feed.xml"):
-            return await call_next(request)
-
         origin = request.headers.get("origin")
         sec_fetch_site = request.headers.get("sec-fetch-site")
 
-        # Step 2: trusted origin allowlist
-        if origin and origin in _TRUSTED_ORIGINS:
-            return await call_next(request)
-
-        # Step 3: Sec-Fetch-Site (reliable in all major browsers since 2023)
         if sec_fetch_site is not None:
             if sec_fetch_site in ("same-origin", "none"):
                 return await call_next(request)
@@ -137,12 +116,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 "Forbidden: cross-origin request rejected", status_code=403
             )
 
-        # Step 4: no browser headers at all — not a browser, allow
         if origin is None:
             return await call_next(request)
 
-        # Step 5: Origin vs Host fallback (old browsers, HTTP origins)
-        origin_host = urlparse(origin).netloc  # includes port if non-default
+        origin_host = urlparse(origin).netloc
         host = request.headers.get("host", "")
         if origin_host == host:
             return await call_next(request)
@@ -209,10 +186,6 @@ async def _handle_login_required(_request, _exc):
 app.state.engine = default_engine
 
 
-# Middleware order: last added = outermost = runs first on request.
-# SessionMiddleware must run before CSRFMiddleware so the session is
-# available when we check the token.  Adding CSRF first, then Session
-# means Session is outer and loads the session before CSRF executes.
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(
     SessionMiddleware,
@@ -222,7 +195,6 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads")
 
-# Include all route modules
 app.include_router(auth.router)
 app.include_router(central_auth.router)
 app.include_router(enrollment.router)

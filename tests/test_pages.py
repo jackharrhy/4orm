@@ -64,7 +64,6 @@ def test_create_page_missing_fields_returns_json_error(authed_client):
 
 
 def test_edit_page(authed_client, seed_user):
-    # Create a page first
     authed_client.post(
         "/settings/pages",
         data={
@@ -75,7 +74,6 @@ def test_edit_page(authed_client, seed_user):
         },
     )
 
-    # Edit it
     r = authed_client.post(
         "/settings/pages/editable/edit",
         data={
@@ -89,7 +87,6 @@ def test_edit_page(authed_client, seed_user):
     )
     assert r.status_code == 303
 
-    # Verify update
     r2 = authed_client.get(f"/u/{seed_user['username']}/page/editable")
     assert r2.status_code == 200
     assert "Updated" in r2.text
@@ -238,7 +235,6 @@ def test_page_applies_custom_css(authed_client, test_engine, seed_user):
 
     from app.schema import users
 
-    # Set custom CSS on the user
     with test_engine.begin() as conn:
         conn.execute(
             update(users)

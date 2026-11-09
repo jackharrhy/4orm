@@ -46,10 +46,8 @@ Only explicit `external_identities` issuer/subject links identify members. Names
 and email addresses never merge accounts. Admin identity management opens Auth.
 
 New installations need a centrally registered client and reviewed initial identity
-links. Existing links can be validated/applied with
-`scripts/link-central-identities.py --manifest PATH --database PATH --apply`.
-Keep manifests private and review current links before applying; an old import
-must not replace later enrollments.
+links. The production import is complete; subsequent members join through signed
+invite enrollment. Do not replay an old identity manifest over current links.
 
 Member invite links stay at `/register?invite=CODE`. Enrollment reserves an invite
 for 30 minutes and continues at Auth for account creation and email verification.
