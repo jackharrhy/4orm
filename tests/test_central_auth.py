@@ -82,7 +82,6 @@ def test_oidc_transaction_is_one_use_and_checks_state_and_age(monkeypatch):
 def test_oidc_callback_only_links_by_explicit_subject(
     client, seed_user, test_engine, monkeypatch
 ):
-    monkeypatch.setenv("CENTRAL_AUTH_ENABLED", "1")
     monkeypatch.setenv("OIDC_CLIENT_ID", "test-client")
     claims = {
         "iss": "https://auth.jackharrhy.dev",
@@ -109,20 +108,6 @@ def test_oidc_callback_only_links_by_explicit_subject(
     assert client.get("/settings").status_code == 200
 
 
-def test_central_mode_redirects_login_and_rejects_local_password_login(
-    client, seed_user, monkeypatch
-):
-    monkeypatch.setenv("CENTRAL_AUTH_ENABLED", "1")
-    monkeypatch.setenv("OIDC_CLIENT_ID", "test-client")
-    response = client.get("/login?next=oauth", follow_redirects=False)
-    assert response.headers["location"] == "/auth/start"
-    response = client.post(
-        "/login",
-        data={"username": seed_user["username"], "password": "retired-password"},
-    )
-    assert response.status_code == 405
-
-
 def test_browser_code_flow_uses_pkce_and_preserves_local_ownership(
     client, seed_user, test_engine, monkeypatch
 ):
@@ -130,7 +115,6 @@ def test_browser_code_flow_uses_pkce_and_preserves_local_ownership(
     import hashlib
     from urllib.parse import parse_qs, urlparse
 
-    monkeypatch.setenv("CENTRAL_AUTH_ENABLED", "1")
     monkeypatch.setenv("OIDC_CLIENT_ID", "fourm-client")
     key = jwk.RSAKey.generate_key(2048)
     discovery = {
@@ -196,20 +180,14 @@ def test_browser_code_flow_uses_pkce_and_preserves_local_ownership(
     )
 
 
-def test_central_mode_blocks_legacy_reset_and_routes_admin_recovery(
+def test_admin_recovery_uses_central_identity_management(
     client, seed_user, test_engine, monkeypatch
 ):
     from sqlalchemy import func, select, update
 
     from app.schema import password_reset_tokens, users
 
-    monkeypatch.setenv("CENTRAL_AUTH_ENABLED", "1")
     monkeypatch.setenv("OIDC_CLIENT_ID", "test-client")
-    response = client.post(
-        "/login/forgot-password",
-        data={"token": "old-token", "password": "unused", "password_confirm": "unused"},
-    )
-    assert response.status_code == 405
     response = client.get("/login/forgot-password", follow_redirects=False)
     assert response.headers["location"] == "https://auth.jackharrhy.dev/forgot-password"
     with test_engine.begin() as conn:
