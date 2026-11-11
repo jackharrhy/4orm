@@ -7,11 +7,13 @@ import os
 import secrets
 import time
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 
 from sqlalchemy import func, insert, or_, select, update
 
 from app.deps import USERNAME_RE
+from app.queries.users import pending_reservations
 from app.schema import (
     auth_enrollments,
     enrollment_completions,
@@ -22,6 +24,23 @@ from app.schema import (
 )
 
 LIFETIME = 1800
+
+
+class EnrollmentState(StrEnum):
+    RESERVED = "reserved"
+    CLAIMED = "claimed"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+
+
+def enrollment_state(record, now=None) -> EnrollmentState:
+    # Committed identity is durable even after the reservation's expiry.
+    if record["consumed_at"] is not None:
+        return EnrollmentState.COMPLETED
+    now = int(time.time()) if now is None else now
+    if record["expires_at"] <= now:
+        return EnrollmentState.EXPIRED
+    return EnrollmentState.CLAIMED if record["subject"] else EnrollmentState.RESERVED
 
 
 def integration_key():
@@ -83,11 +102,7 @@ def reserve(conn, code, previous=None, now=None):
     pending = (
         select(func.count())
         .select_from(auth_enrollments)
-        .where(
-            auth_enrollments.c.invite_id == invites.c.id,
-            auth_enrollments.c.expires_at > now,
-            auth_enrollments.c.consumed_at.is_(None),
-        )
+        .where(pending_reservations(now))
         .correlate(invites)
         .scalar_subquery()
     )
@@ -151,7 +166,7 @@ def claim(conn, request_id, subject, username, display_name):
     row = get_pending(conn, request_id)
     if row["subject"] and row["subject"] != subject:
         raise ValueError("This registration is already linked to another account")
-    if row["consumed_at"]:
+    if enrollment_state(row) == EnrollmentState.COMPLETED:
         raise ValueError("This registration is already complete")
     existing_identity = (
         conn.execute(
@@ -216,7 +231,7 @@ def finish(conn, request_id, issuer, subject):
         .mappings()
         .first()
     )
-    if row["consumed_at"]:
+    if enrollment_state(row) == EnrollmentState.COMPLETED:
         if linked and linked["id"] == row["user_id"]:
             return linked
         raise ValueError("This registration is already complete")

@@ -6,6 +6,12 @@ declare global {
   }
 }
 
+type PreviewState =
+  | { status: "idle" }
+  | { status: "pending"; controller: AbortController }
+  | { status: "success" | "error" };
+const previews = new WeakMap<HTMLElement, PreviewState>();
+
 export function previewPost(textareaId: string): void {
   const ta = document.getElementById(textareaId) as HTMLTextAreaElement | null;
   if (!ta || !ta.value.trim()) return;
@@ -17,17 +23,49 @@ export function previewPost(textareaId: string): void {
   const preview = document.getElementById("preview-" + textareaId);
   if (!preview) return;
 
+  const previous = previews.get(preview) ?? { status: "idle" };
+  if (previous?.status === "pending") previous.controller.abort();
+  const state: PreviewState = {
+    status: "pending",
+    controller: new AbortController(),
+  };
+  previews.set(preview, state);
+  preview.dataset.state = state.status;
+  preview.setAttribute("aria-busy", "true");
+  preview.setAttribute("aria-live", "polite");
   const fd = new FormData();
   fd.append("content", ta.value);
   fd.append("content_format", fmt);
   fetch("/forum/preview", {
     method: "POST",
     body: fd,
+    signal: state.controller.signal,
   })
-    .then((r) => r.text())
+    .then((r) => {
+      if (!r.ok) throw new Error("preview failed");
+      return r.text();
+    })
     .then((html) => {
+      if (previews.get(preview) !== state) return;
+      previews.set(preview, { status: "success" });
+      preview.dataset.state = "success";
       preview.innerHTML = html;
       preview.style.display = "block";
+    })
+    .catch(() => {
+      if (previews.get(preview) !== state) return;
+      previews.set(preview, { status: "error" });
+      preview.dataset.state = "error";
+      preview.textContent = "Preview failed. Please try again.";
+      preview.style.display = "block";
+    })
+    .finally(() => {
+      if (
+        previews.get(preview) === state ||
+        previews.get(preview)?.status !== "pending"
+      ) {
+        preview.setAttribute("aria-busy", "false");
+      }
     });
 }
 

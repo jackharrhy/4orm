@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from app import enrollment, enrollment_completion, oidc
 from app.deps import get_engine, templates
+from app.queries.users import AccountState, account_state
 from app.schema import external_identities, users
 
 router = APIRouter(tags=["auth"])
@@ -86,7 +87,7 @@ def callback(request: Request, background_tasks: BackgroundTasks):
                 .mappings()
                 .first()
             )
-    if not user or user["is_disabled"]:
+    if not user or account_state(user) == AccountState.DISABLED:
         raise HTTPException(
             403, "This identity is not linked to an active 4orm account."
         )
@@ -101,6 +102,6 @@ def callback(request: Request, background_tasks: BackgroundTasks):
         oidc_issuer=claims["iss"],
         oidc_expires_at=min(claims["exp"], int(time.time()) + 3600),
     )
-    if next_kind == "register" and not user["has_accepted_trust"]:
+    if next_kind == "register" and account_state(user) == AccountState.AWAITING_TRUST:
         redirect = "/trust-agreement"
     return RedirectResponse(redirect or f"/u/{user['username']}", 303)

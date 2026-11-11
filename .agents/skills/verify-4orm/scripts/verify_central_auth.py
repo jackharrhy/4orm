@@ -2,6 +2,7 @@
 """Verify 4orm using a disposable signed HTTPS identity provider and database."""
 
 import argparse
+import base64
 import json
 import os
 import signal
@@ -121,6 +122,42 @@ def application(base_url, port, environment, log_path):
                     server.wait(timeout=5)
 
 
+def verify_async_controls(page, width, base_url, evidence):
+    page.goto(base_url + "/forum/new")
+    page.get_by_role("heading", name="new thread", exact=True).wait_for()
+    page.locator("#thread-content").fill("A stateful preview")
+    page.get_by_role("button", name="preview", exact=True).click()
+    preview = page.locator("#preview-thread-content")
+    page.wait_for_function(
+        "document.getElementById('preview-thread-content').dataset.state === 'success'"
+    )
+    assert preview.is_visible()
+    assert "A stateful preview" in preview.inner_text()
+    assert preview.get_attribute("aria-busy") == "false"
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="
+    )
+    page.locator("#media-upload-file-thread-content").set_input_files(
+        {"name": f"state-{width}.png", "mimeType": "image/png", "buffer": png}
+    )
+    page.locator("#media-picker-thread-content [data-upload-button]").click()
+    page.wait_for_function(
+        "document.getElementById('media-picker-thread-content')"
+        ".dataset.state === 'success'"
+    )
+    assert (
+        page.locator("#media-upload-status-thread-content").inner_text() == "Uploaded."
+    )
+    assert page.locator(
+        "#media-picker-thread-content [data-upload-button]"
+    ).is_enabled()
+    selected = page.locator("#media-select-thread-content").input_value()
+    uploaded = page.request.get(base_url + "/uploads/" + selected)
+    assert uploaded.status == 200 and uploaded.body() == png
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.screenshot(path=evidence / f"async-controls-{width}.png", full_page=True)
+
+
 def verify_viewport(browser, width, base_url, evidence, events):
     context = browser.new_context(
         viewport={"width": width, "height": 900},
@@ -161,6 +198,7 @@ def verify_viewport(browser, width, base_url, evidence, events):
             delete = row.get_by_role("button", name="delete", exact=True).bounding_box()
             assert edit and delete and abs(edit["y"] - delete["y"]) < 4
         page.screenshot(path=evidence / f"settings-{width}.png", full_page=True)
+        verify_async_controls(page, width, base_url, evidence)
         page.goto(base_url + "/admin")
         page.get_by_role("heading", name="admin", exact=True).wait_for()
         assert page.locator("#oauth-clients").count() == 0
@@ -177,6 +215,7 @@ def verify_viewport(browser, width, base_url, evidence, events):
             "width": width,
             "signedOidcLogin": True,
             "settings": True,
+            "actualPreviewAndUpload": True,
             "pageActionsAligned": True,
             "centralIdentityAdmin": True,
             "issuerAdminRemoved": True,
@@ -201,6 +240,7 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix="4orm-central-verification-") as temp:
             runtime = Path(temp)
+            (runtime / "uploads").mkdir()
             with socket.socket() as sock:
                 sock.bind(("127.0.0.1", 0))
                 port = sock.getsockname()[1]
@@ -214,6 +254,7 @@ def main():
                 env = {
                     **os.environ,
                     "DATABASE_URL": database_url,
+                    "FOURM_UPLOADS_DIR": str(runtime / "uploads"),
                     "FOURM_ENV": "test",
                     "SECRET_KEY": "isolated-central-browser-verification-only",
                     "SITE_URL": base_url,

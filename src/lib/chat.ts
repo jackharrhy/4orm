@@ -1,47 +1,12 @@
-/**
- * Chat page: unread counter in tab title + flash on new messages.
- * Also handles auto-scroll to bottom.
- */
-
-let unreadCount = 0;
-let flashInterval: ReturnType<typeof setInterval> | null = null;
-let isFlashOn = false;
+type Attention =
+  | { status: "focused" }
+  | { status: "unfocused"; unread: number; flash: boolean };
 const baseTitle = "4orm · chat";
 
-function updateTitle(): void {
-  if (unreadCount > 0) {
-    document.title = `(${unreadCount}) ${baseTitle}`;
-  } else {
-    document.title = baseTitle;
-  }
-}
-
-function startFlashing(): void {
-  if (flashInterval) return;
-  flashInterval = setInterval(() => {
-    isFlashOn = !isFlashOn;
-    document.title = isFlashOn
-      ? `💬 new message`
-      : `(${unreadCount}) ${baseTitle}`;
-  }, 1000);
-}
-
-function stopFlashing(): void {
-  if (flashInterval) {
-    clearInterval(flashInterval);
-    flashInterval = null;
-  }
-  isFlashOn = false;
-  unreadCount = 0;
-  updateTitle();
-}
-
 function sendPresence(active: boolean): void {
-  fetch("/chat/presence", {
+  void fetch("/chat/presence", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ active }),
   }).catch(() => {});
 }
@@ -49,33 +14,54 @@ function sendPresence(active: boolean): void {
 export function initChat(): void {
   const chatEl = document.getElementById("chat-messages");
   if (!chatEl) return;
-
-  // Auto-scroll to bottom
+  let attention: Attention = document.hasFocus()
+    ? { status: "focused" }
+    : { status: "unfocused", unread: 0, flash: false };
+  let timer: ReturnType<typeof setInterval> | null = null;
+  function render(): void {
+    chatEl!.dataset.attention = attention.status;
+    document.title =
+      attention.status === "focused" || !attention.unread
+        ? baseTitle
+        : attention.flash
+          ? "💬 new message"
+          : `(${attention.unread}) ${baseTitle}`;
+  }
   chatEl.scrollTop = chatEl.scrollHeight;
-
-  let hasFocus = document.hasFocus();
-
+  render();
   window.addEventListener("focus", () => {
-    hasFocus = true;
-    stopFlashing();
+    attention = { status: "focused" };
+    if (timer !== null) clearInterval(timer);
+    timer = null;
+    render();
     sendPresence(true);
   });
-
   window.addEventListener("blur", () => {
-    hasFocus = false;
+    if (attention.status === "focused")
+      attention = { status: "unfocused", unread: 0, flash: false };
+    render();
     sendPresence(false);
   });
-
-  // Watch for new messages via MutationObserver
-  new MutationObserver(() => {
-    // Auto-scroll
+  new MutationObserver((records) => {
     chatEl.scrollTop = chatEl.scrollHeight;
-
-    // Count unread when tab is not focused
-    if (!hasFocus) {
-      unreadCount++;
-      updateTitle();
-      startFlashing();
+    const added = records.reduce(
+      (count, record) =>
+        count +
+        Array.from(record.addedNodes).filter(
+          (node) =>
+            node instanceof Element && node.classList.contains("chat-msg"),
+        ).length,
+      0,
+    );
+    if (attention.status === "unfocused" && added > 0) {
+      attention = { ...attention, unread: attention.unread + added };
+      render();
+      if (timer === null)
+        timer = setInterval(() => {
+          if (attention.status === "unfocused")
+            attention = { ...attention, flash: !attention.flash };
+          render();
+        }, 1000);
     }
   }).observe(chatEl, { childList: true });
 }

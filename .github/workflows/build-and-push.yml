@@ -47,6 +47,9 @@ jobs:
       - name: TypeScript typecheck
         run: npm run typecheck
 
+      - name: Test browser state transitions
+        run: npm run test:web
+
       - name: Build JS bundles
         run: npm run build
 

@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import func, select
 
 from app.db import engine
-from app.enrollment_completion import deliver
+from app.enrollment_completion import deliver, retryable_deliveries
 from app.schema import enrollment_completions
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -20,10 +20,7 @@ with engine.connect() as conn:
     pending = (
         conn.execute(
             select(enrollment_completions.c.request_id)
-            .where(
-                enrollment_completions.c.delivered_at.is_(None),
-                enrollment_completions.c.last_status.is_distinct_from(409),
-            )
+            .where(retryable_deliveries())
             .limit(args.limit)
         )
         .scalars()

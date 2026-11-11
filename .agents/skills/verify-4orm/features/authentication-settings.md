@@ -26,3 +26,10 @@ grant eligibility; that requires the Auth/Maps/Burger integration receipt.
 `scripts/verify_central_auth.py` drives a visible sign-in form at a disposable HTTPS
 OIDC provider, then the real 4orm callback and authenticated settings. It verifies
 desktop/mobile layout and invalid state with real signed tokens and isolated data.
+
+The runner also opens the new-thread form, previews actual text and uploads a tiny
+fixture image through the visible picker. It asserts terminal success, released
+controls, accessible status/busy state and desktop/mobile overflow. Controlled
+transport regressions in `npm run test:web` cover out-of-order previews, rejected
+requests and duplicate uploads; browser verification complements those with real
+HTTP and DOM replacement. See `STATE_MACHINES.md` for owners and retry rules.

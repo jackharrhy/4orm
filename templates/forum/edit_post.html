@@ -35,8 +35,7 @@
     <label>
       content
       <textarea name="content" id="edit-post-content" rows="10" required>
-{{ post.content }}</textarea
-      >
+{{ post.content }}</textarea>
     </label>
 
     {{ media_snippet_picker(media_items, 'edit-post-content', format='bbcode') }}
@@ -51,7 +50,11 @@
         preview
       </button>
     </div>
-    <div id="preview-edit-post-content" class="forum-preview fourm-hidden"></div>
+    <div
+      id="preview-edit-post-content"
+      class="forum-preview fourm-hidden"
+      data-state="idle"
+    ></div>
   </form>
 
   <p class="fourm-space-sm">

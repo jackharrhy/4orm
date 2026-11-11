@@ -67,14 +67,20 @@ def test_oidc_transaction_is_one_use_and_checks_state_and_age(monkeypatch):
     )
     calls = []
     monkeypatch.setattr(oidc, "provider_json", lambda *args: calls.append(args))
-    session = {"oidc_transaction": {"state": "correct", "created": int(time.time())}}
-    with pytest.raises(ValueError):
+    transaction = {
+        "state": "correct",
+        "created": int(time.time()),
+        "nonce": "nonce",
+        "verifier": "verifier",
+        "next": "",
+    }
+    session = {"oidc_transaction": transaction}
+
+    with pytest.raises(ValueError, match="state is invalid"):
         oidc.complete(session, "wrong", "code")
     assert "oidc_transaction" not in session
-    session = {
-        "oidc_transaction": {"state": "correct", "created": int(time.time()) - 301}
-    }
-    with pytest.raises(ValueError):
+    session = {"oidc_transaction": transaction | {"created": int(time.time()) - 301}}
+    with pytest.raises(ValueError, match="expired"):
         oidc.complete(session, "correct", "code")
     assert not calls
 
@@ -229,3 +235,14 @@ def test_admin_recovery_uses_central_identity_management(
             ).scalar_one()
             == 0
         )
+
+
+@pytest.mark.parametrize(
+    "transaction",
+    ["invalid", {"state": 1, "created": 1}, {"state": "state", "created": "invalid"}],
+)
+def test_malformed_signin_transaction_fails_closed_and_is_consumed(transaction):
+    session = {"oidc_transaction": transaction}
+    with pytest.raises(ValueError):
+        oidc.complete(session, "state", "code")
+    assert "oidc_transaction" not in session

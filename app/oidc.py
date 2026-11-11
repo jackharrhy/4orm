@@ -3,13 +3,64 @@
 import base64
 import hashlib
 import json
+import math
 import os
 import secrets
 import time
+from enum import StrEnum
 from urllib.parse import urlencode, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from joserfc import jwk, jwt
+
+
+class SessionState(StrEnum):
+    ANONYMOUS = "anonymous"
+    INVALID = "invalid"
+    EXPIRED = "expired"
+    AUTHENTICATED = "authenticated"
+
+
+def session_state(session, issuer, now=None) -> SessionState:
+    if not session.get("user_id"):
+        return SessionState.ANONYMOUS
+    if session.get("oidc_issuer") != issuer:
+        return SessionState.INVALID
+    expires = session.get("oidc_expires_at", 0)
+    if (
+        not isinstance(expires, (int, float))
+        or isinstance(expires, bool)
+        or (isinstance(expires, float) and not math.isfinite(expires))
+    ):
+        return SessionState.INVALID
+    now = time.time() if now is None else now
+    return SessionState.EXPIRED if expires <= now else SessionState.AUTHENTICATED
+
+
+class SignInState(StrEnum):
+    MISSING = "missing"
+    INVALID = "invalid"
+    WAITING = "waiting"
+    EXPIRED = "expired"
+
+
+def signin_state(transaction, now=None) -> SignInState:
+    if transaction is None:
+        return SignInState.MISSING
+    if not isinstance(transaction, dict) or not all(
+        isinstance(transaction.get(key), str) and transaction[key]
+        for key in ("state", "nonce", "verifier")
+    ):
+        return SignInState.INVALID
+    created = transaction.get("created")
+    if not isinstance(created, int) or isinstance(created, bool):
+        return SignInState.INVALID
+    now = int(time.time()) if now is None else now
+    return (
+        SignInState.EXPIRED
+        if now - transaction["created"] > 300
+        else SignInState.WAITING
+    )
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -118,13 +169,14 @@ def validate_identity(id_token, keys, issuer, client_id, nonce):
 
 def complete(session, state, code):
     transaction = session.pop("oidc_transaction", None)
+    status = signin_state(transaction)
     if (
-        not transaction
+        status in {SignInState.MISSING, SignInState.INVALID}
         or not isinstance(state, str)
         or not secrets.compare_digest(transaction["state"], state)
     ):
         raise ValueError("Sign-in state is invalid")
-    if int(time.time()) - transaction["created"] > 300:
+    if status == SignInState.EXPIRED:
         raise ValueError("Sign-in request expired")
     if not code or len(code) > 4096:
         raise ValueError("Sign-in code is invalid")

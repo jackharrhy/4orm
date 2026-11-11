@@ -3,8 +3,12 @@
 import asyncio
 import contextlib
 import time
+from collections import deque
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import StrEnum
 from html import escape
+from threading import Lock
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -15,7 +19,6 @@ from app.schema import chat_messages, users
 
 router = APIRouter(tags=["chat"])
 
-_chat_buffer: list[dict] = []
 _chat_event = asyncio.Event()
 _BUFFER_MAX = 200
 _FLOOD_WINDOW = 30  # seconds
@@ -23,16 +26,71 @@ _FLOOD_MAX = 20  # max messages in window
 _FLOOD_TIMEOUT = 60  # seconds to time out
 _post_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
 _timed_out_until: dict[int, float] = {}  # user_id -> monotonic time
-_presence: dict[int, tuple[str, bool]] = {}  # user_id -> (username, is_active)
 _PRESENCE_INTERVAL = 10  # seconds between presence broadcasts
+
+
+class MessageBuffer:
+    """Bounded messages with a monotonic cursor, independent of eviction."""
+
+    def __init__(self, capacity):
+        self._messages = deque(maxlen=capacity)
+        self._cursor = 0
+        self._lock = Lock()
+
+    @property
+    def cursor(self):
+        with self._lock:
+            return self._cursor
+
+    def append(self, message):
+        with self._lock:
+            self._cursor += 1
+            self._messages.append((self._cursor, message))
+
+    def since(self, cursor):
+        with self._lock:
+            return self._cursor, [
+                m for position, m in self._messages if position > cursor
+            ]
+
+    def clear(self):
+        with self._lock:
+            self._messages.clear()
+
+
+class PresenceState(StrEnum):
+    ACTIVE = "active"
+    IDLE = "idle"
+
+
+@dataclass
+class Presence:
+    username: str
+    state: PresenceState = PresenceState.ACTIVE
+    connections: int = 0
+
+
+class PostingState(StrEnum):
+    READY = "ready"
+    TIMED_OUT = "timed_out"
+
+
+def posting_state(user_id, now) -> PostingState:
+    return (
+        PostingState.TIMED_OUT
+        if now < _timed_out_until.get(user_id, 0)
+        else PostingState.READY
+    )
+
+
+_chat_buffer = MessageBuffer(_BUFFER_MAX)
+_presence: dict[int, Presence] = {}
 
 
 def _inject_system_message(text: str) -> None:
     """Push a system message into the chat stream."""
     msg = {"username": "system", "message": text, "created_at": datetime.now(UTC)}
     _chat_buffer.append(msg)
-    if len(_chat_buffer) > _BUFFER_MAX:
-        _chat_buffer[:] = _chat_buffer[-_BUFFER_MAX:]
     _chat_event.set()
 
 
@@ -91,11 +149,13 @@ def _render_presence_html() -> str:
     """Render the presence indicator as HTML."""
     if not _presence:
         return '<span class="muted">nobody here</span>'
-    entries = sorted(_presence.values(), key=lambda x: x[0])
+    entries = sorted(_presence.values(), key=lambda p: p.username)
     parts = []
-    for username, is_active in entries:
-        dot = "🟢" if is_active else "🟡"
-        parts.append(f'<span class="chat-present">{dot} {escape(username)}</span>')
+    for person in entries:
+        dot = "🟢" if person.state == PresenceState.ACTIVE else "🟡"
+        parts.append(
+            f'<span class="chat-present">{dot} {escape(person.username)}</span>'
+        )
     return " ".join(parts)
 
 
@@ -105,9 +165,11 @@ async def chat_stream(request: Request):
     me = current_user(request)
     uid = me["id"] if me else None
     if uid:
-        _presence[uid] = (me["username"], True)
+        person = _presence.setdefault(uid, Presence(me["username"]))
+        person.connections += 1
+        person.state = PresenceState.ACTIVE
 
-    last_seen = len(_chat_buffer)
+    last_seen = _chat_buffer.cursor
     last_presence = 0.0
 
     async def event_generator():
@@ -119,11 +181,10 @@ async def chat_stream(request: Request):
 
             while True:
                 _chat_event.clear()
-                while len(_chat_buffer) > last_seen:
-                    msg = _chat_buffer[last_seen]
+                last_seen, messages = _chat_buffer.since(last_seen)
+                for msg in messages:
                     html = _render_message_html(msg, 0, 1)
                     yield f"event: message\ndata: {html}\n\n"
-                    last_seen += 1
 
                 now = time.monotonic()
                 if now - last_presence >= _PRESENCE_INTERVAL:
@@ -136,7 +197,9 @@ async def chat_stream(request: Request):
                     )
         finally:
             if uid and uid in _presence:
-                del _presence[uid]
+                _presence[uid].connections -= 1
+                if _presence[uid].connections == 0:
+                    del _presence[uid]
 
     return StreamingResponse(
         event_generator(),
@@ -153,8 +216,9 @@ async def chat_presence_update(request: Request):
         return HTMLResponse("")
     body = await request.json()
     is_active = body.get("active", True)
-    username = _presence[me["id"]][0]
-    _presence[me["id"]] = (username, is_active)
+    _presence[me["id"]].state = (
+        PresenceState.ACTIVE if is_active else PresenceState.IDLE
+    )
     return HTMLResponse("")
 
 
@@ -173,10 +237,10 @@ def chat_post(request: Request, message: str = Form(...)):
 
     # Posting means you're active
     if uid in _presence:
-        _presence[uid] = (_presence[uid][0], True)
+        _presence[uid].state = PresenceState.ACTIVE
 
     # Check if user is timed out
-    if uid in _timed_out_until and now < _timed_out_until[uid]:
+    if posting_state(uid, now) == PostingState.TIMED_OUT:
         remaining = int(_timed_out_until[uid] - now)
         _inject_system_message(f"{me['username']} is timed out for {remaining}s")
         if is_htmx(request):
@@ -203,8 +267,6 @@ def chat_post(request: Request, message: str = Form(...)):
         "created_at": datetime.now(UTC),
     }
     _chat_buffer.append(msg)
-    if len(_chat_buffer) > _BUFFER_MAX:
-        _chat_buffer[:] = _chat_buffer[-_BUFFER_MAX:]
     _chat_event.set()
 
     if is_htmx(request):

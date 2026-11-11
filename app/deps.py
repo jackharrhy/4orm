@@ -48,14 +48,14 @@ def setup_logging():
 
 setup_logging()
 
-from app.queries.users import get_user_by_id  # noqa: E402
+from app.queries.users import AccountState, account_state, get_user_by_id  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Paths & constants
 # ---------------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-UPLOADS_DIR = BASE_DIR / "uploads"
+UPLOADS_DIR = Path(os.environ.get("FOURM_UPLOADS_DIR") or BASE_DIR / "uploads")
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
@@ -268,8 +268,6 @@ def json_response(model: BaseModel, status_code: int = 200) -> JSONResponse:
 
 
 def current_user(request: Request):
-    import time
-
     from app import oidc
 
     user_id = request.session.get("user_id")
@@ -279,15 +277,12 @@ def current_user(request: Request):
         issuer = oidc.configuration()[0]
     except ValueError:
         raise HTTPException(503, "Central identity is not configured") from None
-    if (
-        request.session.get("oidc_issuer") != issuer
-        or request.session.get("oidc_expires_at", 0) <= time.time()
-    ):
+    if oidc.session_state(request.session, issuer) != oidc.SessionState.AUTHENTICATED:
         request.session.clear()
         return None
     with get_engine(request).begin() as conn:
         user = get_user_by_id(conn, user_id)
-    if user and user.get("is_disabled"):
+    if user and account_state(user) == AccountState.DISABLED:
         # Clear session for disabled users
         request.session.clear()
         return None

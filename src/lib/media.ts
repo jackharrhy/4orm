@@ -11,6 +11,9 @@ declare global {
 window._mediaFormat = window._mediaFormat || {};
 window._cmEditors = window._cmEditors || {};
 
+type UploadState = "idle" | "pending" | "success" | "error";
+const uploads = new WeakMap<HTMLElement, UploadState>();
+
 export function quickUploadMedia(textareaId: string, fmt: string): void {
   const fileInput = document.getElementById(
     "media-upload-file-" + textareaId,
@@ -19,6 +22,17 @@ export function quickUploadMedia(textareaId: string, fmt: string): void {
     alert("please select a file first");
     return;
   }
+  const picker = document.getElementById("media-picker-" + textareaId);
+  if (!picker || (uploads.get(picker) ?? "idle") === "pending") return;
+  const button = picker.querySelector<HTMLButtonElement>(
+    "[data-upload-button]",
+  );
+  const status = document.getElementById("media-upload-status-" + textareaId);
+  uploads.set(picker, "pending");
+  picker.dataset.state = "pending";
+  picker.setAttribute("aria-busy", "true");
+  if (button) button.disabled = true;
+  if (status) status.textContent = "Uploading…";
   const formData = new FormData();
   formData.append("file", fileInput.files[0]);
   formData.append("picker_textarea_id", textareaId);
@@ -33,10 +47,29 @@ export function quickUploadMedia(textareaId: string, fmt: string): void {
       return resp.text();
     })
     .then((html) => {
-      const picker = document.getElementById("media-picker-" + textareaId);
-      if (picker) picker.outerHTML = html;
+      uploads.set(picker, "success");
+      if (document.getElementById("media-picker-" + textareaId) !== picker)
+        return;
+      picker.outerHTML = html;
+      const updated = document.getElementById("media-picker-" + textareaId);
+      if (updated) {
+        updated.dataset.state = "success";
+        updateMediaButtons(textareaId);
+      }
+      const message = document.getElementById(
+        "media-upload-status-" + textareaId,
+      );
+      if (message) message.textContent = "Uploaded.";
     })
-    .catch((err: Error) => alert(err.message || "upload failed"));
+    .catch(() => {
+      uploads.set(picker, "error");
+      picker.dataset.state = "error";
+      if (status) status.textContent = "Upload failed. Please try again.";
+    })
+    .finally(() => {
+      picker.setAttribute("aria-busy", "false");
+      if (button) button.disabled = false;
+    });
 }
 
 export function updateMediaButtons(textareaId: string): void {

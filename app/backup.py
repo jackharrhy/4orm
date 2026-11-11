@@ -5,12 +5,25 @@ import shutil
 import sqlite3
 import threading
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 
 from loguru import logger
 
 BACKUP_INTERVAL_SECONDS = 3600  # 1 hour
 MAX_BACKUPS = 48  # Keep 48 hourly backups (2 days)
+
+
+class BackupState(StrEnum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class SchedulerState(StrEnum):
+    STOPPED = "stopped"
+    RUNNING = "running"
+    STOPPING = "stopping"
 
 
 def backup_database(src_db_path: Path, dest_db_path: Path) -> None:
@@ -147,6 +160,7 @@ def run_backup(
 
     result = {
         "timestamp": timestamp,
+        "state": BackupState.RUNNING,
         "db_backed_up": False,
         "files_linked": 0,
         "pruned": 0,
@@ -167,6 +181,7 @@ def run_backup(
         # Prune old backups
         result["pruned"] = prune_old_backups(backup_dir, max_backups)
 
+        result["state"] = BackupState.COMPLETED
         logger.info(
             "Backup complete: {} (db={}, files={}, pruned={})",
             timestamp,
@@ -175,6 +190,7 @@ def run_backup(
             result["pruned"],
         )
     except Exception as e:
+        result["state"] = BackupState.FAILED
         result["error"] = str(e)
         logger.exception("Backup failed: {}", e)
         # Clean up failed snapshot
@@ -204,9 +220,19 @@ class BackupScheduler:
         self._stop_event = threading.Event()
         self.last_result = None
 
+    @property
+    def state(self):
+        if not self._thread or not self._thread.is_alive():
+            return SchedulerState.STOPPED
+        return (
+            SchedulerState.STOPPING
+            if self._stop_event.is_set()
+            else SchedulerState.RUNNING
+        )
+
     def start(self):
         """Start the backup scheduler in a daemon thread."""
-        if self._thread and self._thread.is_alive():
+        if self.state != SchedulerState.STOPPED:
             return
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -218,7 +244,7 @@ class BackupScheduler:
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
-        logger.info("Backup scheduler stopped")
+        logger.info("Backup scheduler {}", self.state)
 
     def _run(self):
         """Run backups periodically."""
