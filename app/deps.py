@@ -329,7 +329,7 @@ def require_api_user(request: Request):
     try:
         with get_engine(request).begin() as conn:
             user = get_api_user(conn, token, permission)
-    except (OSError, ValueError, KeyError):
+    except OSError, ValueError, KeyError:
         raise HTTPException(503, detail="identity service unavailable") from None
     if not user:
         raise HTTPException(401, detail="invalid or unauthorized bearer token")

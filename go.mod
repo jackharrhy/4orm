@@ -10,7 +10,7 @@ require (
 require (
 	aead.dev/minisign v0.3.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.9 // indirect
-	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 )

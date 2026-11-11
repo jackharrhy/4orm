@@ -46,7 +46,7 @@ type credentials struct {
 }
 
 const cliCallbackAddress = "localhost:4444"
-const cliVersion = "0.4.0"
+const cliVersion = "0.4.1"
 const githubRepo = "jackharrhy/4orm"
 
 type page struct {

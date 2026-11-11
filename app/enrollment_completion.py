@@ -206,7 +206,7 @@ def deliver(engine, request_id):
         )
     except HTTPError as error:
         status = error.code
-    except (ValueError, OSError, URLError):
+    except ValueError, OSError, URLError:
         status = 502
     with engine.begin() as conn:
         if status == 200:
