@@ -22,7 +22,7 @@ class Claim(BaseModel):
 def service(request):
     try:
         expected = "Bearer " + enrollment.integration_key()
-    except (ValueError, OSError):
+    except ValueError, OSError:
         raise HTTPException(503, "Enrollment integration is unavailable") from None
     if not secrets.compare_digest(request.headers.get("authorization", ""), expected):
         raise HTTPException(401, "Enrollment service authentication required")

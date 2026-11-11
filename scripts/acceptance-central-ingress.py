@@ -99,7 +99,7 @@ def check_clients(clients):
                 raw = response.read(32768)
                 try:
                     value = json.loads(raw)
-                except (ValueError, UnicodeError):
+                except ValueError, UnicodeError:
                     value = None
                 passed = response.status == 400 and value == {
                     "allowed": False,
@@ -143,5 +143,5 @@ if __name__ == "__main__":
             f"{'PASS' if passed else 'FAIL'}: {len(results)} live PKCE ingress checks"
         )
         raise SystemExit(0 if passed else 1)
-    except (OSError, ValueError, KeyError):
+    except OSError, ValueError, KeyError:
         raise SystemExit("FAIL: central ingress acceptance unavailable") from None

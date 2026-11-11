@@ -10,6 +10,7 @@
 ## Run
 
 ```bash
+uv python install
 uv sync
 FOURM_ENV=development uv run uvicorn app.main:app --reload
 ```

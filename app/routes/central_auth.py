@@ -42,7 +42,7 @@ def register(request: Request, invite_code: str = Form(...)):
 def start(request: Request):
     try:
         destination = oidc.begin(request.session, request.query_params.get("next"))
-    except (ValueError, OSError, URLError):
+    except ValueError, OSError, URLError:
         raise HTTPException(503, "Central sign-in is unavailable") from None
     return RedirectResponse(destination, 303)
 
@@ -55,7 +55,7 @@ def callback(request: Request, background_tasks: BackgroundTasks):
             request.query_params.get("state"),
             request.query_params.get("code"),
         )
-    except (ValueError, KeyError, JoseError, URLError):
+    except ValueError, KeyError, JoseError, URLError:
         raise HTTPException(
             400, "Sign-in failed. Start again from the login page."
         ) from None
