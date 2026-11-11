@@ -32,7 +32,7 @@
             {% endfor %}
           </p>
         {% endif %}
-        {% if inv.status == 'active' and inv.uses_count == 0 %}
+        {% if inv.status in ('active', 'expired') and inv.uses_count == 0 and not inv.pending_reservations %}
           <form
             method="post"
             action="/settings/invites/{{ inv.id }}/delete"
@@ -44,7 +44,7 @@
           >
             <button type="submit">delete</button>
           </form>
-        {% elif inv.status == 'active' or inv.status == 'exhausted' %}
+        {% elif inv.status in ('active', 'exhausted', 'reserved', 'expired') %}
           <form
             method="post"
             action="/settings/invites/{{ inv.id }}/disable"

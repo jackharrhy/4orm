@@ -1,40 +1,97 @@
 {% macro media_snippet_picker(media_items, textarea_id, format="html", selected_path="") %}
-  <div class="media-picker" id="media-picker-{{ textarea_id }}">
+  <div
+    class="media-picker"
+    id="media-picker-{{ textarea_id }}"
+    data-state="idle"
+  >
     <div class="media-picker-row">
       <div class="media-picker-select">
         {% if media_items %}
-          <select id="media-select-{{ textarea_id }}" onchange="updateMediaButtons('{{ textarea_id }}')">
+          <select
+            id="media-select-{{ textarea_id }}"
+            onchange="updateMediaButtons('{{ textarea_id }}')"
+          >
             {% for item in media_items %}
               <option
                 value="{{ item.storage_path }}"
                 data-mime="{{ item.mime_type or '' }}"
                 data-alt="{{ item.alt_text or '' }}"
                 {% if selected_path and item.storage_path == selected_path %}selected{% endif %}
-              >{{ item.storage_path.split('/')[-1] }}</option>
+              >
+                {{ item.storage_path.split('/')[-1] }}
+              </option>
             {% endfor %}
           </select>
-          <div class="fourm-actions fourm-space-xs" id="media-buttons-{{ textarea_id }}">
-            <button type="button" class="btn-sm media-btn-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'img')">img</button>
-            <button type="button" class="btn-sm media-btn-linked-img" onclick="insertMediaSnippet('{{ textarea_id }}', 'linked-img')">linked img</button>
-            <button type="button" class="btn-sm media-btn-video" onclick="insertMediaSnippet('{{ textarea_id }}', 'video')">video</button>
-            <button type="button" class="btn-sm media-btn-audio" onclick="insertMediaSnippet('{{ textarea_id }}', 'audio')">audio</button>
-            <button type="button" class="btn-sm" onclick="insertMediaSnippet('{{ textarea_id }}', 'link')">link</button>
+          <div
+            class="fourm-actions fourm-space-xs"
+            id="media-buttons-{{ textarea_id }}"
+          >
+            <button
+              type="button"
+              class="btn-sm media-btn-img"
+              onclick="insertMediaSnippet('{{ textarea_id }}', 'img')"
+            >
+              img
+            </button>
+            <button
+              type="button"
+              class="btn-sm media-btn-linked-img"
+              onclick="insertMediaSnippet('{{ textarea_id }}', 'linked-img')"
+            >
+              linked img
+            </button>
+            <button
+              type="button"
+              class="btn-sm media-btn-video"
+              onclick="insertMediaSnippet('{{ textarea_id }}', 'video')"
+            >
+              video
+            </button>
+            <button
+              type="button"
+              class="btn-sm media-btn-audio"
+              onclick="insertMediaSnippet('{{ textarea_id }}', 'audio')"
+            >
+              audio
+            </button>
+            <button
+              type="button"
+              class="btn-sm"
+              onclick="insertMediaSnippet('{{ textarea_id }}', 'link')"
+            >
+              link
+            </button>
           </div>
         {% else %}
           <p class="muted fourm-empty-compact">no media yet · upload one →</p>
         {% endif %}
       </div>
       <div class="media-picker-upload">
-        <input type="file" id="media-upload-file-{{ textarea_id }}" class="fourm-file-compact" />
-        <button type="button" class="btn-sm fourm-space-xs" onclick="quickUploadMedia('{{ textarea_id }}', '{{ format }}')">upload</button>
+        <input
+          type="file"
+          id="media-upload-file-{{ textarea_id }}"
+          class="fourm-file-compact"
+        />
+        <button
+          type="button"
+          class="btn-sm fourm-space-xs"
+          data-upload-button
+          onclick="quickUploadMedia('{{ textarea_id }}', '{{ format }}')"
+        >
+          upload
+        </button>
+        <span
+          id="media-upload-status-{{ textarea_id }}"
+          role="status"
+          aria-live="polite"
+        ></span>
       </div>
     </div>
   </div>
   <script>
     window._mediaFormat = window._mediaFormat || {};
     window._mediaFormat["{{ textarea_id }}"] = "{{ format }}";
-    {% if media_items %}
-      if (window.updateMediaButtons) window.updateMediaButtons("{{ textarea_id }}");
-    {% endif %}
+    if (window.updateMediaButtons)
+      window.updateMediaButtons("{{ textarea_id }}");
   </script>
 {% endmacro %}

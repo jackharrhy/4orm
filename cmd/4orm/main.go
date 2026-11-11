@@ -708,10 +708,17 @@ func (c client) do(method, path string, body io.Reader, contentType string, outp
 			return err
 		}
 	}
-	return c.doWithToken(method, path, bodyBytes, contentType, output, true)
+	return c.doWithToken(method, path, bodyBytes, contentType, output, initialRequest)
 }
 
-func (c client) doWithToken(method, path string, body []byte, contentType string, output any, allowRefresh bool) error {
+type requestAttempt uint8
+
+const (
+	initialRequest requestAttempt = iota
+	retriedRequest
+)
+
+func (c client) doWithToken(method, path string, body []byte, contentType string, output any, attempt requestAttempt) error {
 	var requestBody io.Reader
 	if body != nil {
 		requestBody = bytes.NewReader(body)
@@ -730,12 +737,12 @@ func (c client) doWithToken(method, path string, body []byte, contentType string
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusUnauthorized && allowRefresh && c.refreshToken != "" {
+	if resp.StatusCode == http.StatusUnauthorized && attempt == initialRequest && c.refreshToken != "" {
 		io.Copy(io.Discard, resp.Body)
 		if err := c.refresh(); err != nil {
 			return err
 		}
-		return c.doWithToken(method, path, body, contentType, output, false)
+		return c.doWithToken(method, path, body, contentType, output, retriedRequest)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))

@@ -36,52 +36,94 @@ function sendSubscription(sub: PushSubscription): Promise<void> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  }).then(() => {});
+  }).then((response) => {
+    if (!response.ok) throw new Error("Push registration failed");
+  });
+}
+
+type PushState =
+  | "unavailable"
+  | "registering"
+  | "disabled"
+  | "permission"
+  | "denied"
+  | "subscribing"
+  | "syncing"
+  | "subscribed"
+  | "error";
+let running = false;
+function setPushState(state: PushState): void {
+  document.body.dataset.pushState = state;
+  const status = document.getElementById("push-status");
+  if (status) {
+    const messages: Record<PushState, string> = {
+      unavailable: "Notifications aren't available on this device.",
+      registering: "Connecting notifications…",
+      disabled: "Notifications aren't available on this device.",
+      permission: "Allow notifications in your browser to connect this device.",
+      denied: "Notifications are blocked in your browser settings.",
+      subscribing: "Connecting notifications…",
+      syncing: "Connecting notifications…",
+      subscribed: "Notifications are connected on this device.",
+      error: "Notifications couldn't connect. Reload to try again.",
+    };
+    status.textContent = messages[state];
+  }
 }
 
 export function initPushSubscription(): void {
-  if (!("serviceWorker" in navigator)) return;
-
-  const vapidKey = document.body.dataset.vapidKey || "";
-  const isLoggedIn = document.body.dataset.loggedIn === "true";
-
-  navigator.serviceWorker.register("/sw.js").then((reg) => {
-    if (!vapidKey || !isLoggedIn || !("PushManager" in window)) return;
-
-    reg.pushManager.getSubscription().then((existing) => {
-      if (existing) {
-        // Already subscribed -- re-send to ensure server has it
-        sendSubscription(existing);
-        return;
-      }
-
-      if (Notification.permission === "granted") {
-        reg.pushManager
-          .subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidKey),
-          })
-          .then((newSub) => sendSubscription(newSub));
-      } else if (Notification.permission === "default") {
-        Notification.requestPermission().then((perm) => {
-          if (perm !== "granted") return;
-          reg.pushManager
-            .subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(vapidKey),
-            })
-            .then((newSub) => sendSubscription(newSub));
-        });
-      }
+  if (running) return;
+  if (!("serviceWorker" in navigator)) {
+    setPushState("unavailable");
+    return;
+  }
+  running = true;
+  setPushState("registering");
+  void registerPush()
+    .catch(() => setPushState("error"))
+    .finally(() => {
+      running = false;
     });
-  });
-
-  // Clean up old service workers from /static/ scope
-  navigator.serviceWorker.getRegistrations().then((regs) => {
-    for (const reg of regs) {
-      if (reg.scope.includes("/static/")) {
-        reg.unregister();
+  void navigator.serviceWorker
+    .getRegistrations()
+    .then((regs) => {
+      for (const reg of regs) {
+        if (reg.scope.includes("/static/"))
+          void reg.unregister().catch(() => {});
       }
+    })
+    .catch(() => {});
+}
+
+async function registerPush(): Promise<void> {
+  const reg = await navigator.serviceWorker.register("/sw.js");
+  const vapidKey = document.body.dataset.vapidKey || "";
+  if (
+    !vapidKey ||
+    document.body.dataset.loggedIn !== "true" ||
+    !("PushManager" in window)
+  ) {
+    setPushState("disabled");
+    return;
+  }
+  let subscription = await reg.pushManager.getSubscription();
+  if (!subscription) {
+    setPushState("permission");
+    const permission =
+      Notification.permission === "default"
+        ? await Notification.requestPermission()
+        : Notification.permission;
+    if (permission !== "granted") {
+      setPushState(permission === "denied" ? "denied" : "permission");
+      return;
     }
-  });
+    setPushState("subscribing");
+    subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+  }
+  setPushState("syncing");
+  await sendSubscription(subscription);
+  setPushState("subscribed");
 }

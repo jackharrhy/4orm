@@ -23,6 +23,7 @@ from app.config import session_config
 from app.db import engine as default_engine
 from app.deps import (
     BASE_DIR,
+    UPLOADS_DIR,
     LoginRequired,
     current_user,
     get_engine,
@@ -81,7 +82,7 @@ async def lifespan(application: FastAPI):
         backup_dir.mkdir(exist_ok=True)
         scheduler = BackupScheduler(
             db_path=BASE_DIR / "data" / "4orm.db",
-            uploads_dir=BASE_DIR / "uploads",
+            uploads_dir=UPLOADS_DIR,
             backup_dir=backup_dir,
         )
         application.state.backup_scheduler = scheduler
@@ -193,7 +194,7 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-app.mount("/uploads", StaticFiles(directory=BASE_DIR / "uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 app.include_router(auth.router)
 app.include_router(central_auth.router)

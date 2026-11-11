@@ -73,8 +73,7 @@
         hx-swap="innerHTML"
       >
         <textarea name="custom_css" rows="10" data-codemirror="css">
-{{ me.custom_css }}</textarea
-        >
+{{ me.custom_css }}</textarea>
         <button>save css</button>
         <span id="css-status"></span>
       </form>
@@ -93,8 +92,7 @@
         hx-swap="innerHTML"
       >
         <textarea name="custom_html" rows="10" data-codemirror="html">
-{{ me.custom_html }}</textarea
-        >
+{{ me.custom_html }}</textarea>
         <button>save html</button>
         <span id="html-status"></span>
       </form>
@@ -139,8 +137,7 @@
         <label
           >card css
           <textarea name="card_css" rows="5" data-codemirror="css">
-{{ card_settings.card_css if card_settings else '' }}</textarea
-          >
+{{ card_settings.card_css if card_settings else '' }}</textarea>
         </label>
         <button>save card</button>
         <span id="card-status"></span>
@@ -196,12 +193,10 @@
       >
         <label>guestbook css</label>
         <textarea name="guestbook_css" rows="6" data-codemirror="css">
-{{ me.guestbook_css }}</textarea
-        >
+{{ me.guestbook_css }}</textarea>
         <label>guestbook html</label>
         <textarea name="guestbook_html" rows="6" data-codemirror="html">
-{{ me.guestbook_html }}</textarea
-        >
+{{ me.guestbook_html }}</textarea>
         <button>save guestbook</button>
         <span id="guestbook-status"></span>
       </form>
@@ -225,12 +220,10 @@
       >
         <label>counter css</label>
         <textarea name="counter_css" rows="6" data-codemirror="css">
-{{ me.counter_css }}</textarea
-        >
+{{ me.counter_css }}</textarea>
         <label>counter html</label>
         <textarea name="counter_html" rows="6" data-codemirror="html">
-{{ me.counter_html }}</textarea
-        >
+{{ me.counter_html }}</textarea>
         <button>save counter</button>
         <span id="counter-status"></span>
       </form>
@@ -297,12 +290,10 @@
         /></label>
         <label>status css</label>
         <textarea name="status_css" rows="4" data-codemirror="css">
-{{ me.status_css }}</textarea
-        >
+{{ me.status_css }}</textarea>
         <label>status html</label>
         <textarea name="status_html" rows="4" data-codemirror="html">
-{{ me.status_html }}</textarea
-        >
+{{ me.status_html }}</textarea>
         <button>save status</button>
         <span id="status-status"></span>
       </form>
@@ -323,12 +314,10 @@
       >
         <label>player css</label>
         <textarea name="player_css" rows="4" data-codemirror="css">
-{{ me.player_css }}</textarea
-        >
+{{ me.player_css }}</textarea>
         <label>player html</label>
         <textarea name="player_html" rows="4" data-codemirror="html">
-{{ me.player_html }}</textarea
-        >
+{{ me.player_html }}</textarea>
         <button>save player styling</button>
         <span id="player-status"></span>
       </form>
@@ -388,6 +377,7 @@
         <span id="notif-test-status"></span>
       </form>
       <h3 class="fourm-space-md">registered devices</h3>
+      <p id="push-status" role="status" aria-live="polite"></p>
       <div id="push-devices">
         <button
           class="btn-sm"
@@ -416,8 +406,7 @@
         hx-swap="innerHTML"
       >
         <textarea name="forum_signature" rows="3" maxlength="200">
-{{ me.forum_signature }}</textarea
-        >
+{{ me.forum_signature }}</textarea>
         <button>save signature</button>
         <span id="sig-status"></span>
       </form>

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -101,5 +102,19 @@ func TestCentralTokenExchangeDoesNotFollowRedirect(t *testing.T) {
 	_, _, err := c.exchangeCentral(source.URL, url.Values{"refresh_token": {"private"}})
 	if err == nil || forwarded {
 		t.Fatal("token redirect must fail without forwarding credentials")
+	}
+}
+
+func TestRetriedRequestIsTerminalOnUnauthorized(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+	c := client{baseURL: server.URL, http: server.Client(), accessToken: "access", refreshToken: "refresh"}
+	err := c.doWithToken(http.MethodGet, "/api/v1/me", nil, "", nil, retriedRequest)
+	if err == nil || !strings.Contains(err.Error(), "401") || requests != 1 {
+		t.Fatal("retried unauthorized request must stop without another refresh")
 	}
 }

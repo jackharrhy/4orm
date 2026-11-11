@@ -251,3 +251,28 @@ def test_callback_cannot_spend_reservation_for_a_different_subject(
             == 0
         )
         assert conn.execute(select(auth_enrollments.c.consumed_at)).scalar_one() is None
+
+
+def test_invite_display_tracks_reservation_expiry_and_protects_inflight_signup(
+    test_engine, seed_user
+):
+    from app.queries.users import delete_invite, get_invites_for_user
+
+    with test_engine.begin() as conn:
+        code = create_invite(conn, seed_user["id"])
+        row = enrollment.reserve(conn, code)
+        invite = next(
+            i for i in get_invites_for_user(conn, seed_user["id"]) if i["code"] == code
+        )
+        assert invite["status"] == "reserved"
+        assert delete_invite(conn, invite["id"], seed_user["id"]) is False
+        conn.execute(
+            update(auth_enrollments)
+            .where(auth_enrollments.c.id == row["id"])
+            .values(expires_at=1)
+        )
+        invite = next(
+            i for i in get_invites_for_user(conn, seed_user["id"]) if i["code"] == code
+        )
+        assert invite["status"] == "active"
+        assert delete_invite(conn, invite["id"], seed_user["id"]) is True

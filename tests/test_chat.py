@@ -82,3 +82,57 @@ def test_chat_anonymous_sees_sign_in(client):
 def test_homepage_has_chat_button(client, seed_user):
     r = client.get("/")
     assert 'href="/chat"' in r.text
+
+
+def test_stream_keeps_delivering_after_buffer_reaches_capacity(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.routes import chat
+
+    async def receive():
+        monkeypatch.setattr(chat, "current_user", lambda request: None)
+        monkeypatch.setattr(chat, "_chat_event", asyncio.Event())
+        chat._chat_buffer.clear()
+        for _ in range(chat._BUFFER_MAX):
+            chat._chat_buffer.append({"username": "member", "message": "old"})
+        response = await chat.chat_stream(SimpleNamespace())
+        stream = response.body_iterator
+        await anext(stream)  # initial presence
+        chat._chat_buffer.append({"username": "member", "message": "new message"})
+        chat._chat_event.set()
+        try:
+            event = await asyncio.wait_for(anext(stream), timeout=0.2)
+            assert "new message" in event
+        finally:
+            await stream.aclose()
+            chat._chat_buffer.clear()
+
+    asyncio.run(receive())
+
+
+def test_presence_stays_online_until_last_stream_disconnects(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.routes import chat
+
+    async def receive():
+        monkeypatch.setattr(
+            chat, "current_user", lambda request: {"id": 123, "username": "member"}
+        )
+        monkeypatch.setattr(chat, "_chat_event", asyncio.Event())
+        monkeypatch.setattr(chat, "_presence", {})
+        one = (await chat.chat_stream(SimpleNamespace())).body_iterator
+        two = (await chat.chat_stream(SimpleNamespace())).body_iterator
+        try:
+            await anext(one)
+            await anext(two)
+            await one.aclose()
+            assert "member" in chat._render_presence_html()
+        finally:
+            await one.aclose()
+            await two.aclose()
+        assert chat._render_presence_html() == '<span class="muted">nobody here</span>'
+
+    asyncio.run(receive())

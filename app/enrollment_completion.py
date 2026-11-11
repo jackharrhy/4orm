@@ -1,9 +1,10 @@
 """Committed profile proofs and durable Auth-owned companion grant receipts."""
 
 import time
+from enum import StrEnum
 from urllib.error import HTTPError, URLError
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from app import enrollment, oidc
@@ -16,6 +17,41 @@ from app.schema import (
 )
 
 ISSUER = "https://auth.jackharrhy.dev"
+
+
+class GrantState(StrEnum):
+    RESERVED = "reserved"
+    DONE = "done"
+
+
+def grant_state(record) -> GrantState:
+    return GrantState.DONE if record["outcome"] else GrantState.RESERVED
+
+
+class DeliveryState(StrEnum):
+    PENDING = "pending"
+    RETRYABLE = "retryable"
+    BLOCKED = "blocked"
+    DELIVERED = "delivered"
+
+
+def delivery_state(record) -> DeliveryState:
+    if record["delivered_at"] is not None:
+        return DeliveryState.DELIVERED
+    if record["last_status"] == 409:
+        return DeliveryState.BLOCKED
+    return (
+        DeliveryState.RETRYABLE
+        if record["last_status"] is not None
+        else DeliveryState.PENDING
+    )
+
+
+def retryable_deliveries():
+    return and_(
+        enrollment_completions.c.delivered_at.is_(None),
+        enrollment_completions.c.last_status.is_distinct_from(409),
+    )
 
 
 def proof(conn, request_id):
@@ -79,7 +115,7 @@ def receipt(conn, request_id, application_id, subject):
         "subject": subject,
         "applicationId": application_id,
         "attemptId": row["attempt_id"],
-        "state": "done" if row["outcome"] else "reserved",
+        "state": grant_state(row),
     }
 
 
@@ -111,7 +147,7 @@ def finish(conn, request_id, application_id, subject, attempt_id, grant_id, outc
     )
     if not row or row["attempt_id"] != attempt_id:
         raise ValueError("Completion does not own the original reservation")
-    if row["outcome"]:
+    if grant_state(row) == GrantState.DONE:
         if row["grant_id"] != grant_id or row["outcome"] != outcome:
             raise ValueError("Completion receipt is already terminal")
     else:
@@ -151,7 +187,10 @@ def deliver(engine, request_id):
             .mappings()
             .first()
         )
-        if not event or event["delivered_at"] or event["last_status"] == 409:
+        if not event or delivery_state(event) in {
+            DeliveryState.DELIVERED,
+            DeliveryState.BLOCKED,
+        }:
             return None
         record = proof(conn, request_id)
         if not record["enabled"]:

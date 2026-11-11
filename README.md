@@ -110,3 +110,9 @@ uv run python .agents/skills/verify-4orm/scripts/verify_4orm.py
 This uses a disposable loopback HTTPS OIDC provider with signed tokens, temporary
 certificate trust and an isolated database. Desktop/mobile screenshots, console
 logs and layout assertions are retained under `artifacts/verification/central/`.
+
+## State machines
+
+[State machines](STATE_MACHINES.md) maps authentication, enrollment, content,
+browser requests, chat and operations to their owners, transitions and guards.
+Run browser-state regressions with `npm run test:web`.
